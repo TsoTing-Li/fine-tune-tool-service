@@ -28,6 +28,20 @@ async def async_write_file_chunk(file_content: bytes, file_path: str, chunk_size
             await af.write(chunk)
 
 
+async def async_write_dataset_info_file(
+    dataset_info_file: str, dataset_info_content: dict
+):
+    async with aiofiles.open(dataset_info_file, "wb") as af:
+        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
+
+
+async def async_get_datset_info_file(dataset_info_file: str) -> dict:
+    async with aiofiles.open(dataset_info_file) as af:
+        content = await af.read()
+        dataset_info_content = orjson.loads(content)
+    return dataset_info_content
+
+
 async def async_check_sharegpt_format(
     dataset_content: List[dict],
     dataset_columns: Columns,
@@ -127,14 +141,14 @@ async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetIn
     dataset_info_content = dict()
 
     if is_exists:
-        async with aiofiles.open(dataset_info_file) as af:
-            content = await af.read()
-            dataset_info_content = orjson.loads(content)
+        dataset_info_content = await async_get_datset_info_file(
+            dataset_info_file=dataset_info_file
+        )
 
-            if dataset_info.dataset_name in dataset_info_content.keys():
-                raise ValueError(
-                    f"'dataset_name': '{dataset_info.dataset_name}' already in used"
-                )
+        if dataset_info.dataset_name in dataset_info_content.keys():
+            raise ValueError(
+                f"'dataset_name': '{dataset_info.dataset_name}' already in used"
+            )
 
     update_data = {
         dataset_info.dataset_name: {
@@ -151,8 +165,9 @@ async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetIn
         }
     dataset_info_content.update(update_data)
 
-    async with aiofiles.open(dataset_info_file, "wb") as af:
-        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
+    await async_write_dataset_info_file(
+        dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
+    )
 
 
 async def async_load_bytes(content: bytes):
@@ -176,19 +191,20 @@ async def async_del_dataset_info(dataset_info_file: str, del_dataset_name: str):
     if not is_exists:
         raise FileNotFoundError("There are currently no dataset") from None
 
-    async with aiofiles.open(dataset_info_file) as af:
-        content = await af.read()
-        dataset_info_content = orjson.loads(content)
+    dataset_info_content = await async_get_datset_info_file(
+        dataset_info_file=dataset_info_file
+    )
 
-        if del_dataset_name not in dataset_info_content.keys():
-            raise ValueError(
-                f"'dataset_name': {del_dataset_name} does not exists"
-            ) from None
+    if del_dataset_name not in dataset_info_content.keys():
+        raise ValueError(
+            f"'dataset_name': {del_dataset_name} does not exists"
+        ) from None
 
     if "file_name" in dataset_info_content[del_dataset_name].keys():
         await async_delete_file(dataset_info_content[del_dataset_name]["file_name"])
 
     del dataset_info_content[del_dataset_name]
 
-    async with aiofiles.open(dataset_info_file, "wb") as af:
-        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
+    await async_write_dataset_info_file(
+        dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
+    )
