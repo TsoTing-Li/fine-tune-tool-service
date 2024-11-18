@@ -21,7 +21,7 @@ async def async_check_path_exists(file_name: str) -> bool:
     return is_exists
 
 
-async def async_write_file(file_content: bytes, file_path: str, chunk_size: int):
+async def async_write_file_chunk(file_content: bytes, file_path: str, chunk_size: int):
     async with aiofiles.open(file_path, "wb") as af:
         for i in range(0, len(file_content), chunk_size):
             chunk = file_content[i : i + chunk_size]

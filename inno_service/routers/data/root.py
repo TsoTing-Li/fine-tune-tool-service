@@ -45,7 +45,7 @@ async def add_data(
             dataset_info.dataset_src = os.path.join(
                 SAVE_PATH, f"{generate_uuid()}-{dataset_info.dataset_src}"
             )
-            await utils.async_write_file(
+            await utils.async_write_file_chunk(
                 file_content=dataset_file,
                 file_path=dataset_info.dataset_src,
                 chunk_size=MAX_FILE_SIZE,
