@@ -152,7 +152,7 @@ async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetIn
     dataset_info_content.update(update_data)
 
     async with aiofiles.open(dataset_info_file, "wb") as af:
-        await af.write(orjson.dumps(dataset_info_content))
+        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
 
 
 async def async_load_bytes(content: bytes):
@@ -191,4 +191,4 @@ async def async_del_dataset_info(dataset_info_file: str, del_dataset_name: str):
     del dataset_info_content[del_dataset_name]
 
     async with aiofiles.open(dataset_info_file, "wb") as af:
-        await af.write(orjson.dumps(dataset_info_content))
+        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
