@@ -13,6 +13,7 @@ from inno_service.utils.utils import generate_uuid
 MAX_FILE_SIZE = 1024 * 1024 * 5
 DATASET_INFO_FILE = "data/dataset_info.json"
 SAVE_PATH = "data"
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 router = APIRouter(prefix="/data")
 
