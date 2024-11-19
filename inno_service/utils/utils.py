@@ -11,6 +11,6 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def get_current_time() -> int:
+def get_current_time() -> str:
     now = datetime.now()
-    return int(now.timestamp())
+    return now.strftime("%Y-%m-%d-%H-%M-%S")
