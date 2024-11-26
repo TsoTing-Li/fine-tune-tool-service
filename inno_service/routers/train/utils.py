@@ -35,7 +35,7 @@ async def write_train_yaml(path: str, data: dict):
 
 parse_patterns = {
     "train_progress": {
-        "pattern": re.compile(r"(\d+)%\|.*?\|\s+(\d+)/(\d+)\s+\[.*?\]"),
+        "pattern": re.compile(r"(\d+)/(\d+)\s+\[.*?\]"),
         "handler": lambda match, exclude_flag: (
             match.group(0).strip()
             if not exclude_flag
