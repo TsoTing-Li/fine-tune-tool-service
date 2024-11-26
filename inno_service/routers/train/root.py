@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Response
+from fastapi import APIRouter, BackgroundTasks, Response, status
 
 from inno_service.routers.train import schema, utils
 from inno_service.utils.utils import get_current_time
@@ -27,4 +27,8 @@ async def post_train(background_task: BackgroundTasks, request_data: schema.Post
         utils.run_train, f"llamafactory-cli train {yaml_path}", train_name
     )
 
-    return Response(content=json.dumps({"train_name": train_name}))
+    return Response(
+        content=json.dumps({"train_name": train_name}),
+        status_code=status.HTTP_201_CREATED,
+        media_type="application/json",
+    )
