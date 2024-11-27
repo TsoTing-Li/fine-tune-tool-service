@@ -34,8 +34,20 @@ async def write_train_yaml(path: str, data: dict):
 
 
 parse_patterns = {
+    "convert_progress": {
+        "pattern": re.compile(
+            r"^Converting format of dataset \(num_proc=\d+\):\s+\d+%\|.*?\|\s*(\d+/\d+\s\[.*?\])"
+        ),
+        "handler": lambda match: match.group(1).strip(),
+    },
+    "run_tokenizer_progress": {
+        "pattern": re.compile(
+            r"^Running tokenizer on dataset \(num_proc=\d+\):\s+\d+%\|.*?\|\s*(\d+/\d+\s\[.*?\])"
+        ),
+        "handler": lambda match: match.group(1).strip(),
+    },
     "train_progress": {
-        "pattern": re.compile(r"(\d+)/(\d+)\s+\[.*?\]"),
+        "pattern": re.compile(r"^\d+%\|.*?\|\s*(\d+/\d+\s\[.*?\])"),
         "handler": lambda match, exclude_flag: (
             match.group(0).strip()
             if not exclude_flag
