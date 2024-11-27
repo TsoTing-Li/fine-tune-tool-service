@@ -27,7 +27,6 @@ async def write_train_yaml(path: str, data: dict):
 
         async with aiofiles.open(path, "w") as af:
             await af.write(yaml_content)
-        print("write yaml done")
 
     except FileNotFoundError:
         raise FileNotFoundError(f"{path} does not exists") from None
