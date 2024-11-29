@@ -35,7 +35,7 @@ async def async_write_dataset_info_file(
         await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
 
 
-async def async_get_datset_info_file(dataset_info_file: str) -> dict:
+async def async_get_dataset_info_file(dataset_info_file: str) -> dict:
     async with aiofiles.open(dataset_info_file) as af:
         content = await af.read()
         dataset_info_content = orjson.loads(content)
@@ -141,7 +141,7 @@ async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetIn
     dataset_info_content = dict()
 
     if is_exists:
-        dataset_info_content = await async_get_datset_info_file(
+        dataset_info_content = await async_get_dataset_info_file(
             dataset_info_file=dataset_info_file
         )
 
@@ -191,7 +191,7 @@ async def async_del_dataset_info(dataset_info_file: str, del_dataset_name: str):
     if not is_exists:
         raise FileNotFoundError("There are currently no dataset") from None
 
-    dataset_info_content = await async_get_datset_info_file(
+    dataset_info_content = await async_get_dataset_info_file(
         dataset_info_file=dataset_info_file
     )
 
