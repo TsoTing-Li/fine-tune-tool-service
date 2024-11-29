@@ -115,9 +115,6 @@ class DeepSpeedBase(BaseModel):
     bf16: BF16 = BF16()
 
 
-#     zero_optimization: ZeroOptimization = Field(default_factory=ZeroOptimization)
-
-
 class DS_Z2_OFFLOAD(BaseModel):
     zero_optimization: ZeroOptimization = ZeroOptimization(stage=2)
 
