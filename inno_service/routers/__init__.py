@@ -1,1 +1,1 @@
-from . import data, deepspeed, train
+from . import data, deepspeed, train, ws
