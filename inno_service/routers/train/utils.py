@@ -78,6 +78,8 @@ def parse(stdout: str, exclude_flag: bool) -> dict:
         else:
             log_info[key] = ""
 
+    log_info["ori"] = stdout
+
     return log_info
 
 
