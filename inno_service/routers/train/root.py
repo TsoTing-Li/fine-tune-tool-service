@@ -3,7 +3,7 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, Response, status
 
-from inno_service.routers.train import schema, utils
+from inno_service.routers.train import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import get_current_time
 
@@ -21,6 +21,7 @@ async def start_train(
     else:
         train_name = request_data.train_name
 
+    validator.PostStartTrain(train_name=train_name)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -64,6 +65,7 @@ async def start_train(
 async def stop_train(
     background_task: BackgroundTasks, request_data: schema.PostStopTrain
 ):
+    validator.PostStopTrain(train_name=request_data.train_name)
     error_handler = ResponseErrorHandler()
 
     try:
