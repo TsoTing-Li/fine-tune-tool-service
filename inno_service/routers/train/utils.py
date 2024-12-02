@@ -1,11 +1,10 @@
 import json
+import os
 import re
-import subprocess
 
 import aiofiles
+import httpx
 import yaml
-
-from inno_service.thirdparty.redis.handler import AsyncRedisClient
 
 
 def basemodel2dict(data) -> dict:
@@ -83,34 +82,46 @@ def parse(stdout: str, exclude_flag: bool) -> dict:
     return log_info
 
 
-async def run_train(cmd: str, pub_chan: str):
-    process = subprocess.Popen(
-        cmd,
-        bufsize=1,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        shell=True,
-    )
+async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
 
-    try:
-        async_redis = AsyncRedisClient()
-        exclude_flag = False
-        for line in iter(process.stdout.readline, ""):
-            log_info = parse(stdout=line, exclude_flag=exclude_flag)
-            await async_redis.publish_msg(channel=pub_chan, msg=json.dumps(log_info))
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        response = await aclient.get(
+            f"{base_url}/json", params={"filters": json.dumps({"name": [train_name]})}
+        )
+    home_path = os.environ["HOME_PATH"]
+    root_path = os.environ["ROOT_PATH"]
+    params = {"name": train_name}
+    data = {
+        "User": "root",
+        "Image": image_name,
+        "HostConfig": {
+            "IpcMode": "host",
+            "DeviceRequests": [
+                {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
+            ],
+            "Binds": [
+                f"{home_path}/.cache/huggingface:/root/.cache/huggingface:rw",
+                f"{root_path}/data:/app/data:rw",
+                f"{root_path}/saves/{train_name}:/app/saves/{train_name}:rw",
+            ],
+        },
+        "Cmd": cmd,
+    }
 
-            if "[00:00<?, ?it/s]" in log_info["train_progress"]:
-                exclude_flag = True
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        response = await aclient.post(f"{base_url}/create", json=data, params=params)
 
-        process.stdout.close()
+        if response.status_code == 201:
+            container_id = response.json()["Id"]
 
-        return_code = process.wait()
-        await async_redis.publish_msg(channel=pub_chan, msg="FINISHED")
-        if return_code != 0:
-            print(f"Error occurred: {process.stderr.read()}")
-    except Exception as e:
-        await async_redis.publish_msg(channel=pub_chan, msg=str(e))
-        await async_redis.publish_msg(channel=pub_chan, msg="ERROR")
-    finally:
-        process.terminate()
+            async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+                response = await aclient.post(f"{base_url}/{container_id}/start")
+
+                if response.status_code == 204:
+                    print("Container started")
+                else:
+                    print(f"Container started failed: {response.status_code}")
+
+        else:
+            print(f"{response.status_code}\n{response.text}")
