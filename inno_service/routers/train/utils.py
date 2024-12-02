@@ -48,10 +48,10 @@ parse_patterns = {
     "train_progress": {
         "pattern": re.compile(r"^\d+%\|.*?\|\s*(\d+/\d+\s\[.*?\])"),
         "handler": lambda match, exclude_flag: (
-            match.group(0).strip()
+            match.group(1).strip()
             if not exclude_flag
-            or "[00:00<?, ?it/s]" not in match.group(0)
-            and "[00:00<00:00," not in match.group(0)
+            or "[00:00<?, ?it/s]" not in match.group(1)
+            and "[00:00<00:00," not in match.group(1)
             else ""
         ),
     },
