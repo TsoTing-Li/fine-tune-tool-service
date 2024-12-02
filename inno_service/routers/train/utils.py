@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from typing import Literal
 
 import aiofiles
 import httpx
@@ -125,3 +126,23 @@ async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
 
         else:
             print(f"{response.status_code}\n{response.text}")
+
+
+async def stop_train(
+    base_url: str,
+    container_name_or_id: str,
+    signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
+    wait_sec: int = 10,
+):
+    params = {"signal": signal, "t": wait_sec}
+
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        response = await aclient.post(
+            f"{base_url}/{container_name_or_id}/stop", params=params
+        )
+
+        if response.status_code == 204:
+            print("Container stop")
+        else:
+            print(f"Container stop failed: {response.status_code}\n{response.text}")

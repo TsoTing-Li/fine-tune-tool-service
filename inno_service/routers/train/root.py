@@ -58,3 +58,36 @@ async def start_train(
         status_code=status.HTTP_201_CREATED,
         media_type="application/json",
     )
+
+
+@router.post("/stop/", tags=["Train"])
+async def stop_train(
+    background_task: BackgroundTasks, request_data: schema.PostStopTrain
+):
+    error_handler = ResponseErrorHandler()
+
+    try:
+        background_task.add_task(
+            utils.stop_train,
+            "http://docker/containers",
+            request_data.train_name,
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input=dict(),
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/json",
+        )
+
+    return Response(
+        content=json.dumps({"train_name": request_data.train_name}),
+        status_code=status.HTTP_201_CREATED,
+        media_type="application/json",
+    )
