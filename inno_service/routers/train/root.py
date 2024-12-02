@@ -12,8 +12,8 @@ SAVE_PATH = "/app/saves"
 router = APIRouter(prefix="/train")
 
 
-@router.post("/", tags=["Train"])
-async def post_train(
+@router.post("/start/", tags=["Train"])
+async def start_train(
     background_task: BackgroundTasks, request_data: schema.PostStartTrain
 ):
     if not request_data.train_name:
