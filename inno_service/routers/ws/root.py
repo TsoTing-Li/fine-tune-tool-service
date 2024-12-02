@@ -1,41 +1,37 @@
-import anyio
+import httpx
 from fastapi import APIRouter, WebSocket
 
-from inno_service.thirdparty.redis.handler import AsyncRedisClient
+from inno_service.routers.train import utils
 
 router = APIRouter(prefix="/ws")
 
 
-@router.websocket("/{sub_chan}")
-async def ws_pubsub_log(websocket: WebSocket, sub_chan: str):
+@router.websocket("/container/{id}/logs")
+async def ws_docker_log(websocket: WebSocket, id: str):
     await websocket.accept()
-    async_redis = AsyncRedisClient()
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
 
-    pubsub = async_redis.client.pubsub()
-    await pubsub.subscribe(sub_chan)
+    params = {"id": id, "follow": True, "stdout": True, "stderr": True}
 
-    try:
-        while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=None
-            )
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        async with aclient.stream(
+            "GET", f"http://docker/containers/{id}/logs", params=params
+        ) as r:
+            skip_eval_process_bar = False
+            async for chunk in r.aiter_text():
+                for chunk_split in chunk.splitlines():
+                    if chunk_split == "":
+                        break
+                    elif chunk_split[0] in ("\x01", "\x02"):
+                        chunk_split = chunk_split[8:]
 
-            if message:
-                log_info = message["data"].decode()
+                    log_info = utils.parse(
+                        stdout=chunk_split.strip(), exclude_flag=skip_eval_process_bar
+                    )
 
-                await websocket.send_text(log_info)
+                    if "[00:00<?, ?it/s]" in log_info["train_progress"]:
+                        skip_eval_process_bar = True
 
-                if log_info == "FINISHED":
-                    await websocket.close(code=1000)
-                    break
+                    await websocket.send_json(log_info)
 
-            await anyio.sleep(0.033)
-
-    except BaseException as e:
-        await websocket.send_text(str(e))
-        await websocket.close(code=1006)
-
-    finally:
-        await pubsub.unsubscribe(sub_chan)
-        await pubsub.aclose()
-        await async_redis.client.aclose()
+    await websocket.close()
