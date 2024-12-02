@@ -26,6 +26,7 @@ class ResponseErrorType:
     ERR_VALIDATE: Literal["validate_error"] = "validate_error"
     ERR_INTERNAL: Literal["internal_error"] = "internal_error"
     ERR_EXISTS: Literal["exists_error"] = "exists_error"
+    ERR_DOCKER: Literal["docker_error"] = "docker_error"
 
 
 @dataclass
