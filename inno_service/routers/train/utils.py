@@ -8,7 +8,7 @@ import yaml
 from inno_service.thirdparty.redis.handler import AsyncRedisClient
 
 
-def yaml_preprocess(data) -> dict:
+def basemodel2dict(data) -> dict:
     train_args = {
         "model_name_or_path": data.model_name_or_path,
         **data.method.model_dump(),
