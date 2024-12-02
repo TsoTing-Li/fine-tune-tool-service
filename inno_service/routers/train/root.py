@@ -19,7 +19,9 @@ async def post_train(background_task: BackgroundTasks, request_data: schema.Post
         train_name = request_data.train_name
 
     train_args = utils.basemodel2dict(data=request_data.train_args)
-    train_args["output_dir"] = os.path.join(SAVE_PATH, train_name, train_args["finetuning_type"])
+    train_args["output_dir"] = os.path.join(
+        SAVE_PATH, train_name, train_args["finetuning_type"]
+    )
     train_args["eval_steps"] = train_args["save_steps"]
     yaml_path = os.path.join(SAVE_PATH, train_name, f"{train_name}.yaml")
     await utils.write_train_yaml(path=yaml_path, data=train_args)

@@ -53,7 +53,6 @@ class Dataset(BaseModel):
 
 
 class Output(BaseModel):
-    output_dir: str
     logging_steps: int
     save_steps: int
     plot_loss: bool
@@ -105,7 +104,6 @@ class Eval(BaseModel):
     val_size: float = 0.1
     per_device_eval_batch_size: int = 1
     eval_strategy: Literal["steps"] = "steps"
-    eval_steps: int = 0
 
     @model_validator(mode="after")
     def check(self: "Eval") -> "Eval":
