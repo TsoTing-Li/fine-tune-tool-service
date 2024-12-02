@@ -151,12 +151,12 @@ class TrainArgs(BaseModel):
         return self
 
 
-class PostTrain(BaseModel):
+class PostStartTrain(BaseModel):
     train_name: Union[str, None] = None
     train_args: TrainArgs = Field(default_factory=TrainArgs)
 
     @model_validator(mode="after")
-    def check(self: "PostTrain") -> "PostTrain":
+    def check(self: "PostStartTrain") -> "PostStartTrain":
         error_handler = ResponseErrorHandler()
 
         if (
