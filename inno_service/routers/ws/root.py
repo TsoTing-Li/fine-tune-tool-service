@@ -1,9 +1,11 @@
+import json
 import os
 
 import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from inno_service.routers.ws import utils
+from inno_service.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ws")
 
@@ -34,6 +36,7 @@ async def ws_docker_log(websocket: WebSocket, id: str):
                     if "[00:00<?, ?it/s]" in log_info["train_progress"]:
                         skip_eval_process_bar = True
 
+                    accel_logger.info(json.dumps(log_info))
                     await websocket.send_json(log_info)
 
     await websocket.close()
@@ -66,15 +69,16 @@ async def ws_hw_info_log(websocket: WebSocket):
                             chunk_split = chunk_split[8:]
 
                         hw_info = utils.parse_hw_info_log(stdout=chunk_split)
+                        accel_logger.info(hw_info)
                         await websocket.send_json(hw_info)
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        accel_logger.info("Client disconnected")
 
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        accel_logger.info(f"Unexpected error: {e}")
 
     finally:
         if websocket.client_state == "CONNECTED":
+            accel_logger.info("WebSocket is still connected, automatically close")
             await websocket.close()
-        print("Websocket connection closed")
