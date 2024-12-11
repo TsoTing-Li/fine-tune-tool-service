@@ -65,7 +65,8 @@ async def ws_hw_info_log(websocket: WebSocket):
                         elif chunk_split[0] in ("\x01", "\x02"):
                             chunk_split = chunk_split[8:]
 
-                        await websocket.send_json(chunk_split.strip())
+                        hw_info = utils.parse_hw_info_log(stdout=chunk_split)
+                        await websocket.send_json(hw_info)
 
     except WebSocketDisconnect:
         print("Client disconnected")
