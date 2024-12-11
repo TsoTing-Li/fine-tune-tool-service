@@ -1,13 +1,26 @@
+from contextlib import asynccontextmanager
+
 import gradio as gr
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from llamafactory.webui.interface import create_ui
 
 from inno_service.routers.main import inno_api
+from inno_service.utils.logger import accel_logger
 
 CUSTOM_PATH = "/gradio"
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    accel_logger.info("Started Service")
+
+    yield
+
+    accel_logger.info("End Service")
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
