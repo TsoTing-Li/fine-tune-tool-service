@@ -3,7 +3,7 @@ import os
 import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from inno_service.routers.train import utils
+from inno_service.routers.ws import utils
 
 router = APIRouter(prefix="/ws")
 
@@ -27,7 +27,7 @@ async def ws_docker_log(websocket: WebSocket, id: str):
                     elif chunk_split[0] in ("\x01", "\x02"):
                         chunk_split = chunk_split[8:]
 
-                    log_info = utils.parse(
+                    log_info = utils.parse_train_log(
                         stdout=chunk_split.strip(), exclude_flag=skip_eval_process_bar
                     )
 
