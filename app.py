@@ -1,8 +1,8 @@
-# import gradio as gr
+import gradio as gr
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from llamafactory.webui.interface import create_ui
 
-# from llamafactory.webui.interface import create_ui
 from inno_service.routers.main import inno_api
 
 CUSTOM_PATH = "/gradio"
@@ -23,5 +23,5 @@ def read_main():
     return {"message": "This is your main app"}
 
 
-# app = gr.mount_gradio_app(app, create_ui(), path=CUSTOM_PATH)
+app = gr.mount_gradio_app(app, create_ui(), path=CUSTOM_PATH)
 app.mount("/inno", inno_api)
