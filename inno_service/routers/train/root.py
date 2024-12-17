@@ -7,7 +7,7 @@ from inno_service.routers.train import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import get_current_time
 
-SAVE_PATH = "/app/saves"
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 TRAIN_CONFIG_PATH = os.getenv("TRAIN_CONFIG_PATH", "/app/train_config")
 
 router = APIRouter(prefix="/train")
