@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Literal
 
@@ -37,11 +36,6 @@ async def write_train_yaml_to_two_path(train_config_path: str, path: str, data: 
 
 async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.get(
-            f"{base_url}/json", params={"filters": json.dumps({"name": [train_name]})}
-        )
     hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
     params = {"name": train_name}
