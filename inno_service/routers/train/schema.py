@@ -161,7 +161,7 @@ class PostStartTrain(BaseModel):
 
         if (
             self.train_name
-            and bool(re.search(r"[^a-zA-Z0-9_\-\s]+", self.train_name)) is True
+            and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name)
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
@@ -184,7 +184,7 @@ class PostStopTrain(BaseModel):
 
         if (
             self.train_name
-            and bool(re.search(r"[^a-zA-Z0-9_\-\s]+", self.train_name)) is True
+            and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name)
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
