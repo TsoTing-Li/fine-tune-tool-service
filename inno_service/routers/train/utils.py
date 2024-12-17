@@ -42,7 +42,7 @@ async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
         response = await aclient.get(
             f"{base_url}/json", params={"filters": json.dumps({"name": [train_name]})}
         )
-    home_path = os.environ["HOME_PATH"]
+    hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
     params = {"name": train_name}
     data = {
@@ -54,7 +54,7 @@ async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{home_path}/.cache/huggingface:/root/.cache/huggingface:rw",
+                f"{hf_home}:{hf_home}:rw",
                 f"{root_path}/data:/app/data:rw",
                 f"{root_path}/saves/{train_name}:/app/saves/{train_name}:rw",
             ],
