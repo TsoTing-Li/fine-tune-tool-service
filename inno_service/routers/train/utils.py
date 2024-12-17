@@ -20,15 +20,19 @@ def basemodel2dict(data) -> dict:
     return train_args
 
 
-async def write_train_yaml(path: str, data: dict):
+async def write_train_yaml_to_two_path(train_config_path: str, path: str, data: dict):
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=False)
         yaml_content = yaml.dump(data, default_flow_style=False)
 
         async with aiofiles.open(path, "w") as af:
             await af.write(yaml_content)
 
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{path} does not exists") from None
+    except FileExistsError:
+        raise FileExistsError(f"{train_config_path}/{path} is already exists") from None
+
+    except Exception as e:
+        raise OSError(f"Unexpected error: {e}") from None
 
 
 async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
