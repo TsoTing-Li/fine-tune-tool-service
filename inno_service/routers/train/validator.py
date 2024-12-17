@@ -34,7 +34,7 @@ class PostStartTrain(BaseModel):
                 error_handler.add(
                     type=error_handler.ERR_DOCKER,
                     loc=[error_handler.LOC_PROCESS],
-                    msg=f"{response.status_code}\n{response.text}",
+                    msg=f"Error: {response.status_code}, {response.text}",
                     input={"train_name": self.train_name},
                 )
         except BaseException as e:
@@ -77,7 +77,7 @@ class PostStopTrain(BaseModel):
                 error_handler.add(
                     type=error_handler.ERR_DOCKER,
                     loc=[error_handler.LOC_PROCESS],
-                    msg=f"{response.status_code}\n{response.text}",
+                    msg=f"Error: {response.status_code}, {response.text}",
                     input={"train_name": self.train_name},
                 )
         except BaseException as e:
