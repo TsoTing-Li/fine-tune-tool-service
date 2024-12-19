@@ -6,11 +6,11 @@ from pydantic import BaseModel, model_validator
 from inno_service.utils.error import ResponseErrorHandler
 
 
-class PostQuantize(BaseModel):
+class PostStartQuantize(BaseModel):
     quantize_name: str
 
     @model_validator(mode="after")
-    def check(self: "PostQuantize") -> "PostQuantize":
+    def check(self: "PostStartQuantize") -> "PostStartQuantize":
         error_handler = ResponseErrorHandler()
 
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.quantize_name):

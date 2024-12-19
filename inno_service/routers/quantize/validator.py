@@ -6,11 +6,11 @@ from pydantic import BaseModel, model_validator
 from inno_service.utils.error import ResponseErrorHandler
 
 
-class PostQuantize(BaseModel):
+class PostStartQuantize(BaseModel):
     checkpoint_path: str
 
     @model_validator(mode="after")
-    def check(self: "PostQuantize") -> "PostQuantize":
+    def check(self: "PostStartQuantize") -> "PostStartQuantize":
         error_handler = ResponseErrorHandler()
 
         if not os.path.exists(self.checkpoint_path):

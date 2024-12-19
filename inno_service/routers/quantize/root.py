@@ -12,8 +12,8 @@ TRAIN_CONFIG_PATH = os.getenv("TRAIN_CONFIG_PATH", "/app/train_config")
 router = APIRouter(prefix="/quantize", tags=["Quantize"])
 
 
-@router.post("/")
-async def post_quantize(request_data: schema.PostQuantize):
+@router.post("/start/")
+async def post_quantize(request_data: schema.PostStartQuantize):
     error_handler = ResponseErrorHandler()
     try:
         checkpoint_path, finetune_type = await utils.get_quantize_args(
@@ -22,7 +22,7 @@ async def post_quantize(request_data: schema.PostQuantize):
         print(
             f"quantize_name: {request_data.quantize_name}, finetune_type: {finetune_type}"
         )
-        checkpoint_path = validator.PostQuantize(
+        checkpoint_path = validator.PostStartQuantize(
             checkpoint_path=checkpoint_path
         ).checkpoint_path
 
