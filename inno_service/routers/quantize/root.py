@@ -19,9 +19,6 @@ async def post_quantize(request_data: schema.PostStartQuantize):
         checkpoint_path, finetune_type = await utils.get_quantize_args(
             os.path.join(TRAIN_CONFIG_PATH, f"{request_data.quantize_name}.yaml")
         )
-        print(
-            f"quantize_name: {request_data.quantize_name}, finetune_type: {finetune_type}"
-        )
         checkpoint_path = validator.PostStartQuantize(
             checkpoint_path=checkpoint_path
         ).checkpoint_path
