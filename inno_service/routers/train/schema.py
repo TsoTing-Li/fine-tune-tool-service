@@ -159,9 +159,8 @@ class PostStartTrain(BaseModel):
     def check(self: "PostStartTrain") -> "PostStartTrain":
         error_handler = ResponseErrorHandler()
 
-        if (
-            self.train_name
-            and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name)
+        if self.train_name and not re.fullmatch(
+            r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
@@ -182,9 +181,8 @@ class PostStopTrain(BaseModel):
     def check(self: "PostStopTrain") -> "PostStopTrain":
         error_handler = ResponseErrorHandler()
 
-        if (
-            self.train_name
-            and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name)
+        if self.train_name and not re.fullmatch(
+            r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
