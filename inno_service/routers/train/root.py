@@ -69,14 +69,16 @@ async def start_train(
 async def stop_train(
     background_task: BackgroundTasks, request_data: schema.PostStopTrain
 ):
-    train_name = validator.PostStopTrain(train_name=request_data.train_name).train_name
+    train_container = validator.PostStopTrain(
+        train_name=request_data.train_container
+    ).train_container
     error_handler = ResponseErrorHandler()
 
     try:
         background_task.add_task(
             utils.stop_train,
             "http://docker/containers",
-            train_name,
+            train_container,
         )
 
     except Exception as e:
@@ -93,7 +95,7 @@ async def stop_train(
         )
 
     return Response(
-        content=json.dumps({"train_name": train_name}),
+        content=json.dumps({"train_container": train_container}),
         status_code=status.HTTP_201_CREATED,
         media_type="application/json",
     )

@@ -51,7 +51,7 @@ class PostStartTrain(BaseModel):
 
 
 class PostStopTrain(BaseModel):
-    train_name: str
+    train_container: str
 
     @model_validator(mode="after")
     def check(self: "PostStopTrain") -> "PostStopTrain":
@@ -62,30 +62,30 @@ class PostStopTrain(BaseModel):
             with httpx.Client(transport=transport, timeout=None) as client:
                 response = client.get(
                     "http://docker/containers/json",
-                    params={"filters": json.dumps({"name": [self.train_name]})},
+                    params={"filters": json.dumps({"name": [self.train_container]})},
                 )
 
             if response.status_code == 200:
                 if response.json() == []:
                     error_handler.add(
                         type=error_handler.ERR_VALIDATE,
-                        loc=[error_handler.LOC_FORM],
-                        msg="'train_name' does not exists",
-                        input={"train_name": self.train_name},
+                        loc=[error_handler.LOC_BODY],
+                        msg="'train_container' does not exists",
+                        input={"train_container": self.train_container},
                     )
             else:
                 error_handler.add(
                     type=error_handler.ERR_DOCKER,
                     loc=[error_handler.LOC_PROCESS],
                     msg=f"Error: {response.status_code}, {response.text}",
-                    input={"train_name": self.train_name},
+                    input={"train_container": self.train_container},
                 )
-        except BaseException as e:
+        except Exception as e:
             error_handler.add(
                 type=error_handler.ERR_DOCKER,
                 loc=[error_handler.LOC_PROCESS],
                 msg=f"{e}",
-                input={"train_name": self.train_name},
+                input={"train_container": self.train_container},
             )
 
         if error_handler.errors != []:
