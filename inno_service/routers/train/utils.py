@@ -57,6 +57,7 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
             ],
         },
         "Cmd": cmd,
+        "Env": [f"HF_HOME={hf_home}"],
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
