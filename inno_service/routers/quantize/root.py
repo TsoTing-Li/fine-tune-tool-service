@@ -42,7 +42,7 @@ async def post_quantize(request_data: schema.PostQuantize):
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
-            loc=error_handler.LOC_PROCESS,
+            loc=[error_handler.LOC_PROCESS],
             msg=f"{e}",
             input={"quantize_name": request_data.quantize_name},
         )
