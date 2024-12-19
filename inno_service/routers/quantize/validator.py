@@ -16,7 +16,7 @@ class PostQuantize(BaseModel):
         if not os.path.exists(self.checkpoint_path):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=error_handler.LOC_BODY,
+                loc=[error_handler.LOC_BODY],
                 msg="checkpoint path does not exists",
                 input={"checkpoint_path": self.checkpoint_path},
             )
