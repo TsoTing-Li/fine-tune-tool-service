@@ -5,6 +5,8 @@ import aiofiles
 import httpx
 import yaml
 
+from inno_service.utils.utils import generate_uuid
+
 
 def basemodel2dict(data) -> dict:
     train_args = {
@@ -38,7 +40,8 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
-    params = {"name": train_name}
+    container_name = f"{train_name}-{generate_uuid()}"
+    params = {"name": container_name}
     data = {
         "User": "root",
         "Image": image_name,
@@ -62,22 +65,25 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
         )
 
         if response.status_code == 201:
-            container_id = response.json()["Id"]
+            response = await aclient.post(
+                f"http://docker/containers/{container_name}/start"
+            )
 
-            async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-                response = await aclient.post(
-                    f"http://docker/containers/create/{container_id}/start"
-                )
+            if response.status_code == 204:
+                print("Container started")
+                return container_name
 
-                if response.status_code == 204:
-                    print("Container started")
-                    return train_name
-
-                else:
-                    print(f"Container started failed: {response.status_code}")
+            else:
+                print(f"Container started failed: {response.status_code}")
+                raise RuntimeError(
+                    f"Error: {response.status_code}, {response.text}"
+                ) from None
 
         else:
             print(f"{response.status_code}\n{response.text}")
+            raise RuntimeError(
+                f"Error: {response.status_code}, {response.text}"
+            ) from None
 
 
 async def stop_train(
