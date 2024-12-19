@@ -10,10 +10,10 @@ from inno_service.utils.utils import get_current_time
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 TRAIN_CONFIG_PATH = os.getenv("TRAIN_CONFIG_PATH", "/app/train_config")
 
-router = APIRouter(prefix="/train")
+router = APIRouter(prefix="/train", tags=["Train"])
 
 
-@router.post("/start/", tags=["Train"])
+@router.post("/start/")
 async def start_train(
     background_task: BackgroundTasks, request_data: schema.PostStartTrain
 ):
@@ -65,7 +65,7 @@ async def start_train(
     )
 
 
-@router.post("/stop/", tags=["Train"])
+@router.post("/stop/")
 async def stop_train(
     background_task: BackgroundTasks, request_data: schema.PostStopTrain
 ):

@@ -12,10 +12,10 @@ MAX_FILE_SIZE = 1024 * 1024 * 5
 NVME_PATH = "/mnt/nvme"
 SAVE_PATH = "DS_CONFIG"
 
-router = APIRouter(prefix="/deepspeed")
+router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
 
-@router.post("/default/", tags=["DeepSpeed"])
+@router.post("/default/")
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     error_handler = ResponseErrorHandler()
 
@@ -78,7 +78,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     )
 
 
-@router.post("/file/", tags=["DeepSpeed"])
+@router.post("/file/")
 async def add_deepspeed_file(ds_file: UploadFile = File(...)):
     request_data = schema.PostDeepSpeedFile(ds_file=ds_file)
     error_handler = ResponseErrorHandler()
@@ -155,7 +155,7 @@ async def get_all_deepspeed_config():
     )
 
 
-@router.get("/preview/", tags=["DeepSpeed"])
+@router.get("/preview/")
 async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
     ds_file_name = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name).ds_file_name
 
@@ -199,7 +199,7 @@ async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
     )
 
 
-@router.delete("/", tags=["DeepSpeed"])
+@router.delete("/")
 async def del_deepspeed(ds_file_name: Annotated[str, Query(...)]):
     ds_file_name = schema.DelDeepSpeed(ds_file_name=ds_file_name).ds_file_name
 

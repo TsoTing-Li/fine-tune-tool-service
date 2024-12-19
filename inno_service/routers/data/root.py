@@ -15,10 +15,10 @@ DATASET_INFO_FILE = "data/dataset_info.json"
 SAVE_PATH = "data"
 os.makedirs(SAVE_PATH, exist_ok=True)
 
-router = APIRouter(prefix="/data")
+router = APIRouter(prefix="/data", tags=["Data"])
 
 
-@router.post("/", tags=["Data"])
+@router.post("/")
 async def add_data(
     dataset_info: Annotated[str, Form(...)],
     dataset_file: Union[UploadFile, None] = None,
@@ -89,7 +89,7 @@ async def add_data(
     )
 
 
-@router.delete("/", tags=["Data"])
+@router.delete("/")
 async def delete_data(dataset_name: Annotated[str, Query(...)]):
     dataset_name = schema.DeleteData(dataset_name=dataset_name).dataset_name
 
