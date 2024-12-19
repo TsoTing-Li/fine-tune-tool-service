@@ -78,7 +78,7 @@ async def stop_quantize(request_data: schema.PostStopQuantize):
         return Response(
             content=json.dumps(error_handler.errors),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="applicaiton/json",
+            media_type="application/json",
         )
 
     return Response(
