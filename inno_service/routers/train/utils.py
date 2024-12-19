@@ -88,20 +88,20 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
 
 
 async def stop_train(
-    base_url: str,
     container_name_or_id: str,
     signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
     wait_sec: int = 10,
-):
+) -> str:
     params = {"signal": signal, "t": wait_sec}
 
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
         response = await aclient.post(
-            f"{base_url}/{container_name_or_id}/stop", params=params
+            f"http://docker/containers/{container_name_or_id}/stop", params=params
         )
 
         if response.status_code == 204:
             print("Container stop")
+            return container_name_or_id
         else:
             print(f"Container stop failed: {response.status_code}\n{response.text}")
