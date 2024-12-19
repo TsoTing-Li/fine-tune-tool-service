@@ -10,7 +10,7 @@ from inno_service.utils.logger import accel_logger
 router = APIRouter(prefix="/ws")
 
 
-@router.websocket("/container/{id}/logs")
+@router.websocket("/trainLogs/{id}")
 async def ws_docker_log(websocket: WebSocket, id: str):
     await websocket.accept()
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
@@ -42,7 +42,7 @@ async def ws_docker_log(websocket: WebSocket, id: str):
     await websocket.close()
 
 
-@router.websocket("/hw_info")
+@router.websocket("/hwInfo")
 async def ws_hw_info_log(websocket: WebSocket):
     await websocket.accept()
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
