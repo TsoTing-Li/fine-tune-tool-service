@@ -34,7 +34,7 @@ async def write_train_yaml_to_two_path(train_config_path: str, path: str, data: 
         raise OSError(f"Unexpected error: {e}") from None
 
 
-async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
+async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
@@ -57,16 +57,22 @@ async def run_train(base_url: str, image_name: str, cmd: list, train_name: str):
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(f"{base_url}/create", json=data, params=params)
+        response = await aclient.post(
+            "http://docker/containers/create", json=data, params=params
+        )
 
         if response.status_code == 201:
             container_id = response.json()["Id"]
 
             async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-                response = await aclient.post(f"{base_url}/{container_id}/start")
+                response = await aclient.post(
+                    f"http://docker/containers/create/{container_id}/start"
+                )
 
                 if response.status_code == 204:
                     print("Container started")
+                    return train_name
+
                 else:
                     print(f"Container started failed: {response.status_code}")
 
