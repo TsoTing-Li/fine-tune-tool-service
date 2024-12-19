@@ -28,7 +28,7 @@ async def write_train_yaml_to_two_path(train_config_path: str, path: str, data: 
             await af.write(yaml_content)
 
     except FileExistsError:
-        raise FileExistsError(f"{train_config_path}/{path} is already exists") from None
+        raise FileExistsError(f"'{path}' is already exists") from None
 
     except Exception as e:
         raise OSError(f"Unexpected error: {e}") from None
