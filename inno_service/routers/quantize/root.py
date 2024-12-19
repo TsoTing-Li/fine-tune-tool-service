@@ -57,3 +57,35 @@ async def post_quantize(request_data: schema.PostStartQuantize):
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
+
+
+@router.post("/stop/")
+async def stop_quantize(request_data: schema.PostStopQuantize):
+    quantize_container = validator.PostStopQuantize(
+        quantize_container=request_data.quantize_container
+    ).quantize_container
+    error_handler = ResponseErrorHandler()
+
+    try:
+        quantize_container = await utils.stop_quantize(
+            container_name_or_id=quantize_container
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input={"quantize_container": quantize_container},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="applicaiton/json",
+        )
+
+    return Response(
+        content=json.dumps({"quantize_container": quantize_container}),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )

@@ -142,3 +142,27 @@ async def quantize_as_gguf(
                 ) from None
 
     return container_ids
+
+
+async def stop_quantize(
+    container_name_or_id: str,
+    signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
+    wait_sec: int = 10,
+) -> str:
+    params = {"signal": signal, "t": wait_sec}
+
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        response = await aclient.post(
+            f"http://docker/containers/{container_name_or_id}/stop", params=params
+        )
+
+        if response.status_code == 204:
+            print(f"Fine-tune stopped, container: {container_name_or_id}")
+            return container_name_or_id
+        else:
+            print(f"Fine-tune stop failed, container: {container_name_or_id}")
+            print(f"Error: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Error: {response.status_code}, {response.text}"
+            ) from None
