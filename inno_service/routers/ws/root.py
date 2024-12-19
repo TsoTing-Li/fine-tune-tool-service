@@ -11,7 +11,7 @@ router = APIRouter(prefix="/ws")
 
 
 @router.websocket("/trainLogs/{id}")
-async def ws_docker_log(websocket: WebSocket, id: str):
+async def train_log(websocket: WebSocket, id: str):
     await websocket.accept()
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
 
@@ -43,7 +43,7 @@ async def ws_docker_log(websocket: WebSocket, id: str):
 
 
 @router.websocket("/hwInfo")
-async def ws_hw_info_log(websocket: WebSocket):
+async def hw_info_log(websocket: WebSocket):
     await websocket.accept()
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
 
