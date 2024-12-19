@@ -36,7 +36,7 @@ async def train_log(websocket: WebSocket, id: str):
                     if "[00:00<?, ?it/s]" in log_info["train_progress"]:
                         skip_eval_process_bar = True
 
-                    accel_logger.info(json.dumps(log_info))
+                    accel_logger.info(f"trainLog: {json.dumps(log_info)}")
                     await websocket.send_json(log_info)
 
     await websocket.close()
@@ -69,7 +69,7 @@ async def hw_info_log(websocket: WebSocket):
                             chunk_split = chunk_split[8:]
 
                         hw_info = utils.parse_hw_info_log(stdout=chunk_split)
-                        accel_logger.info(hw_info)
+                        accel_logger.info(f"hwInfo: {hw_info}")
                         await websocket.send_json(hw_info)
 
     except WebSocketDisconnect:
