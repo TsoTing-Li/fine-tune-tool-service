@@ -105,3 +105,6 @@ async def stop_train(
             return container_name_or_id
         else:
             print(f"Container stop failed: {response.status_code}\n{response.text}")
+            raise RuntimeError(
+                f"Error: {response.status_code}, {response.text}"
+            ) from None
