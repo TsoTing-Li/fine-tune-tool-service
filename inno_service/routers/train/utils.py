@@ -5,6 +5,7 @@ import aiofiles
 import httpx
 import yaml
 
+from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid
 
 
@@ -69,22 +70,28 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
         )
 
         if response.status_code == 201:
+            accel_logger.info(f"Fine-tune created, container: {container_name}")
+
             response = await aclient.post(
                 f"http://docker/containers/{container_name}/start"
             )
 
             if response.status_code == 204:
-                print("Container started")
+                accel_logger.info(f"Fine-tune started, container: {container_name}")
                 return container_name
 
             else:
-                print(f"Container started failed: {response.status_code}")
+                accel_logger.info(
+                    f"Fine-tune startup failed, container: {container_name}"
+                )
+                accel_logger.info(f"Error: {response.status_code}, {response.text}")
                 raise RuntimeError(
                     f"Error: {response.status_code}, {response.text}"
                 ) from None
 
         else:
-            print(f"{response.status_code}\n{response.text}")
+            accel_logger.info(f"Fine-tune creation failed, container: {container_name}")
+            accel_logger.info(f"Error: {response.status_code}, {response.text}")
             raise RuntimeError(
                 f"Error: {response.status_code}, {response.text}"
             ) from None
@@ -104,10 +111,13 @@ async def stop_train(
         )
 
         if response.status_code == 204:
-            print("Container stop")
+            accel_logger.info(f"Fine-tune stopped, container: {container_name_or_id}")
             return container_name_or_id
         else:
-            print(f"Container stop failed: {response.status_code}\n{response.text}")
+            accel_logger.info(
+                f"Fine-tune stop failed, container: {container_name_or_id}"
+            )
+            accel_logger.info(f"Error: {response.status_code}, {response.text}")
             raise RuntimeError(
                 f"Error: {response.status_code}, {response.text}"
             ) from None
