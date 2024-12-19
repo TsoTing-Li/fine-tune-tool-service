@@ -42,6 +42,30 @@ async def train_log(websocket: WebSocket, id: str):
     await websocket.close()
 
 
+@router.websocket("/quantizeLogs/{id}")
+async def quantize_log(websocket: WebSocket, id: str):
+    await websocket.accept()
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+
+    params = {"id": id, "follow": True, "stdout": True, "stderr": True}
+
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        async with aclient.stream(
+            "GET", f"http://docker/containers/{id}/logs", params=params
+        ) as r:
+            async for chunk in r.aiter_text():
+                for chunk_split in chunk.splitlines():
+                    if chunk_split == "":
+                        break
+                    elif chunk_split[0] in ("\x01", "\x02"):
+                        chunk_split = chunk_split[8:]
+
+                    accel_logger.info(f"quantizeLog: {chunk_split}")
+                    await websocket.send_text(chunk_split)
+
+    await websocket.close()
+
+
 @router.websocket("/hwInfo")
 async def hw_info_log(websocket: WebSocket):
     await websocket.accept()
