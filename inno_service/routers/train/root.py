@@ -50,7 +50,7 @@ async def start_train(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"{e}",
-            input=dict(),
+            input={"train_name": train_name},
         )
         return Response(
             content=json.dumps(error_handler.errors),
@@ -86,7 +86,7 @@ async def stop_train(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"{e}",
-            input=dict(),
+            input={"train_container": train_container},
         )
         return Response(
             content=json.dumps(error_handler.errors),
