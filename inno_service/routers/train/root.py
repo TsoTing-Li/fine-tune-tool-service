@@ -41,6 +41,19 @@ async def start_train(request_data: schema.PostStartTrain):
             train_name=train_name,
         )
 
+    except FileExistsError as e:
+        error_handler.add(
+            type=error_handler.ERR_EXISTS,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input={"train_name": train_name},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_409_CONFLICT,
+            media_type="application/json",
+        )
+
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
