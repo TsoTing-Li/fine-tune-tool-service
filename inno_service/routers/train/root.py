@@ -70,7 +70,7 @@ async def stop_train(
     background_task: BackgroundTasks, request_data: schema.PostStopTrain
 ):
     train_container = validator.PostStopTrain(
-        train_name=request_data.train_container
+        train_container=request_data.train_container
     ).train_container
     error_handler = ResponseErrorHandler()
 
