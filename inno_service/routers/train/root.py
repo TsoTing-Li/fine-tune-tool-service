@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Response, status
+from fastapi import APIRouter, Response, status
 
 from inno_service.routers.train import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -14,9 +14,7 @@ router = APIRouter(prefix="/train", tags=["Train"])
 
 
 @router.post("/start/")
-async def start_train(
-    background_task: BackgroundTasks, request_data: schema.PostStartTrain
-):
+async def start_train(request_data: schema.PostStartTrain):
     if not request_data.train_name:
         train_name = get_current_time()
     else:
@@ -37,12 +35,10 @@ async def start_train(
             train_config_path=train_config_path, path=yaml_path, data=train_args
         )
 
-        background_task.add_task(
-            utils.run_train,
-            "http://docker/containers",
-            f"{os.environ['USER_NAME']}/{os.environ['REPOSITORY']}:{os.environ['FINE_TUNE_TOOL_TAG']}",
-            ["llamafactory-cli", "train", yaml_path],
-            train_name,
+        container_name = await utils.run_train(
+            image_name=f"{os.environ['USER_NAME']}/{os.environ['REPOSITORY']}:{os.environ['FINE_TUNE_TOOL_TAG']}",
+            cmd=["llamafactory-cli", "train", yaml_path],
+            train_name=train_name,
         )
 
     except Exception as e:
@@ -59,27 +55,23 @@ async def start_train(
         )
 
     return Response(
-        content=json.dumps({"train_name": train_name}),
-        status_code=status.HTTP_201_CREATED,
+        content=json.dumps(
+            {"train_name": train_name, "container_name": container_name}
+        ),
+        status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
 
 
 @router.post("/stop/")
-async def stop_train(
-    background_task: BackgroundTasks, request_data: schema.PostStopTrain
-):
+async def stop_train(request_data: schema.PostStopTrain):
     train_container = validator.PostStopTrain(
         train_container=request_data.train_container
     ).train_container
     error_handler = ResponseErrorHandler()
 
     try:
-        background_task.add_task(
-            utils.stop_train,
-            "http://docker/containers",
-            train_container,
-        )
+        train_container = await utils.stop_train(container_name_or_id=train_container)
 
     except Exception as e:
         error_handler.add(
@@ -96,6 +88,6 @@ async def stop_train(
 
     return Response(
         content=json.dumps({"train_container": train_container}),
-        status_code=status.HTTP_201_CREATED,
+        status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
