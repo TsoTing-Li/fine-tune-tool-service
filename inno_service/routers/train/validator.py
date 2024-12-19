@@ -54,7 +54,7 @@ class PostStopTrain(BaseModel):
     train_name: str
 
     @model_validator(mode="after")
-    def check(self: "PostStartTrain") -> "PostStartTrain":
+    def check(self: "PostStopTrain") -> "PostStopTrain":
         error_handler = ResponseErrorHandler()
 
         try:
