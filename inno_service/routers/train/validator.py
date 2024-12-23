@@ -1,10 +1,13 @@
 import json
+import os
 
 import httpx
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
+
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 class PostStartTrain(BaseModel):
@@ -14,34 +17,11 @@ class PostStartTrain(BaseModel):
     def check(self: "PostStartTrain") -> "PostStartTrain":
         error_handler = ResponseErrorHandler()
 
-        try:
-            transport = httpx.HTTPTransport(uds="/var/run/docker.sock")
-            with httpx.Client(transport=transport, timeout=None) as client:
-                response = client.get(
-                    "http://docker/containers/json",
-                    params={"filters": json.dumps({"name": [self.train_name]})},
-                )
-
-            if response.status_code == 200:
-                if response.json() != []:
-                    error_handler.add(
-                        type=error_handler.ERR_VALIDATE,
-                        loc=[error_handler.LOC_FORM],
-                        msg="'train_name' already exists",
-                        input={"train_name": self.train_name},
-                    )
-            else:
-                error_handler.add(
-                    type=error_handler.ERR_DOCKER,
-                    loc=[error_handler.LOC_PROCESS],
-                    msg=f"Error: {response.status_code}, {response.text}",
-                    input={"train_name": self.train_name},
-                )
-        except BaseException as e:
+        if os.path.exists(os.path.join(SAVE_PATH, self.train_name)):
             error_handler.add(
-                type=error_handler.ERR_DOCKER,
-                loc=[error_handler.LOC_PROCESS],
-                msg=f"{e}",
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' already exists",
                 input={"train_name": self.train_name},
             )
 
