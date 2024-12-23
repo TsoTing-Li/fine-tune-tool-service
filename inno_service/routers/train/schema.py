@@ -10,7 +10,6 @@ from inno_service.utils.error import ResponseErrorHandler
 
 class Method(BaseModel):
     stage: Literal["sft"] = "sft"
-    do_train: bool = True
     finetuning_type: Literal["full", "lora"]
     lora_target: Union[str, None] = None
     deepspeed: Union[str, None] = None

@@ -29,6 +29,7 @@ async def start_train(request_data: schema.PostStartTrain):
             SAVE_PATH, train_name, train_args["finetuning_type"]
         )
         train_args["eval_steps"] = train_args["save_steps"]
+        train_args["do_train"] = True
         yaml_path = os.path.join(SAVE_PATH, train_name, f"{train_name}.yaml")
         train_config_path = os.path.join(TRAIN_CONFIG_PATH, f"{train_name}.yaml")
         await utils.write_train_yaml_to_two_path(
