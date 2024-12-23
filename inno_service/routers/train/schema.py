@@ -25,7 +25,7 @@ class Method(BaseModel):
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'deepspeed' contain invalid characters",
                 input={"deepspeed": self.deepspeed},
             )
@@ -33,7 +33,7 @@ class Method(BaseModel):
         if self.finetuning_type == "lora" and not self.lora_target:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'lora_target' can not be empty when 'finetuning_type' is 'lora'",
                 input={"lora_target": self.lora_target},
             )
@@ -89,7 +89,7 @@ class Params(BaseModel):
         if self.per_device_train_batch_size <= 0:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'per_device_train_batch_size' must be positive integer",
                 input={"per_device_train_batch_size": self.per_device_train_batch_size},
             )
@@ -112,7 +112,7 @@ class Eval(BaseModel):
         if self.per_device_eval_batch_size <= 0:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'per_device_eval_batch_size' must be positive integer",
                 input={"per_device_eval_batch_size": self.per_device_eval_batch_size},
             )
@@ -141,7 +141,7 @@ class TrainArgs(BaseModel):
         if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.model_name_or_path)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'model_name_or_path' contain invalid characters",
                 input={"model_name_or_path": self.model_name_or_path},
             )
@@ -164,13 +164,14 @@ class PostStartTrain(BaseModel):
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
 
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)
+
         return self
 
 
@@ -184,7 +185,7 @@ class PostStopTrain(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_container):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'train_container' contain invalid characters",
                 input={"train_container": self.train_container},
             )
