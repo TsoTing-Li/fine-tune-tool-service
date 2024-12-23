@@ -16,7 +16,7 @@ def basemodel2dict(data) -> dict:
         **data.dataset.model_dump(),
         **data.output.model_dump(),
         **data.params.model_dump(),
-        **data.eval.model_dump(),
+        **data.val.model_dump(),
     }
 
     return train_args

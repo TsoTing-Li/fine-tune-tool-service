@@ -100,13 +100,13 @@ class Params(BaseModel):
         return self
 
 
-class Eval(BaseModel):
+class Val(BaseModel):
     val_size: float = 0.1
     per_device_eval_batch_size: int = 1
     eval_strategy: Literal["steps"] = "steps"
 
     @model_validator(mode="after")
-    def check(self: "Eval") -> "Eval":
+    def check(self: "Val") -> "Val":
         error_handler = ResponseErrorHandler()
 
         if self.per_device_eval_batch_size <= 0:
@@ -132,7 +132,7 @@ class TrainArgs(BaseModel):
     dataset: Dataset = Field(default_factory=Dataset)
     output: Output = Field(default_factory=Output)
     params: Params = Field(default_factory=Params)
-    eval: Eval = Field(default_factory=Eval)
+    val: Val = Field(default_factory=Val)
 
     @model_validator(mode="after")
     def check(self: "TrainArgs") -> "TrainArgs":
