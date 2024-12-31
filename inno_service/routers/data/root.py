@@ -33,9 +33,9 @@ async def add_data(
             request_body.dataset_info.load_from == "file_name"
             and request_body.dataset_file
         ):
-            dataset_file = await request_body.dataset_file.read()
+            dataset_bytes = await request_body.dataset_file.read()
 
-            dataset_content = await utils.async_load_bytes(content=dataset_file)
+            dataset_content = await utils.async_load_bytes(content=dataset_bytes)
 
             await utils.async_check_dataset_key_value(
                 dataset_content=dataset_content,
@@ -49,7 +49,7 @@ async def add_data(
                 f"{generate_uuid()}-{request_body.dataset_info.dataset_src}",
             )
             await utils.async_write_file_chunk(
-                file_content=dataset_file,
+                file_content=dataset_bytes,
                 file_path=request_body.dataset_info.dataset_src,
                 chunk_size=MAX_FILE_SIZE,
             )
@@ -84,6 +84,10 @@ async def add_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             media_type="application/json",
         )
+
+    finally:
+        if request_body.dataset_file:
+            await request_body.dataset_file.close()
 
     return Response(
         content=json.dumps({"dataset_name": request_body.dataset_info.dataset_name}),
