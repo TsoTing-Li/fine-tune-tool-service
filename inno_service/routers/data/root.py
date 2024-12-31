@@ -25,30 +25,32 @@ async def add_data(
 ):
     dataset_info = orjson.loads(dataset_info)
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
-    dataset_info = request_body.dataset_info
 
     error_handler = ResponseErrorHandler()
 
     try:
-        if dataset_info.load_from == "file_name" and dataset_file:
-            dataset_file = request_body.dataset_file
-            dataset_file = await dataset_file.read()
+        if (
+            request_body.dataset_info.load_from == "file_name"
+            and request_body.dataset_file
+        ):
+            dataset_file = await request_body.dataset_file.read()
 
             dataset_content = await utils.async_load_bytes(content=dataset_file)
 
             await utils.async_check_dataset_key_value(
                 dataset_content=dataset_content,
-                dataset_columns=dataset_info.columns,
-                dataset_tags=dataset_info.tags,
-                dataset_format=dataset_info.formatting,
+                dataset_columns=request_body.dataset_info.columns,
+                dataset_tags=request_body.dataset_info.tags,
+                dataset_format=request_body.dataset_info.formatting,
             )
 
-            dataset_info.dataset_src = os.path.join(
-                DATASET_PATH, f"{generate_uuid()}-{dataset_info.dataset_src}"
+            request_body.dataset_info.dataset_src = os.path.join(
+                DATASET_PATH,
+                f"{generate_uuid()}-{request_body.dataset_info.dataset_src}",
             )
             await utils.async_write_file_chunk(
                 file_content=dataset_file,
-                file_path=dataset_info.dataset_src,
+                file_path=request_body.dataset_info.dataset_src,
                 chunk_size=MAX_FILE_SIZE,
             )
 
@@ -62,7 +64,7 @@ async def add_data(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_FORM],
             msg=f"{e}",
-            input={"dataset_src": dataset_info.dataset_src},
+            input={"dataset_src": request_body.dataset_info.dataset_src},
         )
         return Response(
             content=json.dumps(error_handler.errors),
@@ -84,7 +86,7 @@ async def add_data(
         )
 
     return Response(
-        content=json.dumps({"dataset_name": dataset_info.dataset_name}),
+        content=json.dumps({"dataset_name": request_body.dataset_info.dataset_name}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
