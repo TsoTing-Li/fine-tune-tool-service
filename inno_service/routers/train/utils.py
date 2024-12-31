@@ -22,16 +22,13 @@ def basemodel2dict(data) -> dict:
     return train_args
 
 
-async def write_train_yaml_to_two_path(train_config_path: str, path: str, data: dict):
+async def write_yaml(path: str, data: dict):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=False)
         yaml_content = yaml.dump(data, default_flow_style=False)
 
-        async with aiofiles.open(path, "w") as af1:
-            await af1.write(yaml_content)
-
-        async with aiofiles.open(train_config_path, "w") as af2:
-            await af2.write(yaml_content)
+        async with aiofiles.open(path, "w") as af:
+            await af.write(yaml_content)
 
     except FileExistsError:
         raise FileExistsError(f"'{path}' is already exists") from None

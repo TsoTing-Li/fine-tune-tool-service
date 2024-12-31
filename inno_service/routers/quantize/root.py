@@ -7,7 +7,7 @@ from inno_service.routers.quantize import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 
 QUANTIZE_PATH = os.getenv("QUANTIZE_PATH", "/app/quantize")
-TRAIN_CONFIG_PATH = os.getenv("TRAIN_CONFIG_PATH", "/app/train_config")
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 router = APIRouter(prefix="/quantize", tags=["Quantize"])
 
@@ -17,7 +17,7 @@ async def post_quantize(request_data: schema.PostStartQuantize):
     error_handler = ResponseErrorHandler()
     try:
         checkpoint_path, finetune_type = await utils.get_quantize_args(
-            os.path.join(TRAIN_CONFIG_PATH, f"{request_data.quantize_name}.yaml")
+            os.path.join(SAVE_PATH, f"{request_data.quantize_name}.yaml")
         )
         checkpoint_path = validator.PostStartQuantize(
             checkpoint_path=checkpoint_path

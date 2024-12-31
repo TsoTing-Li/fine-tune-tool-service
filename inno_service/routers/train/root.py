@@ -8,7 +8,6 @@ from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import get_current_time
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-TRAIN_CONFIG_PATH = os.getenv("TRAIN_CONFIG_PATH", "/app/train_config")
 
 router = APIRouter(prefix="/train", tags=["Train"])
 
@@ -31,10 +30,7 @@ async def start_train(request_data: schema.PostStartTrain):
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
         yaml_path = os.path.join(SAVE_PATH, train_name, f"{train_name}.yaml")
-        train_config_path = os.path.join(TRAIN_CONFIG_PATH, f"{train_name}.yaml")
-        await utils.write_train_yaml_to_two_path(
-            train_config_path=train_config_path, path=yaml_path, data=train_args
-        )
+        await utils.write_yaml(path=yaml_path, data=train_args)
 
         container_name = await utils.run_train(
             image_name=f"{os.environ['USER_NAME']}/{os.environ['REPOSITORY']}:{os.environ['FINE_TUNE_TOOL_TAG']}",
