@@ -11,7 +11,7 @@ from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import generate_uuid
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
-DATASET_INFO_FILE = "data/dataset_info.json"
+DATASET_INFO_FILE = "dataset_info.json"
 DATASET_PATH = os.getenv("DATA_PATH", "/app/data")
 os.makedirs(DATASET_PATH, exist_ok=True)
 
@@ -53,7 +53,8 @@ async def add_data(
             )
 
         await utils.async_add_dataset_info(
-            dataset_info_file=DATASET_INFO_FILE, dataset_info=dataset_info
+            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_info=dataset_info,
         )
 
     except (TypeError, KeyError, ValueError) as e:
@@ -97,7 +98,8 @@ async def delete_data(dataset_name: Annotated[str, Query(...)]):
 
     try:
         await utils.async_del_dataset_info(
-            dataset_info_file=DATASET_INFO_FILE, del_dataset_name=dataset_name
+            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            del_dataset_name=dataset_name,
         )
 
     except (FileNotFoundError, ValueError) as e:
