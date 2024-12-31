@@ -12,8 +12,8 @@ from inno_service.utils.utils import generate_uuid
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 DATASET_INFO_FILE = "data/dataset_info.json"
-SAVE_PATH = "data"
-os.makedirs(SAVE_PATH, exist_ok=True)
+DATASET_PATH = os.getenv("DATA_PATH", "/app/data")
+os.makedirs(DATASET_PATH, exist_ok=True)
 
 router = APIRouter(prefix="/data", tags=["Data"])
 
@@ -44,7 +44,7 @@ async def add_data(
             )
 
             dataset_info.dataset_src = os.path.join(
-                SAVE_PATH, f"{generate_uuid()}-{dataset_info.dataset_src}"
+                DATASET_PATH, f"{generate_uuid()}-{dataset_info.dataset_src}"
             )
             await utils.async_write_file_chunk(
                 file_content=dataset_file,
