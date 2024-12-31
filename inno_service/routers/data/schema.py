@@ -95,6 +95,14 @@ class PostData(BaseModel):
                     input={"dataset_file": f"{self.dataset_file.content_type}"},
                 )
 
+            if self.dataset_info.load_from != "file_name":
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_BODY],
+                    msg="provide dataset_file, must load from 'file_name'",
+                    input={"load_from": self.dataset_info.load_from},
+                )
+
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)
 
