@@ -97,6 +97,7 @@ class PostData(BaseModel):
 
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)
+
         return self
 
 
@@ -112,7 +113,7 @@ class DeleteData(BaseModel):
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_QUERY],
                 msg="'dataset_name' contain invalid characters",
-                input={"file_name": self.dataset_name},
+                input={"dataset_name": self.dataset_name},
             )
 
         if error_handler.errors != []:
