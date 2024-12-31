@@ -56,7 +56,7 @@ async def add_data(
 
         await utils.async_add_dataset_info(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
-            dataset_info=dataset_info,
+            dataset_info=request_body.dataset_info,
         )
 
     except (TypeError, KeyError, ValueError) as e:
