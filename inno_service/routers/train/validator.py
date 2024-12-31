@@ -10,6 +10,26 @@ from inno_service.utils.error import ResponseErrorHandler
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
+class PostTrain(BaseModel):
+    train_path: str
+
+    @model_validator(mode="after")
+    def check(self: "PostTrain") -> "PostTrain":
+        error_handler = ResponseErrorHandler()
+
+        if os.path.exists(self.train_path):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_path' already exists",
+                input={"train_path": self.train_path},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+        return self
+
+
 class PostStartTrain(BaseModel):
     train_name: str
 

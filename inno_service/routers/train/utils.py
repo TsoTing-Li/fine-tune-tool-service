@@ -8,6 +8,8 @@ import yaml
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid
 
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
+
 
 def basemodel2dict(data) -> dict:
     train_args = {
@@ -22,16 +24,17 @@ def basemodel2dict(data) -> dict:
     return train_args
 
 
-async def write_yaml(path: str, data: dict):
+def add_train_path(path: str) -> str:
+    os.makedirs(path, exist_ok=False)
+    return path
+
+
+async def write_yaml(path: str, data: dict) -> None:
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=False)
         yaml_content = yaml.dump(data, default_flow_style=False)
 
         async with aiofiles.open(path, "w") as af:
             await af.write(yaml_content)
-
-    except FileExistsError:
-        raise FileExistsError(f"'{path}' is already exists") from None
 
     except Exception as e:
         raise OSError(f"Unexpected error: {e}") from None
@@ -54,7 +57,7 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
             "Binds": [
                 f"{hf_home}:{hf_home}:rw",
                 f"{root_path}/data:/app/data:rw",
-                f"{root_path}/saves/{train_name}:/app/saves/{train_name}:rw",
+                f"{root_path}/saves/{train_name}:{SAVE_PATH}/{train_name}:rw",
             ],
         },
         "Cmd": cmd,

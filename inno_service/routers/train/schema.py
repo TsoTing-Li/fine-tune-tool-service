@@ -1,9 +1,8 @@
 import re
-from typing import Union
+from typing import Literal, Union
 
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing_extensions import Literal
 
 from inno_service.utils.error import ResponseErrorHandler
 
@@ -150,17 +149,38 @@ class TrainArgs(BaseModel):
         return self
 
 
-class PostStartTrain(BaseModel):
+class PostTrain(BaseModel):
     train_name: Union[str, None] = None
     train_args: TrainArgs = Field(default_factory=TrainArgs)
 
     @model_validator(mode="after")
-    def check(self: "PostStartTrain") -> "PostStartTrain":
+    def check(self: "PostTrain") -> "PostTrain":
         error_handler = ResponseErrorHandler()
 
         if self.train_name and not re.fullmatch(
             r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name
         ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
+class PostStartTrain(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "PostStartTrain") -> "PostStartTrain":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
