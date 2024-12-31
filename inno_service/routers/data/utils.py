@@ -185,7 +185,7 @@ async def async_delete_file(file_name: str) -> None:
     await aiofiles.os.remove(file_name)
 
 
-async def async_del_dataset_info(dataset_info_file: str, del_dataset_name: str):
+async def async_del_dataset(dataset_info_file: str, del_dataset_name: str):
     is_exists = await async_check_path_exists(file_name=dataset_info_file)
 
     if not is_exists:

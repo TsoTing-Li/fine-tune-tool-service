@@ -97,7 +97,7 @@ async def delete_data(dataset_name: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        await utils.async_del_dataset_info(
+        await utils.async_del_dataset(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
             del_dataset_name=dataset_name,
         )
