@@ -30,6 +30,66 @@ class PostTrain(BaseModel):
         return self
 
 
+class GetTrain(BaseModel):
+    train_path: str
+
+    @model_validator(mode="after")
+    def check(self: "GetTrain") -> "GetTrain":
+        error_handler = ResponseErrorHandler()
+
+        if not os.path.exists(self.train_path):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg="'train_path' does not exists",
+                input={"train_path": self.train_path},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+        return self
+
+
+class PutTrain(BaseModel):
+    train_path: str
+
+    @model_validator(mode="after")
+    def check(self: "PutTrain") -> "PutTrain":
+        error_handler = ResponseErrorHandler()
+        if not os.path.exists(self.train_path):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_path' does not exists",
+                input={"train_path": self.train_path},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
+class DelTrain(BaseModel):
+    train_path: str
+
+    @model_validator(mode="after")
+    def check(self: "DelTrain") -> "DelTrain":
+        error_handler = ResponseErrorHandler()
+        if not os.path.exists(self.train_path):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_path' does not exists",
+                input={"train_path": self.train_path},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
 class PostStartTrain(BaseModel):
     train_name: str
 

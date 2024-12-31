@@ -173,6 +173,70 @@ class PostTrain(BaseModel):
         return self
 
 
+class GetTrain(BaseModel):
+    train_name: str = ""
+
+    @model_validator(mode="after")
+    def check(self: "GetTrain") -> "GetTrain":
+        error_handler = ResponseErrorHandler()
+
+        if self.train_name:
+            if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_BODY],
+                    msg="'train_name' contain invalid characters",
+                    input={"train_name": self.train_name},
+                )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+        return self
+
+
+class PutTrain(BaseModel):
+    train_name: str
+    train_args: TrainArgs
+
+    @model_validator(mode="after")
+    def check(self: "PostStartTrain") -> "PostStartTrain":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
+class DelTrain(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "DelTrain") -> "DelTrain":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
 class PostStartTrain(BaseModel):
     train_name: str
 
