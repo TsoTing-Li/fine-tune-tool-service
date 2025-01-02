@@ -54,7 +54,7 @@ async def add_dataset(
                 chunk_size=MAX_FILE_SIZE,
             )
 
-        await utils.async_add_dataset_info(
+        add_content = await utils.async_add_dataset_info(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
             dataset_info=request_body.dataset_info,
         )
@@ -90,7 +90,7 @@ async def add_dataset(
             await request_body.dataset_file.close()
 
     return Response(
-        content=json.dumps({"dataset_name": request_body.dataset_info.dataset_name}),
+        content=json.dumps(add_content),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -103,7 +103,7 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        await utils.async_del_dataset(
+        del_content = await utils.async_del_dataset(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
             del_dataset_name=dataset_name,
         )
@@ -120,8 +120,9 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
             status_code=status.HTTP_400_BAD_REQUEST,
             media_type="application/json",
         )
+
     return Response(
-        content=json.dumps({"dataset_name": dataset_name}),
+        content=json.dumps(del_content),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

@@ -136,7 +136,9 @@ def check_dataset_key_value(
         )
 
 
-async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetInfo):
+async def async_add_dataset_info(
+    dataset_info_file: str, dataset_info: DatasetInfo
+) -> dict:
     is_exists = await async_check_path_exists(file_name=dataset_info_file)
     dataset_info_content = dict()
 
@@ -165,9 +167,11 @@ async def async_add_dataset_info(dataset_info_file: str, dataset_info: DatasetIn
         }
     dataset_info_content.update(update_data)
 
-    await async_write_dataset_info_file(
+    dataset_info_content = await async_write_dataset_info_file(
         dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
     )
+
+    return {dataset_info.dataset_name: dataset_info_content[dataset_info.dataset_name]}
 
 
 async def async_load_bytes(content: bytes):
@@ -185,7 +189,7 @@ async def async_delete_file(file_name: str) -> None:
     await aiofiles.os.remove(file_name)
 
 
-async def async_del_dataset(dataset_info_file: str, del_dataset_name: str):
+async def async_del_dataset(dataset_info_file: str, del_dataset_name: str) -> dict:
     is_exists = await async_check_path_exists(file_name=dataset_info_file)
 
     if not is_exists:
@@ -203,8 +207,11 @@ async def async_del_dataset(dataset_info_file: str, del_dataset_name: str):
     if "file_name" in dataset_info_content[del_dataset_name].keys():
         await async_delete_file(dataset_info_content[del_dataset_name]["file_name"])
 
+    del_content = dataset_info_content[del_dataset_name]
     del dataset_info_content[del_dataset_name]
 
     await async_write_dataset_info_file(
         dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
     )
+
+    return del_content
