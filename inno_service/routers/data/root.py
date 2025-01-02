@@ -19,7 +19,7 @@ router = APIRouter(prefix="/data", tags=["Data"])
 
 
 @router.post("/")
-async def add_data(
+async def add_dataset(
     dataset_info: Annotated[str, Form(...)],
     dataset_file: Union[UploadFile, None] = None,
 ):
@@ -97,7 +97,7 @@ async def add_data(
 
 
 @router.delete("/")
-async def delete_data(dataset_name: Annotated[str, Query(...)]):
+async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
     dataset_name = schema.DeleteData(dataset_name=dataset_name).dataset_name
 
     error_handler = ResponseErrorHandler()
