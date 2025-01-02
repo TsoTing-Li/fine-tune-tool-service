@@ -37,7 +37,7 @@ async def add_dataset(
 
             dataset_content = await utils.async_load_bytes(content=dataset_bytes)
 
-            await utils.async_check_dataset_key_value(
+            utils.check_dataset_key_value(
                 dataset_content=dataset_content,
                 dataset_columns=request_body.dataset_info.columns,
                 dataset_tags=request_body.dataset_info.tags,

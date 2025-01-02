@@ -42,7 +42,7 @@ async def async_get_dataset_info_file(dataset_info_file: str) -> dict:
     return dataset_info_content
 
 
-async def async_check_sharegpt_format(
+def check_sharegpt_format(
     dataset_content: List[dict],
     dataset_columns: Columns,
     dataset_tags: Union[Tags, None],
@@ -96,7 +96,7 @@ async def async_check_sharegpt_format(
                 )
 
 
-async def async_check_alpaca_format(
+def check_alpaca_format(
     dataset_content: List[dict],
     dataset_columns: Columns,
 ):
@@ -117,19 +117,19 @@ async def async_check_alpaca_format(
             raise KeyError("Invalid column key in required dataset")
 
 
-async def async_check_dataset_key_value(
+def check_dataset_key_value(
     dataset_content: List[dict],
     dataset_columns: Columns,
     dataset_tags: Union[Tags, None],
     dataset_format: Literal["alpaca", "sharegpt"],
 ) -> None:
     if dataset_format == "alpaca":
-        await async_check_alpaca_format(
+        check_alpaca_format(
             dataset_content=dataset_content, dataset_columns=dataset_columns
         )
 
     elif dataset_format == "sharegpt":
-        await async_check_sharegpt_format(
+        check_sharegpt_format(
             dataset_content=dataset_content,
             dataset_columns=dataset_columns,
             dataset_tags=dataset_tags,
