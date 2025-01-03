@@ -30,16 +30,28 @@ async def async_write_file_chunk(file_content: bytes, file_path: str, chunk_size
 
 async def async_write_dataset_info_file(
     dataset_info_file: str, dataset_info_content: dict
-):
-    async with aiofiles.open(dataset_info_file, "wb") as af:
-        await af.write(orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2))
+) -> dict:
+    try:
+        async with aiofiles.open(dataset_info_file, "wb") as af:
+            await af.write(
+                orjson.dumps(dataset_info_content, option=orjson.OPT_INDENT_2)
+            )
+
+        return dataset_info_content
+
+    except orjson.JSONEncodeError:
+        raise TypeError("Failed to serialize data into JSON format") from None
 
 
 async def async_get_dataset_info_file(dataset_info_file: str) -> dict:
-    async with aiofiles.open(dataset_info_file) as af:
-        content = await af.read()
-        dataset_info_content = orjson.loads(content)
-    return dataset_info_content
+    try:
+        async with aiofiles.open(dataset_info_file) as af:
+            content = await af.read()
+            dataset_info_content = orjson.loads(content)
+        return dataset_info_content
+
+    except orjson.JSONDecodeError:
+        raise TypeError("Invalid JSON format in dataset info file") from None
 
 
 def check_sharegpt_format(
