@@ -185,6 +185,51 @@ async def async_load_bytes(content: bytes):
         raise TypeError("Invalid JSON format") from None
 
 
+async def get_dataset_info(dataset_info_file: str, dataset_name: str) -> dict:
+    is_exists = await async_check_path_exists(file_name=dataset_info_file)
+
+    if not is_exists:
+        raise FileNotFoundError("There are currently no dataset") from None
+
+    dataset_info_content = await async_get_dataset_info_file(
+        dataset_info_file=dataset_info_file
+    )
+    if dataset_name:
+        if dataset_name not in dataset_info_content.keys():
+            raise ValueError("dataset not found") from None
+        return {dataset_name: dataset_info_content[dataset_name]}
+
+    return dataset_info_content
+
+
+async def modify_dataset_file(
+    dataset_info_file: str, ori_name: str, new_name: str
+) -> dict:
+    is_exists = await async_check_path_exists(file_name=dataset_info_file)
+
+    if not is_exists:
+        raise FileNotFoundError("There are currently no dataset") from None
+
+    dataset_info_content = await async_get_dataset_info_file(
+        dataset_info_file=dataset_info_file
+    )
+
+    if ori_name not in dataset_info_content.keys():
+        raise ValueError(f"'dataset_name': {ori_name} does not exists") from None
+
+    if new_name in dataset_info_content.keys():
+        raise KeyError(f"'new_name': {new_name} already in used") from None
+
+    key_mapping = {ori_name: new_name}
+    new_content = {key_mapping.get(k, k): v for k, v in dataset_info_content.items()}
+
+    current_content = await async_write_dataset_info_file(
+        dataset_info_file=dataset_info_file, dataset_info_content=new_content
+    )
+
+    return {new_name: current_content[new_name]}
+
+
 async def async_delete_file(file_name: str) -> None:
     await aiofiles.os.remove(file_name)
 

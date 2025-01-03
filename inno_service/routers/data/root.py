@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Union
+from typing import Optional, Union
 
 import orjson
 from fastapi import APIRouter, Form, Query, Response, UploadFile, status
@@ -91,6 +91,106 @@ async def add_dataset(
 
     return Response(
         content=json.dumps(add_content),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.get("/")
+async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
+    query_data = schema.GetData(dataset_name=dataset_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        dataset_info = await utils.get_dataset_info(
+            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_name=query_data.dataset_name,
+        )
+
+    except ValueError as e:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_QUERY],
+            msg=f"{e}",
+            input={"dataset_name": query_data.dataset_name},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_404_NOT_FOUND,
+            media_type="application/json",
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input={},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/json",
+        )
+
+    return Response(
+        content=json.dumps(dataset_info),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.put("/")
+async def modify_dataset(request_data: schema.PutData):
+    error_handler = ResponseErrorHandler()
+    try:
+        modify_content = await utils.modify_dataset_file(
+            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            ori_name=request_data.dataset_name,
+            new_name=request_data.new_name,
+        )
+
+    except ValueError as e:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_BODY],
+            msg=f"{e}",
+            input={"dataset_name": request_data.dataset_name},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_404_NOT_FOUND,
+            media_type="application/json",
+        )
+
+    except KeyError as e:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_BODY],
+            msg=f"{e}",
+            input={"new_name": request_data.new_name},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_409_CONFLICT,
+            media_type="application/json",
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input=request_data.model_dump(),
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/json",
+        )
+
+    return Response(
+        content=json.dumps(modify_content),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

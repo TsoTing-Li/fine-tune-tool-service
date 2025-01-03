@@ -105,6 +105,57 @@ class PostData(BaseModel):
 
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)
+        return self
+
+
+class GetData(BaseModel):
+    dataset_name: str = ""
+
+    @model_validator(mode="after")
+    def check(self: "GetData") -> "GetData":
+        error_handler = ResponseErrorHandler()
+
+        if self.dataset_name:
+            if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_QUERY],
+                    msg="'dataset_name' contain invalid characters",
+                    input={"dataset_name": self.dataset_name},
+                )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
+class PutData(BaseModel):
+    dataset_name: str
+    new_name: str
+
+    @model_validator(mode="after")
+    def check(self: "PutData") -> "PutData":
+        error_handler = ResponseErrorHandler()
+
+        if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg="'dataset_name' contain invalid characters",
+                input={"dataset_name": self.dataset_name},
+            )
+
+        if bool(re.search(r"[^a-zA-Z0-9_]+", self.new_name)) is True:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg="'new_name' contain invalid characters",
+                input={"new_name": self.new_name},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
 
         return self
 
