@@ -68,6 +68,31 @@ async def quantize_log(websocket: WebSocket, id: str):
     await websocket.close()
 
 
+@router.websocket("/mergeLogs/{id}")
+async def merge_log(websocket: WebSocket, id: str):
+    await websocket.accept()
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+
+    params = {"id": id, "follow": True, "stdout": True, "stderr": True}
+
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        async with aclient.stream(
+            "GET", f"http://docker/containers/{id}/logs", params=params
+        ) as r:
+            async for chunk in r.aiter_text():
+                # for chunk_split in chunk.splitlines():
+                if chunk == "":
+                    break
+                elif chunk[0] in ("\x01", "\x02"):
+                    chunk = chunk[8:]
+
+                accel_logger.info(f"mergeLog: {chunk}")
+                await websocket.send_json({"mergeLog": chunk})
+    await websocket.send_json({"mergeLog": "merge finish"})
+
+    await websocket.close()
+
+
 @router.websocket("/hwInfo")
 async def hw_info_log(websocket: WebSocket):
     await websocket.accept()
