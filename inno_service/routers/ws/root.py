@@ -37,8 +37,8 @@ async def train_log(websocket: WebSocket, id: str):
                         skip_eval_process_bar = True
 
                     accel_logger.info(f"trainLog: {json.dumps(log_info)}")
-                    await websocket.send_json(log_info)
-    await websocket.send_json({"message": "finish"})
+                    await websocket.send_json({"trainLog": log_info})
+    await websocket.send_json({"trainLog": "train finish"})
 
     await websocket.close()
 
@@ -62,8 +62,8 @@ async def quantize_log(websocket: WebSocket, id: str):
                         chunk_split = chunk_split[8:]
 
                     accel_logger.info(f"quantizeLog: {chunk_split}")
-                    await websocket.send_text(chunk_split)
-    await websocket.send_json({"message": "finish"})
+                    await websocket.send_json({"quantizeLog": chunk_split})
+    await websocket.send_json({"quantizeLog": "quantize finish"})
 
     await websocket.close()
 
