@@ -1,0 +1,69 @@
+name: acceltune
+
+services:
+  tool:
+    image: ${USER_NAME}/${REPOSITORY}:${FINE_TUNE_TOOL_TAG}
+    container_name: ${FINE_TUNE_TOOL_CONTAINER_NAME}
+    env_file:
+      - .env
+    volumes:
+      - ${ROOT_PATH}:/app
+      - ${ROOT_PATH}/logs:/${ACCELTUNE_LOG_FOLDER}
+      - ${HF_HOME}:${HF_HOME}
+      - /var/run/docker.sock:/var/run/docker.sock
+    ipc: host
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: bash
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: "all"
+            capabilities: [gpu]
+    restart: unless-stopped
+
+  quantize-service:
+    image: ${USER_NAME}/${REPOSITORY}:${QUANTIZE_SERVICE_TAG}
+    container_name: ${QUANTIZE_SERVICE_CONTAINER_NAME
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ipc: host
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: uvicorn src.app:quantize_api --host 0.0.0.0 --port 8002 --reload
+    restart: unless-stopped
+
+  monitor-containers:
+    image: ${USER_NAME}/${REPOSITORY}:${MONITOR_CONTAINER_TAG}
+    container_name: ${MONITOR_CONTAINER_CONTAINER_NAME}
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  hw_info:
+    image: ${USER_NAME}/${REPOSITORY}:${HWINFO_TAG}
+    container_name: ${HWINFO_CONTAINER_NAME}
+    env_file:
+      - .env
+    privileged: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - /dev:/dev
+      - ${MOUNT_PATH}:${MOUNT_PATH}
+    runtime: nvidia
+    restart: always
