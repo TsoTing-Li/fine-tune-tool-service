@@ -59,7 +59,7 @@ async def start_vllm_container(
                 "8000/tcp": [{"HostPort": f"{os.getenv('VLLM_SERVICE_PORT', 8003)}"}]
             },
             "AutoRemove": True,
-            # "NetworkMode": acceltune_network,
+            "NetworkMode": "host",
         },
         # "NetworkingConfig": {"EndpointsConfig": {acceltune_network: {}}},
         "Cmd": cmd,
