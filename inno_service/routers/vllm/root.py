@@ -27,7 +27,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             image_name=f"{os.environ['USER_NAME']}/{os.environ['VLLM_SERVICE_NAME']}:{os.environ['VLLM_SERVICE_TAG']}",
             cmd=[
                 "--model",
-                model_params["base_model"]
+                model_params["model_name_or_path"]
                 if model_params["finetune_type"] == "lora"
                 else model_params["output_dir"],
                 "--gpu_memory_utilization",
@@ -38,7 +38,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
                 request_data.tensor_parallel_size,
                 "--enforce-eager",
                 "--tokenizer",
-                model_params["base_model"],
+                model_params["model_name_or_path"],
             ],
             model_name=request_data.model_name,
             base_model=model_params["base_model"],
