@@ -80,7 +80,6 @@ async def merge_log(websocket: WebSocket, id: str):
             "GET", f"http://docker/containers/{id}/logs", params=params
         ) as r:
             async for chunk in r.aiter_text():
-                # for chunk_split in chunk.splitlines():
                 if chunk == "":
                     break
                 elif chunk[0] in ("\x01", "\x02"):
