@@ -57,7 +57,7 @@ async def run_merge(image_name: str, cmd: list, merge_name: str) -> str:
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
         container_name_or_id = await create_container(
-            aclient=aclient, name=merge_name, data=data
+            aclient=aclient, name=f"merge-{merge_name}", data=data
         )
 
         started_container = await start_container(

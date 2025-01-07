@@ -86,7 +86,7 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
-    container_name = f"{train_name}-{generate_uuid()}"
+    container_name = f"train-{train_name}-{generate_uuid()}"
     params = {"name": container_name}
     data = {
         "User": "root",
