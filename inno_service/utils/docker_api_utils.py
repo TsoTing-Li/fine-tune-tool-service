@@ -1,7 +1,8 @@
 from typing import Literal
 
 import httpx
-from utils import generate_uuid
+
+from .utils import generate_uuid
 
 
 async def create_container(aclient: httpx.AsyncClient, name: str, data: dict) -> str:
