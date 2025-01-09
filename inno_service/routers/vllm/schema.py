@@ -13,7 +13,7 @@ class PostStartVLLM(BaseModel):
     model_name: str
     gpu_memory_utilization: float = 0.95
     max_model_len: int = 8192
-    cpu_offload_gb: int = 110
+    cpu_offload_gb: int = 0
     tensor_parallel_size: int = 1
 
     @model_validator(mode="after")
