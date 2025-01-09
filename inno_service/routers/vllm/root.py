@@ -28,21 +28,21 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             cmd=[
                 "--model",
                 model_params["model_name_or_path"]
-                if model_params["finetune_type"] == "lora"
+                if model_params["finetuning_type"] == "lora"
                 else model_params["output_dir"],
                 "--gpu_memory_utilization",
-                request_data.gpu_memory_utilization,
+                f"{request_data.gpu_memory_utilization}",
                 "--max_model_len",
-                request_data.max_model_len,
+                f"{request_data.max_model_len}",
                 "--tensor-parallel-size",
-                request_data.tensor_parallel_size,
+                f"{request_data.tensor_parallel_size}",
                 "--enforce-eager",
                 "--tokenizer",
                 model_params["model_name_or_path"],
             ],
             model_name=request_data.model_name,
-            base_model=model_params["base_model"],
-            finetune_type=model_params["finetune_type"],
+            base_model=model_params["model_name_or_path"],
+            finetune_type=model_params["finetuning_type"],
             cpu_offload_gb=request_data.cpu_offload_gb,
         )
 
