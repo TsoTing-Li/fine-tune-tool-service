@@ -45,6 +45,11 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             finetune_type=model_params["finetuning_type"],
             cpu_offload_gb=request_data.cpu_offload_gb,
         )
+        chat_model_name = (
+            request_data.model_name
+            if model_params["finetuning_type"] == "lora"
+            else model_params["output_dir"]
+        )
 
     except Exception as e:
         error_handler.add(
@@ -60,7 +65,9 @@ async def start_vllm(request_data: schema.PostStartVLLM):
         )
 
     return Response(
-        content=json.dumps({"vllm_service": container_name}),
+        content=json.dumps(
+            {"vllm_service": container_name, "chat_model_name": chat_model_name}
+        ),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
