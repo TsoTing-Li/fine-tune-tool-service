@@ -23,6 +23,7 @@ async def get_model_params(path: str) -> dict:
 async def start_vllm_container(
     image_name: str,
     cmd: list,
+    service_port: int,
     model_name: str,
     base_model: str,
     finetune_type: Literal["full", "lora"],
@@ -55,9 +56,7 @@ async def start_vllm_container(
                 f"{hf_home}:{hf_home}:rw",
                 f"{os.environ['ROOT_PATH']}/{custom_model_path}:{ws_path}/{custom_model_path}:rw",
             ],
-            "PortBindings": {
-                "8000/tcp": [{"HostPort": f"{os.getenv('VLLM_SERVICE_PORT', 8003)}"}]
-            },
+            "PortBindings": {"8000/tcp": [{"HostPort": f"{service_port}"}]},
             "AutoRemove": True,
             "NetworkMode": "host",
         },

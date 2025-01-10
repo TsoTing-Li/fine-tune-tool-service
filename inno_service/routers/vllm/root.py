@@ -8,6 +8,8 @@ from inno_service.utils.error import ResponseErrorHandler
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
 
+VLLM_SERVICE_PORT = os.getenv("VLLM_SERVICE_PORT", 8003)
+
 
 @router.post("/start/safetensors/")
 async def start_vllm(request_data: schema.PostStartVLLM):
@@ -40,6 +42,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
                 "--tokenizer",
                 model_params["model_name_or_path"],
             ],
+            service_port=VLLM_SERVICE_PORT,
             model_name=request_data.model_name,
             base_model=model_params["model_name_or_path"],
             finetune_type=model_params["finetuning_type"],
@@ -66,7 +69,10 @@ async def start_vllm(request_data: schema.PostStartVLLM):
 
     return Response(
         content=json.dumps(
-            {"vllm_service": container_name, "chat_model_name": chat_model_name}
+            {
+                "vllm_service": f"http://{container_name}:{VLLM_SERVICE_PORT}",
+                "chat_model_name": chat_model_name,
+            }
         ),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
