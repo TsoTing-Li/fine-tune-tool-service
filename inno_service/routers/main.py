@@ -9,18 +9,18 @@ import inno_service.routers.train.root
 import inno_service.routers.vllm.root
 import inno_service.routers.ws.root
 
-inno_api = FastAPI()
+acceltune_api = FastAPI()
 
-inno_api.include_router(inno_service.routers.data.root.router)
-inno_api.include_router(inno_service.routers.deepspeed.root.router)
-inno_api.include_router(inno_service.routers.train.root.router)
-inno_api.include_router(inno_service.routers.quantize.root.router)
-inno_api.include_router(inno_service.routers.ws.root.router)
-inno_api.include_router(inno_service.routers.vllm.root.router)
-inno_api.include_router(inno_service.routers.merge.root.router)
-inno_api.include_router(inno_service.routers.chat.root.router)
+acceltune_api.include_router(inno_service.routers.data.root.router)
+acceltune_api.include_router(inno_service.routers.deepspeed.root.router)
+acceltune_api.include_router(inno_service.routers.train.root.router)
+acceltune_api.include_router(inno_service.routers.quantize.root.router)
+acceltune_api.include_router(inno_service.routers.ws.root.router)
+acceltune_api.include_router(inno_service.routers.vllm.root.router)
+acceltune_api.include_router(inno_service.routers.merge.root.router)
+acceltune_api.include_router(inno_service.routers.chat.root.router)
 
 
-@inno_api.get("/health/")
+@acceltune_api.get("/health/")
 def health_check():
     return Response(content="", status_code=status.HTTP_200_OK, media_type="text/plain")

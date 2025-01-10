@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from inno_service.routers.main import inno_api
+from inno_service.routers.main import acceltune_api
 from inno_service.utils.logger import accel_logger
 
 
@@ -32,4 +32,4 @@ def health_check():
     return Response(content="", status_code=status.HTTP_200_OK, media_type="text/plain")
 
 
-app.mount("/inno", inno_api)
+app.mount("/acceltune", acceltune_api)
