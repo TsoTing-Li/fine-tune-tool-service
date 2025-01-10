@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 
 import inno_service.routers.chat.root
 import inno_service.routers.data.root
@@ -21,6 +21,6 @@ inno_api.include_router(inno_service.routers.merge.root.router)
 inno_api.include_router(inno_service.routers.chat.root.router)
 
 
-@inno_api.get("/")
-def test_api():
-    return {"message": "inno api check!"}
+@inno_api.get("/health/")
+def health_check():
+    return Response(content="", status_code=status.HTTP_200_OK, media_type="text/plain")
