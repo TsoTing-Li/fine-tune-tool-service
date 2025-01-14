@@ -72,7 +72,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         )
 
     return Response(
-        content=json.dumps({"ds_config_path": path}),
+        content=json.dumps({"ds_path": path}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -116,7 +116,7 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
         )
 
     return Response(
-        content=json.dumps({"ds_file_path": ds_file_path}),
+        content=json.dumps({"ds_path": ds_file_path}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
