@@ -133,7 +133,7 @@ class DS_Z3(BaseModel):
 
 class PostDeepSpeedDefault(BaseModel):
     stage: Literal[2, 3]
-    enable_offload: bool
+    enable_offload: bool = False
     offload_device: Literal["cpu", "nvme", None] = None
 
     @model_validator(mode="after")
@@ -144,7 +144,7 @@ class PostDeepSpeedDefault(BaseModel):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="must select offload device when enabled offload",
+                msg="must select 'offload_device' when 'enabled_offload'",
                 input={
                     "enabled_offload": self.enable_offload,
                     "offload_device": self.offload_device,
