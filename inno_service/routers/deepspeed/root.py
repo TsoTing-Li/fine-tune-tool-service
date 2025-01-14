@@ -9,8 +9,8 @@ from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import get_current_time
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
-NVME_PATH = "/mnt/nvme"
-SAVE_PATH = "DS_CONFIG"
+NVME_PATH = os.getenv("NVME_PATH", "/mnt/nvme")
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
