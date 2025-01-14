@@ -161,3 +161,18 @@ class DS_Z3_OFFLOAD(DeepSpeedBaseModel):
 
 class DS_Z3(DeepSpeedBaseModel):
     zero_optimization: Z3_ZeroOptimization = Z3_ZeroOptimization()
+
+
+class PostDeepSpeedDefault(BaseModel):
+    stage: int
+    enable_offload: bool
+
+    def get_target_model(self):
+        if self.stage == 2 and self.enable_offload:
+            return DS_Z2_OFFLOAD()
+        elif self.stage == 2 and not self.enable_offload:
+            return DS_Z2()
+        elif self.stage == 3 and self.enable_offload:
+            return DS_Z3_OFFLOAD()
+        elif self.stage == 3 and not self.enable_offload:
+            return DS_Z3()

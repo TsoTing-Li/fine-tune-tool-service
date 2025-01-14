@@ -4,7 +4,7 @@ import os
 from fastapi import APIRouter, File, Query, Response, UploadFile, status
 from typing_extensions import Annotated
 
-from inno_service.routers.deepspeed import schema, utils
+from inno_service.routers.deepspeed import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import get_current_time
 
@@ -19,7 +19,10 @@ router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     error_handler = ResponseErrorHandler()
 
-    target_model = utils.parse_body(request_data)
+    ds_config_adapter = validator.PostDeepSpeedDefault(
+        stage=request_data.stage, enable_offload=request_data.enable_offload
+    )
+    target_model = ds_config_adapter.get_target_model()
 
     ds_config_content = {
         "train_batch_size": target_model.train_batch_size,

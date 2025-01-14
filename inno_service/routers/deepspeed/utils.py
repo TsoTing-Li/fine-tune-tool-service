@@ -1,11 +1,8 @@
 import os
-from typing import Union
 
 import aiofiles
 import aiofiles.os
 import orjson
-
-from inno_service.routers.deepspeed import schema, validator
 
 
 async def async_write_ds_config(file_path: str, ds_config_content: dict):
@@ -58,18 +55,3 @@ async def async_delete_file(file_name: str) -> None:
 
     except FileNotFoundError:
         raise FileNotFoundError(f"{file_name} does not exists") from None
-
-
-def parse_body(
-    body: schema.PostDeepSpeedDefault,
-) -> Union[
-    validator.DS_Z2_OFFLOAD, validator.DS_Z2, validator.DS_Z3_OFFLOAD, validator.DS_Z3
-]:
-    if body.stage == 2 and body.enable_offload:
-        return validator.DS_Z2_OFFLOAD()
-    elif body.stage == 2 and not body.enable_offload:
-        return validator.DS_Z2()
-    elif body.stage == 3 and body.enable_offload:
-        return validator.DS_Z3_OFFLOAD()
-    elif body.stage == 3 and not body.enable_offload:
-        return validator.DS_Z3()
