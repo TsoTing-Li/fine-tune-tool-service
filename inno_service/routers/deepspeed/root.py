@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, File, Query, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from typing_extensions import Annotated
 
 from inno_service.routers.deepspeed import schema, utils, validator
@@ -51,13 +51,10 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     )
 
     try:
-        current_time = str(get_current_time())
-        path = os.path.join(SAVE_PATH, f"ds_config_{current_time}.json")
-        await utils.async_write_ds_config(
-            file_path=path, ds_config_content=ds_config_content
+        path = os.path.join(
+            SAVE_PATH, request_data.name, f"ds_config_{request_data.name}.json"
         )
-    except FileNotFoundError:
-        os.makedirs(SAVE_PATH, exist_ok=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         await utils.async_write_ds_config(
             file_path=path, ds_config_content=ds_config_content
         )
@@ -82,30 +79,23 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
 
 
 @router.post("/file/")
-async def add_deepspeed_file(ds_file: UploadFile = File(...)):
-    request_data = schema.PostDeepSpeedFile(ds_file=ds_file)
+async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(...)):
+    request_data = schema.PostDeepSpeedFile(name=name, ds_file=ds_file)
     error_handler = ResponseErrorHandler()
 
     try:
         ds_file = await request_data.ds_file.read()
         await utils.async_load_bytes(content=ds_file)
 
-        ds_file_path = os.path.join(SAVE_PATH, request_data.ds_file.filename)
+        ds_file_path = os.path.join(
+            SAVE_PATH,
+            request_data.name,
+            f"{request_data.ds_file.filename}.json"
+            if request_data.ds_file.filename
+            else f"ds_config_{get_current_time()}.json",
+        )
 
-        is_exists = await utils.async_check_path_exists(ds_file_path)
-        if is_exists:
-            error_handler.add(
-                type=error_handler.ERR_EXISTS,
-                loc=[error_handler.LOC_FORM],
-                msg=f"'{request_data.ds_file.filename}' already exists",
-                input={"ds_file": request_data.ds_file.filename},
-            )
-            return Response(
-                content=json.dumps(error_handler.errors),
-                status_code=status.HTTP_400_BAD_REQUEST,
-                media_type="application/json",
-            )
-
+        os.makedirs(os.path.dirname(ds_file_path), exist_ok=True)
         await utils.async_write_file_chunk(
             file_content=ds_file,
             file_path=ds_file_path,

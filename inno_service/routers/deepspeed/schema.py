@@ -9,6 +9,7 @@ from inno_service.utils.error import ResponseErrorHandler
 
 
 class PostDeepSpeedDefault(BaseModel):
+    name: str
     stage: Literal[2, 3]
     enable_offload: bool = False
     offload_device: Literal["cpu", "nvme", None] = None
@@ -16,6 +17,14 @@ class PostDeepSpeedDefault(BaseModel):
     @model_validator(mode="after")
     def check(self: "PostDeepSpeedDefault") -> "PostDeepSpeedDefault":
         error_handler = ResponseErrorHandler()
+
+        if self.name and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'name' contain invalid characters",
+                input={"name": self.name},
+            )
 
         if self.enable_offload and not self.offload_device:
             error_handler.add(
@@ -34,11 +43,20 @@ class PostDeepSpeedDefault(BaseModel):
 
 
 class PostDeepSpeedFile(BaseModel):
+    name: str
     ds_file: UploadFile
 
     @model_validator(mode="after")
     def check(self: "PostDeepSpeedFile") -> "PostDeepSpeedFile":
         error_handler = ResponseErrorHandler()
+
+        if self.name and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'name' contain invalid characters",
+                input={"name": self.name},
+            )
 
         if self.ds_file.content_type != "application/json":
             error_handler.add(
