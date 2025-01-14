@@ -8,6 +8,7 @@ from inno_service.utils.error import ResponseErrorHandler
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
 
+SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 VLLM_SERVICE_PORT = os.getenv("VLLM_SERVICE_PORT", 8003)
 
 
@@ -19,8 +20,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
     try:
         model_params = await utils.get_model_params(
             path=os.path.join(
-                os.environ["WS"],
-                os.environ["SAVE_PATH"],
+                SAVE_PATH,
                 f"{request_data.model_name}/{request_data.model_name}.yaml",
             )
         )
