@@ -1,5 +1,5 @@
 import re
-from typing import Literal, Union
+from typing import List, Literal, Union
 
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -42,7 +42,7 @@ class Method(BaseModel):
 
 
 class Dataset(BaseModel):
-    dataset: str
+    dataset: List[str]
     template: Literal["llama3", "gemma", "qwen", "mistral"]
     dataset_dir: str = "data"
     cutoff_len: int

@@ -101,6 +101,7 @@ async def post_train(request_data: schema.PostTrain):
         train_args["output_dir"] = os.path.join(
             SAVE_PATH, train_name, train_args["finetuning_type"]
         )
+        train_args["dataset"] = ", ".join(train_args["dataset"])
         train_args["dataset_dir"] = os.path.join(os.getenv("DATA_PATH", "/app/data"))
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
