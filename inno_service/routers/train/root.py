@@ -2,7 +2,17 @@ import json
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Query, Response, status
+import orjson
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from typing_extensions import Annotated
 
 from inno_service.routers.train import schema, utils, validator
@@ -87,14 +97,40 @@ async def stop_train(request_data: schema.PostStopTrain):
 
 
 @router.post("/")
-async def post_train(request_data: schema.PostTrain):
+async def post_train(
+    train_name: str = Form(None),
+    train_args: str = Form(...),
+    deepspeed_args: str = Form(None),
+    deepspeed_file: UploadFile = File(None),
+):
+    error_handler = ResponseErrorHandler()
+    try:
+        train_args = orjson.loads(train_args)
+        deepspeed_args = orjson.loads(deepspeed_args) if deepspeed_args else None
+    except orjson.JSONDecodeError:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_FORM],
+            msg="'train_args' or 'deepspeed_args' must be JSON format",
+            input={},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            media_type="application/json",
+        )
+
+    request_data = schema.PostTrain(
+        train_name=train_name,
+        train_args=train_args,
+        deepspeed_args=deepspeed_args,
+        deepspeed_file=deepspeed_file,
+    )
     if not request_data.train_name:
         train_name = f"{get_current_time()}-{generate_uuid()}"
     else:
         train_name = request_data.train_name
     validator.PostTrain(train_path=os.path.join(SAVE_PATH, train_name))
-
-    error_handler = ResponseErrorHandler()
 
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
@@ -107,9 +143,30 @@ async def post_train(request_data: schema.PostTrain):
         train_args["do_train"] = True
 
         train_path = utils.add_train_path(path=os.path.join(SAVE_PATH, train_name))
+
+        if request_data.deepspeed_args:
+            ds_args = request_data.deepspeed_args.model_dump()
+            ds_api_response = await utils.call_ds_api(
+                name=train_name, ds_args=ds_args, ds_file=request_data.deepspeed_file
+            )
+            train_args["deepspeed"] = ds_api_response["ds_path"]
+
         await utils.write_yaml(
             path=os.path.join(train_path, f"{train_name}.yaml"),
             data=train_args,
+        )
+
+    except HTTPException as e:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_FORM],
+            msg=f"{e.detail}",
+            input={},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=e.status_code,
+            media_type="application/json",
         )
 
     except Exception as e:

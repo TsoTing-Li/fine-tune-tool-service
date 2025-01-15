@@ -1,32 +1,45 @@
 import re
 from typing import List, Literal, Union
 
+from fastapi import UploadFile
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
 
 
+class DeepSpeedArgs(BaseModel):
+    src: Literal["default", "file"]
+    stage: Literal[2, 3, None] = None
+    enable_offload: bool = False
+    offload_device: Literal["cpu", "nvme", None] = None
+
+    @model_validator(mode="after")
+    def check(self: "DeepSpeedArgs") -> "DeepSpeedArgs":
+        error_handler = ResponseErrorHandler()
+
+        if self.src == "default" and not self.stage:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="must provide deepspeed stage '2' or '3', when 'src' is 'default'",
+                input={"src": self.src, "stage": self.stage},
+            )
+
+        if error_handler.errors != []:
+            raise RequestValidationError(error_handler.errors)
+
+        return self
+
+
 class Method(BaseModel):
     stage: Literal["sft"] = "sft"
     finetuning_type: Literal["full", "lora"]
     lora_target: Union[str, None] = None
-    deepspeed: Union[str, None] = None
 
     @model_validator(mode="after")
     def check(self: "Method") -> "Method":
         error_handler = ResponseErrorHandler()
-
-        if (
-            self.deepspeed
-            and bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.deepspeed)) is True
-        ):
-            error_handler.add(
-                type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
-                msg="'deepspeed' contain invalid characters",
-                input={"deepspeed": self.deepspeed},
-            )
 
         if self.finetuning_type == "lora" and not self.lora_target:
             error_handler.add(
@@ -150,8 +163,10 @@ class TrainArgs(BaseModel):
 
 
 class PostTrain(BaseModel):
-    train_name: Union[str, None] = None
-    train_args: TrainArgs = Field(default_factory=TrainArgs)
+    train_name: Union[str, None]
+    train_args: TrainArgs
+    deepspeed_args: Union[DeepSpeedArgs, None]
+    deepspeed_file: Union[UploadFile, None]
 
     @model_validator(mode="after")
     def check(self: "PostTrain") -> "PostTrain":
@@ -166,6 +181,29 @@ class PostTrain(BaseModel):
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
+
+        if self.deepspeed_args:
+            if self.deepspeed_args.src == "file" and not self.deepspeed_file:
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="must provide 'ds_file' when 'src' is 'file'",
+                    input={
+                        "deepspeed_args.src": self.deepspeed_args.src,
+                        "deepspeed_file": self.deepspeed_file,
+                    },
+                )
+
+            if (
+                self.deepspeed_file
+                and self.deepspeed_file.content_type != "application/json"
+            ):
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="'content_type' must be 'application/json'",
+                    input={"deepspeed_file": self.deepspeed_file.content_type},
+                )
 
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)

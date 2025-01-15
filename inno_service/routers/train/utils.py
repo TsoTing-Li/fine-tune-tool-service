@@ -1,11 +1,12 @@
 import asyncio
 import os
 import shutil
-from typing import Literal
+from typing import Literal, Union
 
 import aiofiles
 import httpx
 import yaml
+from fastapi import HTTPException, UploadFile
 
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid
@@ -29,6 +30,40 @@ def basemodel2dict(data) -> dict:
 def add_train_path(path: str) -> str:
     os.makedirs(path, exist_ok=False)
     return path
+
+
+async def call_ds_api(
+    name: str, ds_args: dict, ds_file: Union[UploadFile, None] = None
+) -> str:
+    base_url = f"http://127.0.0.1:{os.getenv('MAIN_SERVICE_PORT')}/acceltune/deepspeed"
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        if ds_args["src"] == "default":
+            payload = {
+                "json": {
+                    "name": name,
+                    "stage": ds_args["stage"],
+                    "enable_offload": ds_args["enable_offload"],
+                    "offload_device": ds_args["offload_device"],
+                }
+            }
+        elif ds_args["src"] == "file":
+            payload = {
+                "files": {
+                    "ds_file": (
+                        ds_file.filename,
+                        await ds_file.read(),
+                        ds_file.content_type,
+                    ),
+                    "name": (None, name),
+                }
+            }
+
+        response = await aclient.post(f"{base_url}/{ds_args['src']}/", **payload)
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+
+        return response.json()
 
 
 async def write_yaml(path: str, data: dict) -> None:
