@@ -44,7 +44,6 @@ class Method(BaseModel):
 class Dataset(BaseModel):
     dataset: List[str]
     template: Literal["llama3", "gemma", "qwen", "mistral"]
-    dataset_dir: str = "data"
     cutoff_len: int
     max_samples: int
     overwrite_cache: bool
