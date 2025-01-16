@@ -90,7 +90,7 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
         ds_file_path = os.path.join(
             SAVE_PATH,
             request_data.name,
-            f"{request_data.ds_file.filename}.json"
+            f"{request_data.ds_file.filename}"
             if request_data.ds_file.filename
             else f"ds_config_{get_current_time()}.json",
         )
