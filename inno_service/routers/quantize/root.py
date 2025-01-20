@@ -14,14 +14,15 @@ router = APIRouter(prefix="/quantize", tags=["Quantize"])
 
 @router.post("/start/")
 async def post_quantize(request_data: schema.PostStartQuantize):
+    validator.PostStartQuantize(
+        checkpoint_path=os.path.join(SAVE_PATH, f"{request_data.quantize_name}")
+    )
     error_handler = ResponseErrorHandler()
+
     try:
         checkpoint_path, finetune_type = await utils.get_quantize_args(
             os.path.join(SAVE_PATH, f"{request_data.quantize_name}.yaml")
         )
-        checkpoint_path = validator.PostStartQuantize(
-            checkpoint_path=checkpoint_path
-        ).checkpoint_path
 
         container_ids = await utils.quantize_as_gguf(
             quantize_service_url="http://127.0.0.1:8002/gguf",
