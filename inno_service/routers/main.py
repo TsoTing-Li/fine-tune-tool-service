@@ -23,6 +23,6 @@ acceltune_api.include_router(inno_service.routers.chat.root.router)
 acceltune_api.include_router(inno_service.routers.evaluate.root.router)
 
 
-@acceltune_api.get("/health/")
+@acceltune_api.get("/health/", tags=["Health"])
 def health_check():
     return Response(content="", status_code=status.HTTP_200_OK, media_type="text/plain")
