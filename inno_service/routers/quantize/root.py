@@ -28,7 +28,7 @@ async def post_quantize(request_data: schema.PostStartQuantize):
             quantize_service_url="http://127.0.0.1:8002/gguf",
             quantize_name=request_data.quantize_name,
             checkpoint_path=checkpoint_path,
-            output_path=os.path.join(QUANTIZE_PATH, request_data.quantize_name),
+            output_path=os.path.join(SAVE_PATH, request_data.quantize_name, "quantize"),
             finetune_type=finetune_type,
         )
         result = {
