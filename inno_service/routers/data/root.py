@@ -23,10 +23,23 @@ async def add_dataset(
     dataset_info: str = Form(...),
     dataset_file: Union[UploadFile, None] = File(None),
 ):
-    dataset_info = orjson.loads(dataset_info)
-    request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
-
     error_handler = ResponseErrorHandler()
+    try:
+        dataset_info = orjson.loads(dataset_info)
+    except orjson.JSONDecodeError:
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_FORM],
+            msg="Invalid JSON format",
+            input={"dataset_info": dataset_info},
+        )
+        return Response(
+            content=json.dumps(error_handler.errors),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            media_type="application/json",
+        )
+
+    request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
 
     try:
         if (
