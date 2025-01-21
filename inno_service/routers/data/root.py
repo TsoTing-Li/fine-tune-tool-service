@@ -3,7 +3,7 @@ import os
 from typing import Optional, Union
 
 import orjson
-from fastapi import APIRouter, Form, Query, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from typing_extensions import Annotated
 
 from inno_service.routers.data import schema, utils
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/data", tags=["Data"])
 @router.post("/")
 async def add_dataset(
     dataset_info: str = Form(...),
-    dataset_file: Union[UploadFile, None] = None,
+    dataset_file: Union[UploadFile, None] = File(None),
 ):
     dataset_info = orjson.loads(dataset_info)
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
@@ -34,7 +34,6 @@ async def add_dataset(
             and request_body.dataset_file
         ):
             dataset_bytes = await request_body.dataset_file.read()
-
             dataset_content = await utils.async_load_bytes(content=dataset_bytes)
 
             utils.check_dataset_key_value(
