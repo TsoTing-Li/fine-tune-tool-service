@@ -86,21 +86,31 @@ class PostData(BaseModel):
     def check(self: "PostData") -> "PostData":
         error_handler = ResponseErrorHandler()
 
-        if self.dataset_file:
-            if self.dataset_file.content_type != "application/json":
+        if self.dataset_info.load_from == "file_name":
+            if not self.dataset_file:
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_BODY],
+                    msg="provide dataset_file, must load from 'file_name'",
+                    input={"load_from": self.dataset_info.load_from},
+                )
+            elif self.dataset_file.content_type != "application/json":
                 error_handler.add(
                     type=error_handler.ERR_VALIDATE,
                     loc=[error_handler.LOC_FORM],
                     msg="'content_type' must be 'application/json'",
                     input={"dataset_file": f"{self.dataset_file.content_type}"},
                 )
-
-            if self.dataset_info.load_from != "file_name":
+        else:
+            if self.dataset_file:
                 error_handler.add(
                     type=error_handler.ERR_VALIDATE,
-                    loc=[error_handler.LOC_BODY],
-                    msg="provide dataset_file, must load from 'file_name'",
-                    input={"load_from": self.dataset_info.load_from},
+                    loc=[error_handler.LOC_FORM],
+                    msg="provide 'dataset_file' only if 'load_from' is 'file_name'",
+                    input={
+                        "dataset_file": f"{self.dataset_file.filename}",
+                        "dataset_info.load_from": self.dataset_info.load_from,
+                    },
                 )
 
         if error_handler.errors != []:
