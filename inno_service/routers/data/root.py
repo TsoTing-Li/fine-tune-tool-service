@@ -20,7 +20,7 @@ router = APIRouter(prefix="/data", tags=["Data"])
 
 @router.post("/")
 async def add_dataset(
-    dataset_info: Annotated[str, Form(...)],
+    dataset_info: str = Form(...),
     dataset_file: Union[UploadFile, None] = None,
 ):
     dataset_info = orjson.loads(dataset_info)
