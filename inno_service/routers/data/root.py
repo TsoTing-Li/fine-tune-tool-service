@@ -85,10 +85,6 @@ async def add_dataset(
             media_type="application/json",
         )
 
-    finally:
-        if request_body.dataset_file:
-            await request_body.dataset_file.close()
-
     return Response(
         content=json.dumps(add_content),
         status_code=status.HTTP_200_OK,
