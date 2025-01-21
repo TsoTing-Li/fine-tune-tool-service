@@ -149,7 +149,7 @@ def check_dataset_key_value(
 
 
 async def async_add_dataset_info(
-    dataset_info_file: str, dataset_info: DatasetInfo
+    dataset_info_file: str, dataset_info: DatasetInfo, current_time: int
 ) -> dict:
     is_exists = await async_check_path_exists(file_name=dataset_info_file)
     dataset_info_content = dict()
@@ -171,6 +171,7 @@ async def async_add_dataset_info(
             "num_samples": dataset_info.num_samples,
             "split": dataset_info.split,
             "columns": dataset_info.columns.model_dump(),
+            "time": current_time,
         }
     }
     if dataset_info.formatting == "sharegpt":

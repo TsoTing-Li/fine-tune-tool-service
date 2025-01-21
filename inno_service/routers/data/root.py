@@ -8,7 +8,7 @@ from typing_extensions import Annotated
 
 from inno_service.routers.data import schema, utils
 from inno_service.utils.error import ResponseErrorHandler
-from inno_service.utils.utils import generate_uuid
+from inno_service.utils.utils import generate_uuid, get_current_time
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 DATASET_INFO_FILE = "dataset_info.json"
@@ -56,6 +56,7 @@ async def add_dataset(
         add_content = await utils.async_add_dataset_info(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
             dataset_info=request_body.dataset_info,
+            current_time=get_current_time(use_unix=True),
         )
 
     except (TypeError, KeyError, ValueError) as e:
