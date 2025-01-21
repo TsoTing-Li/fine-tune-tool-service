@@ -20,6 +20,7 @@ from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import generate_uuid, get_current_time
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 router = APIRouter(prefix="/train", tags=["Train"])
 
