@@ -57,7 +57,7 @@ class DatasetInfo(BaseModel):
         if bool(re.search(pattern, self.dataset_src)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'dataset_src' contain invalid characters",
                 input={"dataset_src": self.dataset_src},
             )
@@ -65,7 +65,7 @@ class DatasetInfo(BaseModel):
         if self.formatting == "alpaca" and self.tags is not None:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'tags' only used for 'sharegpt' formatting",
                 input={"formatting": self.formatting},
             )
@@ -90,7 +90,7 @@ class PostData(BaseModel):
             if not self.dataset_file:
                 error_handler.add(
                     type=error_handler.ERR_VALIDATE,
-                    loc=[error_handler.LOC_BODY],
+                    loc=[error_handler.LOC_FORM],
                     msg="provide dataset_file, must load from 'file_name'",
                     input={"load_from": self.dataset_info.load_from},
                 )
