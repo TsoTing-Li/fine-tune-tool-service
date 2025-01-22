@@ -41,7 +41,7 @@ class DatasetInfo(BaseModel):
     def check(self: "DatasetInfo") -> "DatasetInfo":
         error_handler = ResponseErrorHandler()
 
-        if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-/]+", self.dataset_name)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_FORM],
