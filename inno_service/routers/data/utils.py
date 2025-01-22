@@ -1,11 +1,16 @@
+import os
 from typing import List, Union
 
 import aiofiles
 import aiofiles.os
 import orjson
+from datasets import load_dataset
+from datasets.exceptions import DatasetNotFoundError
 from typing_extensions import Literal
 
 from inno_service.routers.data.schema import Columns, DatasetInfo, Tags
+
+MAX_JOBS = os.environ["MAX_JOBS"]
 
 
 def get_json_decode_error_pos(
@@ -196,6 +201,17 @@ async def async_load_bytes(content: bytes):
         #     get_json_decode_error_pos(ori_content=content, err_pos=e.pos)
         # ) from None
         raise TypeError("Invalid JSON format") from None
+
+
+def pull_dataset_from_hf(dataset_name: str):
+    try:
+        load_dataset(
+            dataset_name,
+            num_proc=int(MAX_JOBS),
+            trust_remote_code=True,
+        )
+    except DatasetNotFoundError as e:
+        raise ValueError(f"{e}") from None
 
 
 async def get_dataset_info(dataset_info_file: str, dataset_name: str) -> dict:

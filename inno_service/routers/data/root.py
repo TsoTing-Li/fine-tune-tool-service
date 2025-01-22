@@ -65,6 +65,10 @@ async def add_dataset(
                 file_path=request_body.dataset_info.dataset_src,
                 chunk_size=MAX_FILE_SIZE,
             )
+        else:
+            utils.pull_dataset_from_hf(
+                dataset_name=request_body.dataset_info.dataset_src
+            )
 
         add_content = await utils.async_add_dataset_info(
             dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
