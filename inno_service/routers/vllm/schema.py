@@ -20,6 +20,14 @@ class PostStartVLLM(BaseModel):
     def check(self: "PostStartVLLM") -> "PostStartVLLM":
         error_handler = ResponseErrorHandler()
 
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'model_name' contain invalid characters",
+                input={"model_name": self.model_name},
+            )
+
         if 0 > self.gpu_memory_utilization or 1 < self.gpu_memory_utilization:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
