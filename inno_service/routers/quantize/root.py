@@ -6,7 +6,6 @@ from fastapi import APIRouter, Response, status
 from inno_service.routers.quantize import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 
-QUANTIZE_PATH = os.getenv("QUANTIZE_PATH", "/app/quantize")
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 router = APIRouter(prefix="/quantize", tags=["Quantize"])
@@ -21,7 +20,11 @@ async def post_quantize(request_data: schema.PostStartQuantize):
 
     try:
         checkpoint_path, finetune_type = await utils.get_quantize_args(
-            os.path.join(SAVE_PATH, f"{request_data.quantize_name}.yaml")
+            os.path.join(
+                SAVE_PATH,
+                request_data.quantize_name,
+                f"{request_data.quantize_name}.yaml",
+            )
         )
 
         container_ids = await utils.quantize_as_gguf(
