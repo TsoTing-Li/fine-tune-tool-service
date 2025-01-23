@@ -4,6 +4,7 @@ import shutil
 from typing import Literal, Union
 
 import aiofiles
+import aiofiles.os
 import httpx
 import yaml
 from fastapi import HTTPException, UploadFile
@@ -115,6 +116,13 @@ async def get_train_args(train_name: str) -> list:
 def del_train(path: str) -> str:
     shutil.rmtree(path)
     return path
+
+
+async def async_clear_exists_path(train_name: str) -> None:
+    train_args = await get_yaml_content(f"{SAVE_PATH}/{train_name}/{train_name}.yaml")
+    is_exists = await aiofiles.os.path.exists(train_args["output_dir"])
+    if is_exists:
+        await asyncio.to_thread(shutil.rmtree, train_args["output_dir"])
 
 
 async def run_train(image_name: str, cmd: list, train_name: str) -> str:

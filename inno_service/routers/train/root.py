@@ -31,6 +31,7 @@ async def start_train(request_data: schema.PostStartTrain):
     error_handler = ResponseErrorHandler()
 
     try:
+        await utils.async_clear_exists_path(train_name=request_data.train_name)
         container_name = await utils.run_train(
             image_name=f"{os.environ['USER_NAME']}/{os.environ['REPOSITORY']}:{os.environ['FINE_TUNE_TOOL_TAG']}",
             cmd=[
