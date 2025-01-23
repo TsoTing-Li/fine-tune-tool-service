@@ -1,8 +1,8 @@
 import re
 from typing import Literal, Union
 
-from fastapi import UploadFile
-from fastapi.exceptions import RequestValidationError
+from fastapi import UploadFile, status
+from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -73,7 +73,10 @@ class DatasetInfo(BaseModel):
             self.tags = Tags()
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -114,7 +117,11 @@ class PostData(BaseModel):
                 )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -135,7 +142,10 @@ class GetData(BaseModel):
                 )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -165,7 +175,10 @@ class PutData(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -186,6 +199,9 @@ class DeleteData(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self

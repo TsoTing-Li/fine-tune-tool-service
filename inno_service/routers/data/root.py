@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import orjson
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
+from fastapi.exceptions import HTTPException
 from typing_extensions import Annotated
 
 from inno_service.routers.data import schema, utils
@@ -33,11 +34,10 @@ async def add_dataset(
             msg="Invalid JSON format",
             input={"dataset_info": dataset_info},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
 
@@ -83,11 +83,9 @@ async def add_dataset(
             msg=f"{e}",
             input={"dataset_src": request_body.dataset_info.dataset_src},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
-            status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
-        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_handler.errors
+        ) from None
 
     except Exception as e:
         error_handler.add(
@@ -96,11 +94,10 @@ async def add_dataset(
             msg=f"{e}",
             input=dict(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(add_content),
@@ -127,11 +124,10 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
             msg=f"{e}",
             input={"dataset_name": query_data.dataset_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     except Exception as e:
         error_handler.add(
@@ -140,11 +136,10 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
             msg=f"{e}",
             input={},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(dataset_info),
@@ -170,11 +165,10 @@ async def modify_dataset(request_data: schema.PutData):
             msg=f"{e}",
             input={"dataset_name": request_data.dataset_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     except KeyError as e:
         error_handler.add(
@@ -183,11 +177,10 @@ async def modify_dataset(request_data: schema.PutData):
             msg=f"{e}",
             input={"new_name": request_data.new_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     except Exception as e:
         error_handler.add(
@@ -196,11 +189,10 @@ async def modify_dataset(request_data: schema.PutData):
             msg=f"{e}",
             input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(modify_content),
@@ -228,11 +220,21 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
             msg=str(e),
             input={"dataset_name": dataset_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
-            status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_handler.errors
+        ) from None
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input={"dataset_name": dataset_name},
         )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(del_content),
