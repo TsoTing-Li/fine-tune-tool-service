@@ -126,7 +126,7 @@ class GetData(BaseModel):
         error_handler = ResponseErrorHandler()
 
         if self.dataset_name:
-            if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+            if bool(re.search(r"[^a-zA-Z0-9_\-/]+", self.dataset_name)) is True:
                 error_handler.add(
                     type=error_handler.ERR_VALIDATE,
                     loc=[error_handler.LOC_QUERY],
@@ -148,7 +148,7 @@ class PutData(BaseModel):
     def check(self: "PutData") -> "PutData":
         error_handler = ResponseErrorHandler()
 
-        if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-/]+", self.dataset_name)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_QUERY],
@@ -156,7 +156,7 @@ class PutData(BaseModel):
                 input={"dataset_name": self.dataset_name},
             )
 
-        if bool(re.search(r"[^a-zA-Z0-9_]+", self.new_name)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-/]+", self.new_name)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_QUERY],
@@ -177,7 +177,7 @@ class DeleteData(BaseModel):
     def check(self: "DeleteData") -> "DeleteData":
         error_handler = ResponseErrorHandler()
 
-        if bool(re.search(r"[^a-zA-Z0-9_]+", self.dataset_name)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-/]+", self.dataset_name)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_QUERY],
