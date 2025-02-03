@@ -6,7 +6,6 @@ from typing_extensions import Annotated
 
 from inno_service.routers.deepspeed import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
-from inno_service.utils.utils import get_current_time
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 NVME_PATH = os.getenv("NVME_PATH", "/mnt/nvme")
@@ -90,9 +89,7 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
         ds_file_path = os.path.join(
             SAVE_PATH,
             request_data.name,
-            f"{request_data.ds_file.filename}"
-            if request_data.ds_file.filename
-            else f"ds_config_{get_current_time()}.json",
+            f"ds_config_{request_data.name}.json",
         )
 
         os.makedirs(os.path.dirname(ds_file_path), exist_ok=True)
