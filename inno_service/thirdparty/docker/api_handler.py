@@ -16,7 +16,9 @@ async def create_container(aclient: httpx.AsyncClient, name: str, data: dict) ->
     if response.status_code == 201:
         return container_name_or_id
     else:
-        raise RuntimeError(f"Error: {response.status_code}, {response.text}") from None
+        raise RuntimeError(
+            f"Create container error: {response.status_code}, {response.text}"
+        )
 
 
 async def start_container(aclient: httpx.AsyncClient, container_name_or_id: str) -> str:
@@ -27,7 +29,9 @@ async def start_container(aclient: httpx.AsyncClient, container_name_or_id: str)
     if response.status_code == 204:
         return container_name_or_id
     else:
-        raise RuntimeError(f"Error: {response.status_code}, {response.text}") from None
+        raise RuntimeError(
+            f"Startup container error: {response.status_code}, {response.text}"
+        )
 
 
 async def stop_container(
@@ -44,7 +48,9 @@ async def stop_container(
     if response.status_code == 204:
         return container_name_or_id
     else:
-        raise RuntimeError(f"Error: {response.status_code}, {response.text}") from None
+        raise RuntimeError(
+            f"Stop container error: {response.status_code}, {response.text}"
+        ) from None
 
 
 async def get_container_log(
