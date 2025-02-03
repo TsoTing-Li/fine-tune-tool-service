@@ -233,6 +233,8 @@ class GetTrain(BaseModel):
 class PutTrain(BaseModel):
     train_name: str
     train_args: TrainArgs
+    deepspeed_args: Union[DeepSpeedArgs, None]
+    deepspeed_file: Union[UploadFile, None]
 
     @model_validator(mode="after")
     def check(self: "PutTrain") -> "PutTrain":
@@ -241,10 +243,33 @@ class PutTrain(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
+
+        if self.deepspeed_args:
+            if self.deepspeed_args.src == "file" and not self.deepspeed_file:
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="must provide 'ds_file' when 'src' is 'file'",
+                    input={
+                        "deepspeed_args.src": self.deepspeed_args.src,
+                        "deepspeed_file": self.deepspeed_file,
+                    },
+                )
+
+            if (
+                self.deepspeed_file
+                and self.deepspeed_file.content_type != "application/json"
+            ):
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="'content_type' must be 'application/json'",
+                    input={"deepspeed_file": self.deepspeed_file.content_type},
+                )
 
         if error_handler.errors != []:
             raise RequestValidationError(error_handler.errors)

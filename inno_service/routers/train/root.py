@@ -276,7 +276,88 @@ async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
 
 
 @router.put("/")
-async def modify_train(request_data: schema.PutTrain):
+async def modify_train(
+    train_name: str = Form(...),
+    model_name_or_path: str = Form(...),
+    finetuning_type: str = Form(...),
+    lora_target: str = Form(None),
+    dataset: List[str] = Form(...),
+    template: str = Form(...),
+    cutoff_len: int = Form(1024),
+    max_samples: int = Form(10000),
+    overwrite_cache: bool = Form(True),
+    preprocessing_num_workers: int = Form(None),
+    logging_steps: int = Form(None),
+    save_steps: int = Form(None),
+    per_device_train_batch_size: int = Form(None),
+    gradient_accumulation_steps: int = Form(None),
+    learning_rate: float = Form(None),
+    num_train_epochs: int = Form(None),
+    lr_scheduler_type: str = Form("cosine"),
+    warmup_ratio: float = Form(None),
+    bf16: bool = Form(True),
+    ddp_timeout: int = Form(None),
+    val_size: float = Form(None),
+    per_device_eval_batch_size: int = Form(None),
+    deepspeed_src: str = Form(None),
+    deepspeed_stage: str = Form(None),
+    deepspeed_enable_offload: bool = Form(False),
+    deepspeed_offload_device: str = Form(None),
+    deepspeed_file: UploadFile = File(None),
+):
+    train_args = {
+        "model_name_or_path": model_name_or_path,
+        "method": {
+            "stage": "sft",
+            "finetuning_type": finetuning_type,
+            "lora_target": lora_target,
+        },
+        "dataset": {
+            "dataset": dataset,
+            "template": template,
+            "cutoff_len": cutoff_len,
+            "max_samples": max_samples,
+            "overwrite_cache": overwrite_cache,
+            "preprocessing_num_workers": preprocessing_num_workers,
+        },
+        "output": {
+            "logging_steps": logging_steps,
+            "save_steps": save_steps,
+        },
+        "params": {
+            "per_device_train_batch_size": per_device_train_batch_size,
+            "gradient_accumulation_steps": gradient_accumulation_steps,
+            "learning_rate": learning_rate,
+            "num_train_epochs": num_train_epochs,
+            "lr_scheduler_type": lr_scheduler_type,
+            "warmup_ratio": warmup_ratio,
+            "bf16": bf16,
+            "ddp_timeout": ddp_timeout,
+        },
+        "val": {
+            "val_size": val_size,
+            "per_device_eval_batch_size": per_device_eval_batch_size,
+            "eval_strategy": "steps",
+        },
+    }
+
+    deepspeed_args = (
+        {
+            "src": deepspeed_src,
+            "stage": int(deepspeed_stage),
+            "enable_offload": deepspeed_enable_offload,
+            "offload_device": deepspeed_offload_device,
+        }
+        if deepspeed_src
+        else None
+    )
+
+    request_data = schema.PutTrain(
+        train_name=train_name,
+        train_args=train_args,
+        deepspeed_args=deepspeed_args,
+        deepspeed_file=deepspeed_file,
+    )
     validator.PutTrain(train_path=os.path.join(SAVE_PATH, request_data.train_name))
     error_handler = ResponseErrorHandler()
 
@@ -285,8 +366,20 @@ async def modify_train(request_data: schema.PutTrain):
         train_args["output_dir"] = os.path.join(
             SAVE_PATH, request_data.train_name, train_args["finetuning_type"]
         )
+        train_args["dataset"] = ", ".join(train_args["dataset"])
+        train_args["dataset_dir"] = os.getenv("DATA_PATH", "/app/data")
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
+
+        if request_data.deepspeed_args:
+            ds_args = request_data.deepspeed_args.model_dump()
+            ds_api_response = await utils.call_ds_api(
+                name=request_data.train_name,
+                ds_args=ds_args,
+                ds_file=request_data.deepspeed_file,
+            )
+            train_args["deepspeed"] = ds_api_response["ds_path"]
+
         await utils.write_yaml(
             path=os.path.join(
                 SAVE_PATH, request_data.train_name, f"{request_data.train_name}.yaml"
