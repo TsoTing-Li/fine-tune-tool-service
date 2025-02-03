@@ -31,6 +31,7 @@ class DatasetInfo(BaseModel):
     dataset_name: str
     load_from: Literal["file_name", "hf_hub_url"]
     dataset_src: str
+    subset: Union[str, None] = None
     split: str = "train"
     num_samples: Union[int, None] = None
     formatting: Literal["alpaca", "sharegpt"] = "alpaca"
@@ -61,6 +62,23 @@ class DatasetInfo(BaseModel):
                 msg="'dataset_src' contain invalid characters",
                 input={"dataset_src": self.dataset_src},
             )
+
+        if self.subset:
+            if bool(re.search(pattern, self.subset)) is True:
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="'subset' contain invalid characters",
+                    input={"subset": self.subset},
+                )
+
+            if self.load_from != "hf_hub_url":
+                error_handler.add(
+                    type=error_handler.ERR_VALIDATE,
+                    loc=[error_handler.LOC_FORM],
+                    msg="'subset' only use in 'hf_hub_url'",
+                    input={"load_from": self.load_from, "subset": self.subset},
+                )
 
         if self.formatting == "alpaca" and self.tags is not None:
             error_handler.add(

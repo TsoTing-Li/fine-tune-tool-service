@@ -23,6 +23,7 @@ async def add_dataset(
     dataset_name: str = Form(...),
     load_from: str = Form(...),
     dataset_src: str = Form(...),
+    subset: str = Form(None),
     num_samples: int = Form(None),
     formatting: str = Form("alpaca"),
     prompt: str = Form("instruction"),
@@ -44,6 +45,7 @@ async def add_dataset(
         "dataset_name": dataset_name,
         "load_from": load_from,
         "dataset_src": dataset_src,
+        "subset": subset,
         "num_samples": num_samples,
         "formatting": formatting,
     }
@@ -97,7 +99,8 @@ async def add_dataset(
             )
         else:
             utils.pull_dataset_from_hf(
-                dataset_name=request_body.dataset_info.dataset_src
+                dataset_name=request_body.dataset_info.dataset_src,
+                subset=request_body.dataset_info.subset,
             )
 
         add_content = await utils.async_add_dataset_info(
