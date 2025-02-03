@@ -2,7 +2,6 @@ import json
 import os
 from typing import Optional, Union
 
-import orjson
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
 from typing_extensions import Annotated
@@ -21,25 +20,56 @@ router = APIRouter(prefix="/data", tags=["Data"])
 
 @router.post("/")
 async def add_dataset(
-    dataset_info: str = Form(...),
+    dataset_name: str = Form(...),
+    load_from: str = Form(...),
+    dataset_src: str = Form(...),
+    num_samples: int = Form(None),
+    formatting: str = Form("alpaca"),
+    prompt: str = Form("instruction"),
+    query: str = Form("input"),
+    response: str = Form("output"),
+    history: str = Form(None),
+    messages: str = Form("conversations"),
+    system: str = Form(None),
+    tools: str = Form(None),
+    role_tag: str = Form("from"),
+    content_tag: str = Form("value"),
+    user_tag: str = Form("human"),
+    assistant_tag: str = Form("gpt"),
+    observation_tag: str = Form("observation"),
+    function_tag: str = Form("function_call"),
     dataset_file: Union[UploadFile, None] = File(None),
 ):
-    error_handler = ResponseErrorHandler()
-    try:
-        dataset_info = orjson.loads(dataset_info)
-    except orjson.JSONDecodeError:
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_FORM],
-            msg="Invalid JSON format",
-            input={"dataset_info": dataset_info},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_handler.errors,
-        ) from None
+    dataset_info = {
+        "dataset_name": dataset_name,
+        "load_from": load_from,
+        "dataset_src": dataset_src,
+        "num_samples": num_samples,
+        "formatting": formatting,
+    }
+
+    if formatting == "alpaca":
+        dataset_info["columns"] = {
+            "prompt": prompt,
+            "query": query,
+            "response": response,
+            "history": history,
+            "messages": messages,
+            "system": system,
+            "tools": tools,
+        }
+    elif formatting == "sharegpt":
+        dataset_info["tags"] = {
+            "role_tag": role_tag,
+            "content_tag": content_tag,
+            "user_tag": user_tag,
+            "assistant_tag": assistant_tag,
+            "observation_tag": observation_tag,
+            "function_tag": function_tag,
+        }
 
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
+    error_handler = ResponseErrorHandler()
 
     try:
         if (
