@@ -5,11 +5,7 @@ import aiofiles
 import httpx
 import yaml
 
-from inno_service.utils.docker_api_utils import (
-    create_container,
-    start_container,
-    stop_container,
-)
+from inno_service.thirdparty.docker import api_handler
 
 
 async def get_model_args(path: str) -> dict:
@@ -56,11 +52,11 @@ async def run_merge(image_name: str, cmd: list, merge_name: str) -> str:
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        container_name_or_id = await create_container(
+        container_name_or_id = await api_handler.create_container(
             aclient=aclient, name=f"merge-{merge_name}", data=data
         )
 
-        started_container = await start_container(
+        started_container = await api_handler.start_container(
             aclient=aclient, container_name_or_id=container_name_or_id
         )
 
@@ -74,7 +70,7 @@ async def stop_merge(
 ) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        stopped_container = await stop_container(
+        stopped_container = await api_handler.stop_container(
             aclient=aclient,
             container_name_or_id=container_name_or_id,
             signal=signal,

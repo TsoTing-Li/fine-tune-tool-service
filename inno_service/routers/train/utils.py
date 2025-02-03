@@ -9,6 +9,7 @@ import httpx
 import yaml
 from fastapi import HTTPException, UploadFile
 
+from inno_service.thirdparty.docker import api_handler
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid
 
@@ -129,8 +130,6 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     hf_home = os.environ["HF_HOME"]
     root_path = os.environ["ROOT_PATH"]
-    container_name = f"train-{train_name}-{generate_uuid()}"
-    params = {"name": container_name}
     data = {
         "User": "root",
         "Image": image_name,
@@ -149,37 +148,23 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
         "Env": [f"HF_HOME={hf_home}"],
     }
 
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(
-            "http://docker/containers/create", json=data, params=params
-        )
-
-        if response.status_code == 201:
-            accel_logger.info(f"Fine-tune created, container: {container_name}")
-
-            response = await aclient.post(
-                f"http://docker/containers/{container_name}/start"
+    try:
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            container_name_or_id = await api_handler.create_container(
+                aclient=aclient, name=f"train-{train_name}-{generate_uuid()}", data=data
             )
+            accel_logger.info(f"Fine-tune created, container: {container_name_or_id}")
 
-            if response.status_code == 204:
-                accel_logger.info(f"Fine-tune started, container: {container_name}")
-                return container_name
+            started_container = await api_handler.start_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            )
+            accel_logger.info(f"Fine-tune started, container: {started_container}")
 
-            else:
-                accel_logger.info(
-                    f"Fine-tune startup failed, container: {container_name}"
-                )
-                accel_logger.info(f"Error: {response.status_code}, {response.text}")
-                raise RuntimeError(
-                    f"Error: {response.status_code}, {response.text}"
-                ) from None
+        return started_container
 
-        else:
-            accel_logger.info(f"Fine-tune creation failed, container: {container_name}")
-            accel_logger.info(f"Error: {response.status_code}, {response.text}")
-            raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
-            ) from None
+    except Exception as e:
+        accel_logger.error(f"{e}")
+        raise RuntimeError(f"{e}") from None
 
 
 async def stop_train(
@@ -187,22 +172,20 @@ async def stop_train(
     signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
     wait_sec: int = 10,
 ) -> str:
-    params = {"signal": signal, "t": wait_sec}
-
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(
-            f"http://docker/containers/{container_name_or_id}/stop", params=params
-        )
 
-        if response.status_code == 204:
-            accel_logger.info(f"Fine-tune stopped, container: {container_name_or_id}")
-            return container_name_or_id
-        else:
-            accel_logger.info(
-                f"Fine-tune stop failed, container: {container_name_or_id}"
+    try:
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            stopped_container = await api_handler.stop_container(
+                aclient=aclient,
+                container_name_or_id=container_name_or_id,
+                signal=signal,
+                wait_sec=wait_sec,
             )
-            accel_logger.info(f"Error: {response.status_code}, {response.text}")
-            raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
-            ) from None
+            accel_logger.info(f"Fine-tune stopped, container: {stopped_container}")
+
+        return stopped_container
+
+    except Exception as e:
+        accel_logger.error(f"{e}")
+        raise RuntimeError(f"{e}") from None
