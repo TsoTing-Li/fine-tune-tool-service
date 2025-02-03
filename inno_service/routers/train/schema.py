@@ -235,7 +235,7 @@ class PutTrain(BaseModel):
     train_args: TrainArgs
 
     @model_validator(mode="after")
-    def check(self: "PostStartTrain") -> "PostStartTrain":
+    def check(self: "PutTrain") -> "PutTrain":
         error_handler = ResponseErrorHandler()
 
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
