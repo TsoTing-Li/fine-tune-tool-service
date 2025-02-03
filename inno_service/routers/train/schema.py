@@ -163,7 +163,7 @@ class TrainArgs(BaseModel):
 
 
 class PostTrain(BaseModel):
-    train_name: Union[str, None]
+    train_name: str
     train_args: TrainArgs
     deepspeed_args: Union[DeepSpeedArgs, None]
     deepspeed_file: Union[UploadFile, None]
@@ -172,9 +172,7 @@ class PostTrain(BaseModel):
     def check(self: "PostTrain") -> "PostTrain":
         error_handler = ResponseErrorHandler()
 
-        if self.train_name and not re.fullmatch(
-            r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name
-        ):
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
