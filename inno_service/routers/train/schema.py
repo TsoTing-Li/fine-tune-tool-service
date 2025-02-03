@@ -64,9 +64,9 @@ class Dataset(BaseModel):
 
 
 class Output(BaseModel):
-    logging_steps: int
-    save_steps: int
-    plot_loss: bool
+    logging_steps: int = 5
+    save_steps: int = 5
+    plot_loss: bool = False
     overwrite_output_dir: bool = False
     log_level: str = "info"
     logging_first_step: bool = True
