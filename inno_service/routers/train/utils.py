@@ -126,6 +126,12 @@ async def async_clear_exists_path(train_name: str) -> None:
         await asyncio.to_thread(shutil.rmtree, train_args["output_dir"])
 
 
+async def async_clear_ds_config(train_name: str):
+    train_args = await get_yaml_content(f"{SAVE_PATH}/{train_name}/{train_name}.yaml")
+    if train_args.get("deepspeed"):
+        await aiofiles.os.remove(train_args["deepspeed"])
+
+
 async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     hf_home = os.environ["HF_HOME"]

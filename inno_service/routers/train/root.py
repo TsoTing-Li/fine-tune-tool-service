@@ -379,6 +379,8 @@ async def modify_train(
                 ds_file=request_data.deepspeed_file,
             )
             train_args["deepspeed"] = ds_api_response["ds_path"]
+        else:
+            await utils.async_clear_ds_config(train_name=request_data.train_name)
 
         await utils.write_yaml(
             path=os.path.join(
