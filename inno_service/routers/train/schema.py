@@ -175,7 +175,7 @@ class PostTrain(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
@@ -220,7 +220,7 @@ class GetTrain(BaseModel):
             if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
                 error_handler.add(
                     type=error_handler.ERR_VALIDATE,
-                    loc=[error_handler.LOC_BODY],
+                    loc=[error_handler.LOC_QUERY],
                     msg="'train_name' contain invalid characters",
                     input={"train_name": self.train_name},
                 )
@@ -287,7 +287,7 @@ class DelTrain(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_QUERY],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
