@@ -56,19 +56,6 @@ async def stop_chat(request_data: schema.PostStopChat):
     try:
         active_requests[request_data.request_id] = "cancelled"
 
-    except ValueError as e:
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_BODY],
-            msg=f"{e}",
-            input={"request_id": request_data.request_id},
-        )
-        return Response(
-            content=json.dumps(error_handler.errors),
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            media_type="application/json",
-        )
-
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
