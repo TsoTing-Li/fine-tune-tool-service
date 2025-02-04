@@ -48,7 +48,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             finetune_type=model_params["finetuning_type"],
             cpu_offload_gb=request_data.cpu_offload_gb,
         )
-        chat_model_name = (
+        service_model_name = (
             request_data.model_name
             if model_params["finetuning_type"] == "lora"
             else model_params["output_dir"]
@@ -71,7 +71,8 @@ async def start_vllm(request_data: schema.PostStartVLLM):
         content=json.dumps(
             {
                 "vllm_service": f"http://{container_name}:{VLLM_SERVICE_PORT}",
-                "chat_model_name": chat_model_name,
+                "container_name": container_name,
+                "model_name": service_model_name,
             }
         ),
         status_code=status.HTTP_200_OK,
