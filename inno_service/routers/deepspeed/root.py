@@ -48,7 +48,9 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
 
     try:
         path = os.path.join(
-            SAVE_PATH, request_data.name, f"ds_config_{request_data.name}.json"
+            SAVE_PATH,
+            request_data.train_name,
+            f"ds_config_{request_data.train_name}.json",
         )
         os.makedirs(os.path.dirname(path), exist_ok=True)
         await utils.async_write_ds_config(
@@ -75,8 +77,10 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
 
 
 @router.post("/file/")
-async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(...)):
-    request_data = schema.PostDeepSpeedFile(name=name, ds_file=ds_file)
+async def add_deepspeed_file(
+    ds_file: UploadFile = File(...), train_name: str = Form(...)
+):
+    request_data = schema.PostDeepSpeedFile(train_name=train_name, ds_file=ds_file)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -85,8 +89,8 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
 
         ds_file_path = os.path.join(
             SAVE_PATH,
-            request_data.name,
-            f"ds_config_{request_data.name}.json",
+            request_data.train_name,
+            f"ds_config_{request_data.train_name}.json",
         )
 
         os.makedirs(os.path.dirname(ds_file_path), exist_ok=True)
@@ -132,13 +136,12 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
 
 @router.get("/preview/")
 async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
-    ds_file_name = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name).ds_file_name
-
+    query_data = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name)
     error_handler = ResponseErrorHandler()
 
     try:
         ds_config = await utils.async_preview_ds_config(
-            path=os.path.join(SAVE_PATH, ds_file_name)
+            path=os.path.join(SAVE_PATH, query_data.ds_file_name)
         )
 
     except (FileNotFoundError, TypeError) as e:
@@ -146,7 +149,7 @@ async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
             msg=f"{e}",
-            input={"ds_file_name": ds_file_name},
+            input={"ds_file_name": query_data.ds_file_name},
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -158,7 +161,7 @@ async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"Unexpected error: {e}",
-            input={"ds_file_name": ds_file_name},
+            input=query_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
