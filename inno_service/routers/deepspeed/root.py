@@ -127,31 +127,6 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
     )
 
 
-@router.get("/", tags=["DeepSpeed"])
-async def get_all_deepspeed_config():
-    error_handler = ResponseErrorHandler()
-    try:
-        all_ds_config = await utils.async_list_ds_config(SAVE_PATH)
-
-    except Exception as e:
-        error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input=dict(),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_handler.errors,
-        ) from None
-
-    return Response(
-        content=json.dumps(all_ds_config),
-        status_code=status.HTTP_200_OK,
-        media_type="application/json",
-    )
-
-
 @router.get("/preview/")
 async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
     ds_file_name = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name).ds_file_name
@@ -189,46 +164,6 @@ async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
 
     return Response(
         content=json.dumps(ds_config),
-        status_code=status.HTTP_200_OK,
-        media_type="application/json",
-    )
-
-
-@router.delete("/")
-async def del_deepspeed(ds_file_name: Annotated[str, Query(...)]):
-    ds_file_name = schema.DelDeepSpeed(ds_file_name=ds_file_name).ds_file_name
-
-    error_handler = ResponseErrorHandler()
-
-    try:
-        await utils.async_delete_file(file_name=os.path.join(SAVE_PATH, ds_file_name))
-
-    except FileNotFoundError as e:
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
-            input={"ds_file_name": ds_file_name},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_handler.errors,
-        ) from None
-
-    except Exception as e:
-        error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input={"ds_file_name": ds_file_name},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_handler.errors,
-        ) from None
-
-    return Response(
-        content=json.dumps({"ds_file_name": ds_file_name}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
