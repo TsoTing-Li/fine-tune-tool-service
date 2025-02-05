@@ -13,7 +13,7 @@ from fastapi import (
 )
 from typing_extensions import Annotated
 
-from inno_service.routers.deepspeed import schema, utils, validator
+from inno_service.routers.deepspeed import adapter, schema, utils
 from inno_service.utils.error import ResponseErrorHandler
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
@@ -27,8 +27,11 @@ router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     error_handler = ResponseErrorHandler()
 
-    ds_config_adapter = validator.PostDeepSpeedDefault(
-        stage=request_data.stage, enable_offload=request_data.enable_offload
+    ds_config_adapter = adapter.PostDeepSpeedDefault(
+        stage=request_data.stage,
+        enable_offload=request_data.enable_offload,
+        offload_device=request_data.offload_device,
+        nvme_path=NVME_PATH if request_data.offload_device == "nvme" else None,
     )
     target_model = ds_config_adapter.get_target_model()
 
@@ -40,23 +43,8 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         "zero_allow_untested_optimizer": target_model.zero_allow_untested_optimizer,
         "fp16": target_model.fp16.model_dump(),
         "bf16": target_model.bf16.model_dump(),
+        "zero_optimization": target_model.zero_optimization.model_dump(),
     }
-
-    if request_data.enable_offload:
-        if request_data.offload_device == "nvme":
-            target_model.zero_optimization.offload_optimizer.device = (
-                request_data.offload_device
-            )
-            target_model.zero_optimization.offload_optimizer.nvme_path = NVME_PATH
-            if target_model.zero_optimization.stage == 3:
-                target_model.zero_optimization.offload_param.device = (
-                    request_data.offload_device
-                )
-                target_model.zero_optimization.offload_param.nvme_path = NVME_PATH
-
-    ds_config_content.update(
-        {"zero_optimization": target_model.zero_optimization.model_dump()}
-    )
 
     try:
         path = os.path.join(
