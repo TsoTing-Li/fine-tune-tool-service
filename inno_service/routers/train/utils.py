@@ -63,7 +63,9 @@ async def call_ds_api(
         response = await aclient.post(f"{base_url}/{ds_args['src']}/", **payload)
 
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+            raise HTTPException(
+                status_code=response.status_code, detail=response.json()
+            )
 
         return response.json()
 

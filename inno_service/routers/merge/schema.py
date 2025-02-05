@@ -1,7 +1,7 @@
 import re
 from typing import Literal
 
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -26,7 +26,10 @@ class PostStartMerge(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
 
         return self
 
@@ -47,5 +50,9 @@ class PostStopMerge(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
+
         return self

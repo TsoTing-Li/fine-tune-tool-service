@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.merge import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -47,14 +47,13 @@ async def start_merge(request_data: schema.PostStartMerge):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"merge_name": request_data.merge_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"merge_container_name": merge_container_name}),
@@ -77,14 +76,13 @@ async def stop_merge(request_data: schema.PostStopMerge):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"merge_container": request_data.merge_container},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"merge_container": merge_container}),

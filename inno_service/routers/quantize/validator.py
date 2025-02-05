@@ -2,7 +2,7 @@ import json
 import os
 
 import httpx
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -22,8 +22,13 @@ class PostStartQuantize(BaseModel):
                 msg="checkpoint path does not exists",
                 input={"checkpoint_path": self.checkpoint_path},
             )
+
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            ) from None
+
         return
 
 
@@ -50,21 +55,23 @@ class PostStopQuantize(BaseModel):
                         msg="'quantize_container' does not exists",
                         input={"quantize_container": self.quantize_container},
                     )
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=error_handler.errors,
+                    ) from None
             else:
-                error_handler.add(
-                    type=error_handler.ERR_DOCKER,
-                    loc=[error_handler.LOC_PROCESS],
-                    msg=f"Error: {response.status_code}, {response.text}",
-                    input={"quantize_container": self.quantize_container},
-                )
+                raise RuntimeError(f"{response.json()['message']}")
+
         except Exception as e:
             error_handler.add(
                 type=error_handler.ERR_DOCKER,
                 loc=[error_handler.LOC_PROCESS],
-                msg=f"{e}",
+                msg=f"Unexpected error: {e}",
                 input={"quantize_container": self.quantize_container},
             )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_handler.errors,
+            ) from None
 
-        if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
         return self

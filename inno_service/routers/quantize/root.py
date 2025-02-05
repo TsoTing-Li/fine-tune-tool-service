@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.quantize import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -44,14 +44,13 @@ async def post_quantize(request_data: schema.PostStartQuantize):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
-            input={"quantize_name": request_data.quantize_name},
+            msg=f"Unexpected error: {e}",
+            input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(result),
@@ -76,14 +75,13 @@ async def stop_quantize(request_data: schema.PostStopQuantize):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
-            input={"quantize_container": quantize_container},
+            msg=f"Unexpected error: {e}",
+            input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"quantize_container": quantize_container}),

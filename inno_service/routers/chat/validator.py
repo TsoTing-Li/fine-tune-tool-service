@@ -1,4 +1,4 @@
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -21,6 +21,9 @@ class PostStopChat(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            ) from None
 
         return self

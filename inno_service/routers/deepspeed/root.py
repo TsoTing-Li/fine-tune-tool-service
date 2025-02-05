@@ -1,7 +1,16 @@
 import json
 import os
 
-from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from typing_extensions import Annotated
 
 from inno_service.routers.deepspeed import schema, utils, validator
@@ -57,18 +66,18 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         await utils.async_write_ds_config(
             file_path=path, ds_config_content=ds_config_content
         )
+
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=str(e),
+            msg=f"Unexpected error: {e}",
             input=dict(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"ds_path": path}),
@@ -106,11 +115,22 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
             msg=f"{e}",
             input={"ds_file": request_data.ds_file.filename},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
+            detail=error_handler.errors,
+        ) from None
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"Unexpected error: {e}",
+            input=dict(),
         )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"ds_path": ds_file_path}),
@@ -125,18 +145,17 @@ async def get_all_deepspeed_config():
     try:
         all_ds_config = await utils.async_list_ds_config(SAVE_PATH)
 
-    except Exception:
+    except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg="unexpected error",
+            msg=f"Unexpected error: {e}",
             input=dict(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(all_ds_config),
@@ -160,27 +179,25 @@ async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
-            msg=str(e),
+            msg=f"{e}",
             input={"ds_file_name": ds_file_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=str(e),
+            msg=f"Unexpected error: {e}",
             input={"ds_file_name": ds_file_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(ds_config),
@@ -202,27 +219,25 @@ async def del_deepspeed(ds_file_name: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
-            msg=str(e),
+            msg=f"{e}",
             input={"ds_file_name": ds_file_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=str(e),
+            msg=f"Unexpected error: {e}",
             input={"ds_file_name": ds_file_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"ds_file_name": ds_file_name}),

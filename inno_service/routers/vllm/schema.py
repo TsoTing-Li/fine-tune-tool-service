@@ -1,6 +1,6 @@
 import re
 
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -45,7 +45,11 @@ class PostStartVLLM(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -65,5 +69,9 @@ class PostStopVLLM(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self

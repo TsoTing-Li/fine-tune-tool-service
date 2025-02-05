@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -36,7 +36,10 @@ class PostStartChat(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
 
         return self
 
@@ -60,6 +63,9 @@ class PostStopChat(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
 
         return self

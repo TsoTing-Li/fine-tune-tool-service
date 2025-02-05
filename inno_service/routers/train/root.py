@@ -49,14 +49,13 @@ async def start_train(request_data: schema.PostStartTrain):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
-            input={"train_name": request_data.train_name},
+            msg=f"Unexpected error: {e}",
+            input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(
@@ -81,14 +80,13 @@ async def stop_train(request_data: schema.PostStopTrain):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"train_container": request_data.train_container},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"train_container": train_container}),
@@ -214,30 +212,22 @@ async def post_train(
         )
 
     except HTTPException as e:
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_FORM],
-            msg=f"{e.detail}",
-            input={},
-        )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=e.status_code,
-            media_type="application/json",
-        )
+            detail=e.detail,
+        ) from None
 
     except Exception as e:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"train_name": request_data.train_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"train_name": request_data.train_name}),
@@ -259,14 +249,13 @@ async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
-            input={"train_name": query_data.train_name},
+            msg=f"Unexpected error: {e}",
+            input=query_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps(train_args_info),
@@ -393,14 +382,13 @@ async def modify_train(
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"train_name": request_data.train_name},
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"train_name": request_data.train_name}),
@@ -423,14 +411,13 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
-            input={"train_name": query_data.train_name},
+            msg=f"Unexpected error: {e}",
+            input=query_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"train_name": del_train_name}),

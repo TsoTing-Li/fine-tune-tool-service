@@ -1,8 +1,7 @@
 import re
 from typing import Literal
 
-from fastapi import UploadFile
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, UploadFile, status
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -38,7 +37,11 @@ class PostDeepSpeedDefault(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
+
         return self
 
 
@@ -75,7 +78,11 @@ class PostDeepSpeedFile(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
+
         return self
 
 
@@ -95,7 +102,11 @@ class GetDeepSpeedPreview(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
+
         return self
 
 
@@ -115,5 +126,9 @@ class DelDeepSpeed(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            ) from None
+
         return self

@@ -1,7 +1,7 @@
 import json
 import os
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.evaluate import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -55,14 +55,13 @@ async def start_lm_eval(request_data: schema.PostStartEval):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"eval_container": eval_container}),
@@ -85,14 +84,13 @@ async def stop_lm_eval(request_data: schema.PostStopEval):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     return Response(
         content=json.dumps({"eval_container": eval_container}),

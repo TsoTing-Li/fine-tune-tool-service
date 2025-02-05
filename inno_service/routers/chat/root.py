@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 
 from inno_service.routers.chat import schema, utils, validator
@@ -39,11 +39,10 @@ async def post_chat(request_data: schema.PostStartChat):
             msg=f"{e}",
             input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
 
 @router.post("/stream/stop/")
@@ -63,11 +62,10 @@ async def stop_chat(request_data: schema.PostStopChat):
             msg=f"{e}",
             input=request_data.model_dump(),
         )
-        return Response(
-            content=json.dumps(error_handler.errors),
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="application/json",
-        )
+            detail=error_handler.errors,
+        ) from None
 
     finally:
         if active_requests.get(request_data.request_id):

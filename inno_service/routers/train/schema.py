@@ -1,8 +1,7 @@
 import re
 from typing import List, Literal, Union
 
-from fastapi import UploadFile
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -27,7 +26,10 @@ class DeepSpeedArgs(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -50,7 +52,11 @@ class Method(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -106,7 +112,10 @@ class Params(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -129,7 +138,10 @@ class Val(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -158,7 +170,11 @@ class TrainArgs(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -204,7 +220,10 @@ class PostTrain(BaseModel):
                 )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -226,7 +245,11 @@ class GetTrain(BaseModel):
                 )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -272,7 +295,10 @@ class PutTrain(BaseModel):
                 )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -293,7 +319,10 @@ class DelTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -314,7 +343,10 @@ class PostStartTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -335,5 +367,9 @@ class PostStopTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
         return self

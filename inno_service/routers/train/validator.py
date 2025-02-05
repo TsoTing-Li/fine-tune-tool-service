@@ -2,7 +2,7 @@ import json
 import os
 
 import httpx
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
@@ -26,7 +26,11 @@ class PostTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -46,7 +50,11 @@ class GetTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -65,7 +73,10 @@ class PutTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -85,7 +96,10 @@ class DelTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            )
 
         return self
 
@@ -106,7 +120,11 @@ class PostStartTrain(BaseModel):
             )
 
         if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error_handler.errors,
+            )
+
         return self
 
 
@@ -133,21 +151,23 @@ class PostStopTrain(BaseModel):
                         msg="'train_container' does not exists",
                         input={"train_container": self.train_container},
                     )
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=error_handler.errors,
+                    ) from None
             else:
-                error_handler.add(
-                    type=error_handler.ERR_DOCKER,
-                    loc=[error_handler.LOC_PROCESS],
-                    msg=f"Error: {response.status_code}, {response.text}",
-                    input={"train_container": self.train_container},
-                )
+                raise RuntimeError(f"{response.json()['message']}")
+
         except Exception as e:
             error_handler.add(
                 type=error_handler.ERR_DOCKER,
                 loc=[error_handler.LOC_PROCESS],
-                msg=f"{e}",
+                msg=f"Unexpected error: {e}",
                 input={"train_container": self.train_container},
             )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_handler.errors,
+            ) from None
 
-        if error_handler.errors != []:
-            raise RequestValidationError(error_handler.errors)
         return self
