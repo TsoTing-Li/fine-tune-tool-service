@@ -60,7 +60,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"Unexpected error: {e}",
-            input=dict(),
+            input=request_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -113,7 +113,10 @@ async def add_deepspeed_file(ds_file: UploadFile = File(...), name: str = Form(.
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"Unexpected error: {e}",
-            input=dict(),
+            input={
+                "ds_file": request_data.ds_file.filename,
+                "train_name": request_data.train_name,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
