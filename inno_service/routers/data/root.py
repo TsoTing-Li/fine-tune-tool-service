@@ -1,10 +1,9 @@
 import json
 import os
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
-from typing_extensions import Annotated
 
 from inno_service.routers.data import schema, utils
 from inno_service.utils.error import ResponseErrorHandler
@@ -24,6 +23,7 @@ async def add_dataset(
     load_from: str = Form(...),
     dataset_src: str = Form(...),
     subset: str = Form(None),
+    split: str = Form(None),
     num_samples: int = Form(None),
     formatting: str = Form("alpaca"),
     prompt: str = Form("instruction"),
@@ -46,6 +46,7 @@ async def add_dataset(
         "load_from": load_from,
         "dataset_src": dataset_src,
         "subset": subset,
+        "split": split,
         "num_samples": num_samples,
         "formatting": formatting,
     }
@@ -101,6 +102,7 @@ async def add_dataset(
             utils.pull_dataset_from_hf(
                 dataset_name=request_body.dataset_info.dataset_src,
                 subset=request_body.dataset_info.subset,
+                split=request_body.dataset_info.split,
             )
 
         add_content = await utils.async_add_dataset_info(

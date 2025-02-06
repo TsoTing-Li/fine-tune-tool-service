@@ -203,11 +203,14 @@ async def async_load_bytes(content: bytes):
         raise TypeError("Invalid JSON format") from None
 
 
-def pull_dataset_from_hf(dataset_name: str, subset: Union[str, None] = None):
+def pull_dataset_from_hf(
+    dataset_name: str, subset: Union[str, None] = None, split: str = "train"
+):
     try:
         load_dataset(
             dataset_name,
             subset,
+            split=split,
             num_proc=int(MAX_JOBS),
             trust_remote_code=True,
         )
