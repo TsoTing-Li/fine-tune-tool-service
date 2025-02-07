@@ -213,7 +213,7 @@ async def add_train(
     except HTTPException as e:
         raise HTTPException(
             status_code=e.status_code,
-            detail=e.detail,
+            detail=e.detail["detail"],
         ) from None
 
     except Exception as e:
