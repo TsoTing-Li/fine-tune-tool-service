@@ -111,11 +111,11 @@ class PostStartTrain(BaseModel):
     def check(self: "PostStartTrain") -> "PostStartTrain":
         error_handler = ResponseErrorHandler()
 
-        if os.path.exists(os.path.join(SAVE_PATH, self.train_name)):
+        if not os.path.exists(os.path.join(SAVE_PATH, self.train_name)):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'train_name' already exists",
+                msg="'train_name' does not exists",
                 input={"train_name": self.train_name},
             )
 
