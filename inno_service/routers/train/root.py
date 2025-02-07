@@ -1,6 +1,6 @@
 import json
 import os
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import (
     APIRouter,
@@ -12,7 +12,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from typing_extensions import Annotated
 
 from inno_service.routers.train import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -106,19 +105,19 @@ async def post_train(
     cutoff_len: int = Form(1024),
     max_samples: int = Form(10000),
     overwrite_cache: bool = Form(True),
-    preprocessing_num_workers: int = Form(None),
-    logging_steps: int = Form(None),
-    save_steps: int = Form(None),
-    per_device_train_batch_size: int = Form(None),
-    gradient_accumulation_steps: int = Form(None),
-    learning_rate: float = Form(None),
-    num_train_epochs: int = Form(None),
+    preprocessing_num_workers: int = Form(16),
+    logging_steps: int = Form(5),
+    save_steps: int = Form(5),
+    per_device_train_batch_size: int = Form(1),
+    gradient_accumulation_steps: int = Form(8),
+    learning_rate: float = Form(0.0001),
+    num_train_epochs: int = Form(3),
     lr_scheduler_type: str = Form("cosine"),
-    warmup_ratio: float = Form(None),
+    warmup_ratio: float = Form(0.1),
     bf16: bool = Form(True),
-    ddp_timeout: int = Form(None),
-    val_size: float = Form(None),
-    per_device_eval_batch_size: int = Form(None),
+    ddp_timeout: int = Form(180000000),
+    val_size: float = Form(0.1),
+    per_device_eval_batch_size: int = Form(1),
     deepspeed_src: str = Form(None),
     deepspeed_stage: str = Form(None),
     deepspeed_enable_offload: bool = Form(False),
