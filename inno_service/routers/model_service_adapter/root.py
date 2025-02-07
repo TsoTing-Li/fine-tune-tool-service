@@ -12,7 +12,7 @@ SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 @router.post("/start/")
-async def post_model_service_adapter_start(
+async def start_model_service_adapter(
     request_data: schema.PostModelServiceAdapterStart,
 ):
     error_handler = ResponseErrorHandler()
@@ -42,7 +42,7 @@ async def post_model_service_adapter_start(
 
 
 @router.post("/stop/")
-async def post_model_service_adapter_stop(
+async def stop_model_service_adapter(
     request_data: schema.PostModelServiceAdapterStop,
 ):
     error_handler = ResponseErrorHandler()

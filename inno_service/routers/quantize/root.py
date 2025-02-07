@@ -12,7 +12,7 @@ router = APIRouter(prefix="/quantize", tags=["Quantize"])
 
 
 @router.post("/start/")
-async def post_quantize(request_data: schema.PostStartQuantize):
+async def start_quantize(request_data: schema.PostStartQuantize):
     validator.PostStartQuantize(
         checkpoint_path=os.path.join(SAVE_PATH, f"{request_data.quantize_name}")
     )

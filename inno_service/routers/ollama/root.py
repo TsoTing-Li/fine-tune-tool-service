@@ -14,7 +14,7 @@ OLLAMA_SERVICE_PORT = os.getenv("OLLAMA_SERVICE_PORT", 11434)
 
 
 @router.post("/start/")
-async def post_start_ollama(request_data: schema.PostStartOllama):
+async def start_ollama(request_data: schema.PostStartOllama):
     validator.PostStartOllama(model_name=f"{SAVE_PATH}/{request_data.model_name}")
     error_handler = ResponseErrorHandler()
 
@@ -54,7 +54,7 @@ async def post_start_ollama(request_data: schema.PostStartOllama):
 
 
 @router.post("/stop/")
-async def post_stop_ollama(request_data: schema.PostStopOllama):
+async def stop_ollama(request_data: schema.PostStopOllama):
     validator.PostStopOllama(ollama_container=request_data.ollama_container)
     error_handler = ResponseErrorHandler()
 

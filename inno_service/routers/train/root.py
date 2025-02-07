@@ -95,7 +95,7 @@ async def stop_train(request_data: schema.PostStopTrain):
 
 
 @router.post("/")
-async def post_train(
+async def add_train(
     train_name: str = Form(None),
     model_name_or_path: str = Form(...),
     finetuning_type: str = Form(...),

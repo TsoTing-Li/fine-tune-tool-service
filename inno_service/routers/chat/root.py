@@ -13,7 +13,7 @@ active_requests = dict()
 
 
 @router.post("/stream/start/")
-async def post_chat(request_data: schema.PostStartChat):
+async def start_chat(request_data: schema.PostStartChat):
     error_handler = ResponseErrorHandler()
 
     try:

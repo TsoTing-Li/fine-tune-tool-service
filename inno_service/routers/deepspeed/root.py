@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -11,7 +12,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from typing_extensions import Annotated
 
 from inno_service.routers.deepspeed import adapter, schema, utils
 from inno_service.utils.error import ResponseErrorHandler
@@ -135,7 +135,7 @@ async def add_deepspeed_file(
 
 
 @router.get("/preview/")
-async def preview_ds_config(ds_file_name: Annotated[str, Query(...)]):
+async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
     query_data = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name)
     error_handler = ResponseErrorHandler()
 

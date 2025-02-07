@@ -9,7 +9,7 @@ router = APIRouter(prefix="/hf", tags=["HF"])
 
 
 @router.post("/add-token/")
-async def post_add_token(request_data: schema.PostAddToken):
+async def add_hf_token(request_data: schema.PostAddToken):
     error_handler = ResponseErrorHandler()
     try:
         token = utils.add_token(request_data.hf_token)
