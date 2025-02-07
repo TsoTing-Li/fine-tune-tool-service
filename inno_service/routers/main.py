@@ -5,6 +5,7 @@ import inno_service.routers.chat.root
 import inno_service.routers.data.root
 import inno_service.routers.deepspeed.root
 import inno_service.routers.evaluate.root
+import inno_service.routers.hf.root
 import inno_service.routers.merge.root
 import inno_service.routers.model_service_adapter.root
 import inno_service.routers.ollama.root
@@ -27,6 +28,7 @@ acceltune_api.include_router(inno_service.routers.evaluate.root.router)
 acceltune_api.include_router(inno_service.routers.accelbrain.root.router)
 acceltune_api.include_router(inno_service.routers.ollama.root.router)
 acceltune_api.include_router(inno_service.routers.model_service_adapter.root.router)
+acceltune_api.include_router(inno_service.routers.hf.root.router)
 
 
 @acceltune_api.get("/health/", tags=["Health"])
