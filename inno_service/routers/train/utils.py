@@ -42,7 +42,7 @@ async def call_ds_api(
         if ds_args["src"] == "default":
             payload = {
                 "json": {
-                    "name": name,
+                    "train_name": name,
                     "stage": ds_args["stage"],
                     "enable_offload": ds_args["enable_offload"],
                     "offload_device": ds_args["offload_device"],
@@ -56,7 +56,7 @@ async def call_ds_api(
                         await ds_file.read(),
                         ds_file.content_type,
                     ),
-                    "name": (None, name),
+                    "train_name": (None, name),
                 }
             }
 
