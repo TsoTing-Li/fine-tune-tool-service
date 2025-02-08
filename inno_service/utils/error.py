@@ -25,7 +25,7 @@ class ResponseErrorSchemaList(BaseModel):
 class ResponseErrorType:
     ERR_VALIDATE: Literal["validate_error"] = "validate_error"
     ERR_INTERNAL: Literal["internal_error"] = "internal_error"
-    ERR_EXISTS: Literal["exists_error"] = "exists_error"
+    ERR_REDIS: Literal["redis_error"] = "redis_error"
     ERR_DOCKER: Literal["docker_error"] = "docker_error"
 
 
@@ -35,6 +35,7 @@ class ResponseErrorLoc:
     LOC_FORM: Literal["form"] = "form"
     LOC_QUERY: Literal["query"] = "query"
     LOC_PROCESS: Literal["process"] = "process"
+    LOC_DATABASE: Literal["database"] = "database"
 
 
 class ResponseErrorHandler(ResponseErrorType, ResponseErrorLoc):

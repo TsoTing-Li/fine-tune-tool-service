@@ -1,1 +1,1 @@
-from . import docker
+from . import docker, redis
