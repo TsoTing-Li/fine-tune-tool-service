@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from inno_service.routers.deepspeed import adapter, schema, utils
+from inno_service.routers.deepspeed import adapter, schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
@@ -25,6 +25,7 @@ router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
 @router.post("/default/")
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
+    validator.PostDeepSpeedDefault(train_name=f"{SAVE_PATH}/{request_data.train_name}")
     error_handler = ResponseErrorHandler()
 
     ds_config_adapter = adapter.PostDeepSpeedDefault(
@@ -81,6 +82,7 @@ async def add_deepspeed_file(
     ds_file: UploadFile = File(...), train_name: str = Form(...)
 ):
     request_data = schema.PostDeepSpeedFile(train_name=train_name, ds_file=ds_file)
+    validator.PostDeepSpeedFile(train_name=f"{SAVE_PATH}/{request_data.train_name}")
     error_handler = ResponseErrorHandler()
 
     try:
@@ -137,6 +139,7 @@ async def add_deepspeed_file(
 @router.get("/preview/")
 async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
     query_data = schema.GetDeepSpeedPreview(ds_file_name=ds_file_name)
+    validator.GetDeepSpeedPreview(ds_file_name=query_data.ds_file_name)
     error_handler = ResponseErrorHandler()
 
     try:
