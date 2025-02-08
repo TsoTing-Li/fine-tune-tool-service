@@ -123,8 +123,18 @@ def del_train(path: str) -> str:
 async def async_clear_exists_path(train_name: str) -> None:
     train_args = await get_yaml_content(f"{SAVE_PATH}/{train_name}/{train_name}.yaml")
     is_exists = await aiofiles.os.path.exists(train_args["output_dir"])
+
     if is_exists:
-        await asyncio.to_thread(shutil.rmtree, train_args["output_dir"])
+        if not await aiofiles.os.path.isdir(train_args["output_dir"]):
+            return
+
+        for item in await asyncio.to_thread(os.listdir, train_args["output_dir"]):
+            item_path = os.path.join(train_args["output_dir"], item)
+
+            if await aiofiles.os.path.isfile(item_path):
+                await aiofiles.os.remove(item_path)
+            elif await aiofiles.os.path.isdir(item_path):
+                await asyncio.to_thread(shutil.rmtree, item_path)
 
 
 async def async_clear_ds_config(train_name: str):
