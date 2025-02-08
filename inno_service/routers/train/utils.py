@@ -11,7 +11,6 @@ from fastapi import HTTPException, UploadFile
 
 from inno_service.thirdparty.docker import api_handler
 from inno_service.utils.logger import accel_logger
-from inno_service.utils.utils import generate_uuid
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
@@ -159,7 +158,7 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
             container_name_or_id = await api_handler.create_container(
-                aclient=aclient, name=f"train-{train_name}-{generate_uuid()}", data=data
+                aclient=aclient, name=f"train-{train_name}", data=data
             )
             accel_logger.info(f"Fine-tune created, container: {container_name_or_id}")
 
