@@ -53,7 +53,6 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
             request_data.train_name,
             f"ds_config_{request_data.train_name}.json",
         )
-        os.makedirs(os.path.dirname(path), exist_ok=True)
         await utils.async_write_ds_config(
             file_path=path, ds_config_content=ds_config_content
         )
@@ -95,7 +94,6 @@ async def add_deepspeed_file(
             f"ds_config_{request_data.train_name}.json",
         )
 
-        os.makedirs(os.path.dirname(ds_file_path), exist_ok=True)
         await utils.async_write_file_chunk(
             file_content=ds_file,
             file_path=ds_file_path,
