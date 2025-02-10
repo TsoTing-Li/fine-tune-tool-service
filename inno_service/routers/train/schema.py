@@ -352,18 +352,18 @@ class PostStartTrain(BaseModel):
 
 
 class PostStopTrain(BaseModel):
-    train_container: str
+    train_name: str
 
     @model_validator(mode="after")
     def check(self: "PostStopTrain") -> "PostStopTrain":
         error_handler = ResponseErrorHandler()
 
-        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_container):
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'train_container' contain invalid characters",
-                input={"train_container": self.train_container},
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
             )
 
         if error_handler.errors != []:
