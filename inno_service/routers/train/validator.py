@@ -1,5 +1,4 @@
 import os
-import traceback
 from typing import Union
 
 import orjson
@@ -184,7 +183,6 @@ class DelTrain(BaseModel):
             ) from None
 
         except Exception as e:
-            traceback.print_exc()
             error_handler.add(
                 type=error_handler.ERR_REDIS,
                 loc=[error_handler.LOC_DATABASE],
