@@ -1,9 +1,7 @@
-import json
 import os
 import traceback
 from typing import Union
 
-import httpx
 import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
@@ -259,7 +257,6 @@ class PostStartTrain(BaseModel):
 
 class PostStopTrain(BaseModel):
     train_name: str
-    train_container: str
 
     @model_validator(mode="after")
     def check(self: "PostStopTrain") -> "PostStopTrain":
@@ -296,40 +293,3 @@ class PostStopTrain(BaseModel):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_handler.errors,
             ) from None
-
-        try:
-            transport = httpx.HTTPTransport(uds="/var/run/docker.sock")
-            with httpx.Client(transport=transport, timeout=None) as client:
-                response = client.get(
-                    "http://docker/containers/json",
-                    params={"filters": json.dumps({"name": [self.train_container]})},
-                )
-
-            if response.status_code == 200:
-                if response.json() == []:
-                    error_handler.add(
-                        type=error_handler.ERR_VALIDATE,
-                        loc=[error_handler.LOC_BODY],
-                        msg="'train_container' does not exists",
-                        input={"train_container": self.train_container},
-                    )
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=error_handler.errors,
-                    )
-            else:
-                raise RuntimeError(f"{response.json()['message']}")
-
-        except Exception as e:
-            error_handler.add(
-                type=error_handler.ERR_DOCKER,
-                loc=[error_handler.LOC_PROCESS],
-                msg=f"Unexpected error: {e}",
-                input={"train_container": self.train_container},
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=error_handler.errors,
-            ) from None
-
-        return self
