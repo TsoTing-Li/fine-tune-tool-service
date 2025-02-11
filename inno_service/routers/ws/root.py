@@ -1,9 +1,12 @@
 import json
 import os
+import re
 
 import httpx
+import orjson
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from inno_service import thirdparty
 from inno_service.routers.ws import utils
 from inno_service.thirdparty.docker import api_handler
 from inno_service.utils.logger import accel_logger
@@ -15,9 +18,12 @@ router = APIRouter(prefix="/ws")
 async def train_log(websocket: WebSocket, id: str):
     await websocket.accept()
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    match = re.match(r"train-(.*)-[0-9a-fA-F\-]{36}$", id)
+    train_name = match.group(1) if match else ""
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            train_complete = False
             is_eval = False
             last_train_progress = 0.0
             train_log = {
@@ -57,6 +63,23 @@ async def train_log(websocket: WebSocket, id: str):
 
                     accel_logger.info(f"trainLog: {json.dumps(train_log)}")
                     await websocket.send_json({"trainLog": train_log})
+
+                    if "Training completed" in log_split:
+                        train_complete = True
+
+        info = await thirdparty.redis.handler.redis_async.client.hget(
+            "TRAIN", train_name
+        )
+        info = orjson.loads(info)
+
+        if train_complete:
+            info["container"]["train"]["status"] = "finish"
+            await websocket.send_json({"trainLog": "train finish"})
+        else:
+            info["container"]["train"]["status"] = "failed"
+        await thirdparty.redis.handler.redis_async.client.hset(
+            "TRAIN", train_name, orjson.dumps(info)
+        )
 
     except WebSocketDisconnect:
         accel_logger.info("trainLog: Client disconnected")
