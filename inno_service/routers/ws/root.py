@@ -18,7 +18,16 @@ async def train_log(websocket: WebSocket, id: str):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            skip_eval_process_bar = False
+            is_eval = False
+            last_train_progress = 0.0
+            train_log = {
+                "convert_progress": "0.0",
+                "run_tokenizer_progress": "0.0",
+                "train_progress": str(last_train_progress),
+                "train_loss": "",
+                "eval_loss": "",
+                "ori": "",
+            }
             async for log in api_handler.get_container_log(
                 aclient=aclient, container_name_or_id=id
             ):
@@ -28,17 +37,26 @@ async def train_log(websocket: WebSocket, id: str):
                     elif log_split[0] in ("\x01", "\x02"):
                         log_split = log_split[8:]
 
-                    train_log = utils.parse_train_log(
-                        stdout=log_split.strip(),
-                        exclude_flag=skip_eval_process_bar,
-                    )
+                    if "***** Running Evaluation *****" in log_split:
+                        is_eval = True
 
-                    if "[00:00<?, ?it/s]" in train_log["train_progress"]:
-                        skip_eval_process_bar = True
+                    if "{'loss':" in log_split:
+                        is_eval = False
+
+                    train_log = utils.parse_train_log(
+                        log_info=train_log,
+                        stdout=log_split.strip(),
+                        is_eval=is_eval,
+                        last_train_progress=last_train_progress,
+                    )
+                    last_train_progress = (
+                        float(train_log["train_progress"])
+                        if train_log["train_progress"]
+                        else 0.0
+                    )
 
                     accel_logger.info(f"trainLog: {json.dumps(train_log)}")
                     await websocket.send_json({"trainLog": train_log})
-        await websocket.send_json({"trainLog": "train finish"})
 
     except WebSocketDisconnect:
         accel_logger.info("trainLog: Client disconnected")
