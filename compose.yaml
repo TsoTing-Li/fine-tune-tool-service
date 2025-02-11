@@ -1,0 +1,79 @@
+name: acceltune
+
+services:
+  main-service:
+    image: ${USER_NAME}/${REPOSITORY}:${MAIN_SERVICE_TAG}
+    container_name: ${MAIN_SERVICE_CONTAINER_NAME}
+    env_file:
+      - .env
+    volumes:
+      - ${ROOT_PATH}:/app
+      - ${HF_HOME}:${HF_HOME}
+      - /var/run/docker.sock:/var/run/docker.sock
+    ipc: host
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: uvicorn app:app --host ${MAIN_SERVICE_HOST} --port ${MAIN_SERVICE_PORT}
+    restart: unless-stopped
+
+  reids:
+    image: redis:7.2.4
+    container_name: ${REDIS_CONTAINER_NAME}
+    volumes:
+      - ${PWD}/${REDIS_LOCAL_DB_PATH}:/data
+    env_file:
+      - .env
+    network_mode: host
+    command: >
+      sh -c "mkdir -p ${PWD}/${REDIS_LOCAL_DB_PATH} &&
+      redis-server
+      --save 60 1
+      --loglevel warning
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --dir /data
+      --dbfilename redis_snapshot.rdb"
+
+  quantize-service:
+    image: ${USER_NAME}/${REPOSITORY}:${QUANTIZE_SERVICE_TAG}
+    container_name: ${QUANTIZE_SERVICE_CONTAINER_NAME}
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ipc: host
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT}
+    restart: unless-stopped
+
+  monitor-containers:
+    image: ${USER_NAME}/${REPOSITORY}:${MONITOR_CONTAINER_TAG}
+    container_name: ${MONITOR_CONTAINER_CONTAINER_NAME}
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  hw_info:
+    image: ${USER_NAME}/${REPOSITORY}:${HWINFO_TAG}
+    container_name: ${HWINFO_CONTAINER_NAME}
+    env_file:
+      - .env
+    privileged: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - /dev:/dev
+      - ${MOUNT_PATH}:${MOUNT_PATH}
+    runtime: nvidia
+    restart: always
