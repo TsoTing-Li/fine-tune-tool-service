@@ -48,6 +48,8 @@ async def stop_container(
 
     if response.status_code == 204:
         return container_name_or_id
+    elif response.status_code == 304:
+        return f"{container_name_or_id}, already stopped"
     else:
         raise RuntimeError(
             f"Stop container error: {response.status_code}, {response.text}"
