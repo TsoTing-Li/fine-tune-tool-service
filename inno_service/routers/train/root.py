@@ -2,6 +2,7 @@ import json
 import os
 from typing import Annotated, List, Optional
 
+import orjson
 from fastapi import (
     APIRouter,
     File,
@@ -14,6 +15,7 @@ from fastapi import (
 )
 
 from inno_service.routers.train import schema, utils, validator
+from inno_service.thirdparty import redis
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.utils import generate_uuid, get_current_time
 
@@ -56,31 +58,23 @@ async def start_train(request_data: schema.PostStartTrain):
             detail=error_handler.errors,
         ) from None
 
-    return Response(
-        content=json.dumps(
-            {"train_name": request_data.train_name, "container_name": container_name}
-        ),
-        status_code=status.HTTP_200_OK,
-        media_type="application/json",
-    )
-
-
-@router.post("/stop/")
-async def stop_train(request_data: schema.PostStopTrain):
-    validator.PostStopTrain(train_container=request_data.train_container)
-    error_handler = ResponseErrorHandler()
-
     try:
-        train_container = await utils.stop_train(
-            container_name_or_id=request_data.train_container
+        info = await redis.handler.redis_async.client.hget(
+            "TRAIN", request_data.train_name
+        )
+        info = orjson.loads(info)
+        info["container"]["train"]["status"] = "active"
+        info["container"]["train"]["id"] = container_name
+        await redis.handler.redis_async.client.hset(
+            "TRAIN", request_data.train_name, orjson.dumps(info)
         )
 
     except Exception as e:
         error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input={"train_container": request_data.train_container},
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input=request_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -88,7 +82,56 @@ async def stop_train(request_data: schema.PostStopTrain):
         ) from None
 
     return Response(
-        content=json.dumps({"train_container": train_container}),
+        content=json.dumps(info),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.post("/stop/")
+async def stop_train(request_data: schema.PostStopTrain):
+    validator.PostStopTrain(train_name=request_data.train_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        info = await redis.handler.redis_async.client.hget(
+            "TRAIN", request_data.train_name
+        )
+        info = orjson.loads(info)
+        info["container"]["train"]["status"] = "stopped"
+        await redis.handler.redis_async.client.hset(
+            "TRAIN", request_data.train_name, orjson.dumps(info)
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        await utils.stop_train(container_name_or_id=info["container"]["train"]["id"])
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"Unexpected error: {e}",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps(info),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -124,6 +167,7 @@ async def add_train(
     deepspeed_offload_device: str = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
+    created_time = get_current_time(use_unix=True)
     train_args = {
         "model_name_or_path": model_name_or_path,
         "method": {
@@ -179,7 +223,7 @@ async def add_train(
         deepspeed_args=deepspeed_args,
         deepspeed_file=deepspeed_file,
     )
-    validator.PostTrain(train_path=os.path.join(SAVE_PATH, request_data.train_name))
+    validator.PostTrain(train_name=request_data.train_name)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -228,8 +272,33 @@ async def add_train(
             detail=error_handler.errors,
         ) from None
 
+    try:
+        train_info = {
+            "train_args": train_args,
+            "container": {
+                "train": {"status": "setup", "id": None},
+            },
+            "created_time": created_time,
+            "modified_time": None,
+        }
+        await redis.handler.redis_async.client.hset(
+            "TRAIN", request_data.train_name, orjson.dumps(train_info)
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input={"train_name": request_data.train_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
     return Response(
-        content=json.dumps({"train_name": request_data.train_name}),
+        content=json.dumps({request_data.train_name: train_info}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -238,11 +307,22 @@ async def add_train(
 @router.get("/")
 async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
     query_data = schema.GetTrain(train_name=train_name)
-    validator.GetTrain(train_path=os.path.join(SAVE_PATH, query_data.train_name))
+    validator.GetTrain(train_name=query_data.train_name)
     error_handler = ResponseErrorHandler()
 
     try:
-        train_args_info = await utils.get_train_args(train_name=query_data.train_name)
+        if query_data.train_name:
+            info = await redis.handler.redis_async.client.hget(
+                "TRAIN", query_data.train_name
+            )
+            train_info = {query_data.train_name: orjson.loads(info)}
+        else:
+            info = await redis.handler.redis_async.client.hgetall("TRAIN")
+            train_info = (
+                {key: orjson.loads(value) for key, value in info.items()}
+                if len(info) != 0
+                else dict()
+            )
 
     except Exception as e:
         error_handler.add(
@@ -257,7 +337,7 @@ async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
         ) from None
 
     return Response(
-        content=json.dumps(train_args_info),
+        content=json.dumps(train_info),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -293,6 +373,7 @@ async def modify_train(
     deepspeed_offload_device: str = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
+    modified_time = get_current_time(use_unix=True)
     train_args = {
         "model_name_or_path": model_name_or_path,
         "method": {
@@ -346,7 +427,7 @@ async def modify_train(
         deepspeed_args=deepspeed_args,
         deepspeed_file=deepspeed_file,
     )
-    validator.PutTrain(train_path=os.path.join(SAVE_PATH, request_data.train_name))
+    validator.PutTrain(train_name=request_data.train_name)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -389,8 +470,32 @@ async def modify_train(
             detail=error_handler.errors,
         ) from None
 
+    try:
+        info = await redis.handler.redis_async.client.hget(
+            "TRAIN", request_data.train_name
+        )
+        info = orjson.loads(info)
+        info["train_args"] = train_args
+        info["container"]["train"]["status"] = "setup"
+        info["modified_time"] = modified_time
+        await redis.handler.redis_async.client.hset(
+            "TRAIN", request_data.train_name, orjson.dumps(info)
+        )
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input={"train_name": request_data.train_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
     return Response(
-        content=json.dumps({"train_name": request_data.train_name}),
+        content=json.dumps({request_data.train_name: info}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -399,12 +504,30 @@ async def modify_train(
 @router.delete("/")
 async def delete_train(train_name: Annotated[str, Query(...)]):
     query_data = schema.DelTrain(train_name=train_name)
-    del_train_path = os.path.join(SAVE_PATH, query_data.train_name)
-    validator.DelTrain(train_path=del_train_path)
+    validator.DelTrain(train_name=query_data.train_name)
     error_handler = ResponseErrorHandler()
 
     try:
-        del_train_name = utils.del_train(path=del_train_path)
+        del_info = await redis.handler.redis_async.client.hget(
+            "TRAIN", query_data.train_name
+        )
+        del_info = orjson.loads(del_info)
+        await redis.handler.redis_async.client.hdel("TRAIN", query_data.train_name)
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input={"train_name": query_data.train_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        utils.del_train(path=os.path.join(SAVE_PATH, query_data.train_name))
 
     except Exception as e:
         error_handler.add(
@@ -419,7 +542,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         ) from None
 
     return Response(
-        content=json.dumps({"train_name": del_train_name}),
+        content=json.dumps(del_info),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
