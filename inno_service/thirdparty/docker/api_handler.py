@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from typing import Literal
+from typing import Literal, Union
 
 import httpx
 
@@ -57,16 +57,16 @@ async def stop_container(
 
 
 async def get_container_log(
-    aclient: httpx.AsyncClient, container_name_or_id: str
+    aclient: httpx.AsyncClient, container_name_or_id: str, tail: Union[str, int] = "all"
 ) -> AsyncGenerator[str, None]:
-    params = {
-        "id": container_name_or_id,
-        "follow": True,
-        "stdout": True,
-        "stderr": True,
-    }
+    params = {"follow": True, "stdout": True, "stderr": True, "tail": str(tail)}
     async with aclient.stream(
         "GET", f"http://docker/containers/{container_name_or_id}/logs", params=params
-    ) as r:
-        async for chunk in r.aiter_text():
-            yield chunk
+    ) as response:
+        if response.status_code == 200:
+            async for chunk in response.aiter_text():
+                yield chunk
+        elif response.status_code == 404:
+            raise ValueError(response.json()["message"])
+        else:
+            raise RuntimeError(response.json()["message"])

@@ -84,6 +84,9 @@ async def train_log(websocket: WebSocket, id: str):
     except WebSocketDisconnect:
         accel_logger.info("trainLog: Client disconnected")
 
+    except ValueError as e:
+        accel_logger.info(f"trainLog: {e}")
+
     except Exception as e:
         accel_logger.error(f"trainLog: Unexpected error: {e}")
 
@@ -113,6 +116,9 @@ async def quantize_log(websocket: WebSocket, id: str):
 
     except WebSocketDisconnect:
         accel_logger.info("quantizeLog: Client disconnected")
+
+    except ValueError as e:
+        accel_logger.info(f"quantizeLog: {e}")
 
     except Exception as e:
         accel_logger.error(f"quantizeLog: Unexpected error: {e}")
@@ -144,6 +150,9 @@ async def merge_log(websocket: WebSocket, id: str):
     except WebSocketDisconnect:
         accel_logger.info("mergeLog: Client disconnected")
 
+    except ValueError as e:
+        accel_logger.info(f"mergeLog: {e}")
+
     except Exception as e:
         accel_logger.error(f"mergeLog: Unexpected error: {e}")
 
@@ -161,6 +170,7 @@ async def hw_info_log(websocket: WebSocket):
             async for log in api_handler.get_container_log(
                 aclient=aclient,
                 container_name_or_id=os.environ["HWINFO_CONTAINER_NAME"],
+                tail=1,
             ):
                 for log_split in log.splitlines():
                     if log_split == "":
@@ -173,6 +183,9 @@ async def hw_info_log(websocket: WebSocket):
 
     except WebSocketDisconnect:
         accel_logger.info("hwInfo: Client disconnected")
+
+    except ValueError as e:
+        accel_logger.info(f"hwInfo: {e}")
 
     except Exception as e:
         accel_logger.error(f"hwInfo: Unexpected error: {e}")
