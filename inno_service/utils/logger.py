@@ -32,7 +32,7 @@ def setup_logger(folder: str, name: str, limit: int, count: int):
     )
 
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.ERROR)
     logger.addHandler(file_handler)
     return logger
 
