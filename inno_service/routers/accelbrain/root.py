@@ -16,7 +16,7 @@ router = APIRouter(prefix="/accelbrain", tags=["Accelbrain"])
 
 
 @router.post("/deploy/")
-async def export_accelbrain(request_data: schema.PostDeploy):
+async def deploy_accelbrain(request_data: schema.PostDeploy):
     validator.PostDeploy(deploy_name=request_data.deploy_name)
     error_handler = ResponseErrorHandler()
     accelbrain_url = os.getenv("ACCELBRAIN_URL", None)
