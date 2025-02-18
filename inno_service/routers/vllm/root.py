@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.vllm import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
 
@@ -55,6 +56,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -90,6 +92,7 @@ async def stop_vllm(request_data: schema.PostStopVLLM):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

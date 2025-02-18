@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from inno_service.routers.chat import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -56,6 +57,7 @@ async def stop_chat(request_data: schema.PostStopChat):
         active_requests[request_data.request_id] = "cancelled"
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

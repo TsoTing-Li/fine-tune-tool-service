@@ -1,11 +1,11 @@
 import json
 import os
-import traceback
 
 from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.ollama import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
@@ -29,6 +29,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -64,7 +65,7 @@ async def stop_ollama(request_data: schema.PostStopOllama):
         )
 
     except Exception as e:
-        traceback.print_exc()
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

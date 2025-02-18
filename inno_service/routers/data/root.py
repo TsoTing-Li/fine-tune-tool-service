@@ -7,6 +7,7 @@ from fastapi.exceptions import HTTPException
 
 from inno_service.routers.data import schema, utils
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid, get_current_time
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
@@ -117,6 +118,7 @@ async def add_dataset(
         )
 
     except (TypeError, KeyError, ValueError) as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_FORM],
@@ -128,6 +130,7 @@ async def add_dataset(
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -158,6 +161,7 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
         )
 
     except ValueError as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
@@ -170,6 +174,7 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -199,6 +204,7 @@ async def modify_dataset(request_data: schema.PutData):
         )
 
     except ValueError as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_BODY],
@@ -211,6 +217,7 @@ async def modify_dataset(request_data: schema.PutData):
         ) from None
 
     except KeyError as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_BODY],
@@ -223,6 +230,7 @@ async def modify_dataset(request_data: schema.PutData):
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -254,10 +262,11 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
         )
 
     except (FileNotFoundError, ValueError) as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
-            msg=str(e),
+            msg=f"{e}",
             input={"dataset_name": dataset_name},
         )
         raise HTTPException(
@@ -265,6 +274,7 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.evaluate import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
@@ -52,6 +53,7 @@ async def start_lm_eval(request_data: schema.PostStartEval):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -81,6 +83,7 @@ async def stop_lm_eval(request_data: schema.PostStopEval):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

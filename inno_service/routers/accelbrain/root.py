@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from inno_service import thirdparty
 from inno_service.routers.accelbrain import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import get_current_time
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
@@ -64,6 +65,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
         )
 
     except ValueError as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
@@ -76,6 +78,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_QUERY],
@@ -115,6 +118,7 @@ async def set_device(request_data: schema.PostDevice):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -160,6 +164,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
             )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -202,6 +207,7 @@ async def modify_device(request_data: schema.PutDevice):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -235,6 +241,7 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

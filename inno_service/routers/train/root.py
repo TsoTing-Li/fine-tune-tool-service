@@ -17,6 +17,7 @@ from fastapi import (
 from inno_service.routers.train import schema, utils, validator
 from inno_service.thirdparty import redis
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid, get_current_time
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
@@ -47,6 +48,7 @@ async def start_train(request_data: schema.PostStartTrain):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -70,6 +72,7 @@ async def start_train(request_data: schema.PostStartTrain):
         )
 
     except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
@@ -104,6 +107,7 @@ async def stop_train(request_data: schema.PostStopTrain):
         )
 
     except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
@@ -119,6 +123,7 @@ async def stop_train(request_data: schema.PostStopTrain):
         await utils.stop_train(container_name_or_id=info["container"]["train"]["id"])
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -255,12 +260,14 @@ async def add_train(
         )
 
     except HTTPException as e:
+        accel_logger.error(f"DeepSpeed default error: {e.detail['detail']}")
         raise HTTPException(
             status_code=e.status_code,
             detail=e.detail["detail"],
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -286,6 +293,7 @@ async def add_train(
         )
 
     except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
@@ -325,6 +333,7 @@ async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
             )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -459,6 +468,7 @@ async def modify_train(
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -483,6 +493,7 @@ async def modify_train(
         )
 
     except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
@@ -515,6 +526,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         await redis.handler.redis_async.client.hdel("TRAIN", query_data.train_name)
 
     except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
@@ -530,6 +542,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         utils.del_train(path=os.path.join(SAVE_PATH, query_data.train_name))
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

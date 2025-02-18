@@ -15,6 +15,7 @@ from fastapi import (
 
 from inno_service.routers.deepspeed import adapter, schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 NVME_PATH = os.getenv("NVME_PATH", "/mnt/nvme")
@@ -58,6 +59,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -101,6 +103,7 @@ async def add_deepspeed_file(
         )
 
     except TypeError as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_FORM],
@@ -113,6 +116,7 @@ async def add_deepspeed_file(
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -146,6 +150,7 @@ async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
         )
 
     except (FileNotFoundError, TypeError) as e:
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
@@ -158,6 +163,7 @@ async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
         ) from None
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from inno_service.routers.quantize import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
+from inno_service.utils.logger import accel_logger
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
@@ -41,6 +42,7 @@ async def start_quantize(request_data: schema.PostStartQuantize):
         result.update(container_ids)
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -72,6 +74,7 @@ async def stop_quantize(request_data: schema.PostStopQuantize):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
