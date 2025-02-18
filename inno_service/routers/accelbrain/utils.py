@@ -1,10 +1,15 @@
+import asyncio
 import hashlib
 import os
 import zipfile
-from typing import AsyncGenerator, Tuple
+from collections.abc import AsyncGenerator
+from typing import Tuple, Any
 
 import aiofiles
 import httpx
+import orjson
+
+from inno_service import thirdparty
 
 
 async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
@@ -67,7 +72,7 @@ def zip_folder_and_get_hash(path: str, zip_path: str) -> dict:
 
 
 async def async_file_generator(
-    file_path: str, chunk_size: int = 50 * 1024 * 1024
+    file_path: str, model_name: str, chunk_size: int = 50 * 1024 * 1024
 ) -> AsyncGenerator[bytes, None]:
     try:
         async with aiofiles.open(file_path, "rb") as af:
@@ -78,8 +83,10 @@ async def async_file_generator(
             uploaded_size = 0
             while data := await af.read(chunk_size):
                 uploaded_size += len(data)
-                progress = round((uploaded_size / file_size) * 100, 1)
-                print(f"AccelTune: upload file progress {progress}%", flush=True)
+                upload_progress = round((uploaded_size / file_size), 2)
+                await thirdparty.redis.handler.redis_async.client.rpush(
+                    f"{model_name}-upload_progress", upload_progress
+                )
                 yield data
 
     except FileNotFoundError as e:
@@ -101,7 +108,9 @@ async def generate_multi_part(
         yield f'Content-Disposition: form-data; name="model"; filename="{file_name}"\r\n'.encode()
         yield b"Content-Type: application/zip\r\n\r\n"
 
-        async for chunk in async_file_generator(file_path):
+        async for chunk in async_file_generator(
+            file_path=file_path, model_name=model_name
+        ):
             yield chunk
 
         yield b"\r\n--" + boundary + b"--\r\n"
@@ -110,42 +119,166 @@ async def generate_multi_part(
         raise RuntimeError(f"{e}") from None
 
 
+async def call_accelbrain_deploy(
+    file_path: str,
+    model_name: str,
+    deploy_path: str,
+    accelbrain_url: str,
+    boundary: bytes,
+):
+    yield (
+        orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 200,
+                    "message": {"action": "Start compress file", "progress": 0.0},
+                    "detail": {"model_name": model_name},
+                }
+            }
+        )
+    )
+    zip_folder_and_get_hash(path=file_path, zip_path=deploy_path)
+    yield (
+        orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 200,
+                    "message": {"action": "Finish compress file", "progress": 0.0},
+                    "detail": {"model_name": model_name},
+                }
+            }
+        )
+    )
+
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        async with aclient.stream(
+            "POST",
+            f"http://{accelbrain_url}/model_handler/deploy/",
+            headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary.decode('ascii')}"
+            },
+            content=generate_multi_part(
+                file_path=deploy_path, model_name=model_name, boundary=boundary
+            ),
+        ) as response:
+            if response.status_code == 200:
+                async for chunk in response.aiter_lines():
+                    if chunk:
+                        accelbrain_info = {"AccelBrain": orjson.loads(chunk)}
+                        yield orjson.dumps(accelbrain_info)
+            else:
+                error_content = await response.aread()
+                accelbrain_error = {"AccelBrain": error_content.decode()}
+                yield orjson.dumps(accelbrain_error)
+
+
+async def monitor_progress(model_name: str):
+    try:
+        while True:
+            (
+                _,
+                upload_progress,
+            ) = await thirdparty.redis.handler.redis_async.client.blpop(
+                f"{model_name}-upload_progress"
+            )
+            yield orjson.dumps(
+                {
+                    "AccelTune": {
+                        "status": 200,
+                        "message": {
+                            "action": "Upload file",
+                            "progress": float(upload_progress),
+                            "detail": {"model_name": model_name},
+                        },
+                    }
+                }
+            )
+
+            if upload_progress == "1.0":
+                break
+
+    except asyncio.CancelledError:
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 500,
+                    "message": {
+                        "action": "Async task cancelled",
+                        "progress": -1,
+                        "detail": "",
+                    },
+                }
+            }
+        )
+
+async def merge_async_generators(*gens: AsyncGenerator[Any, None]) -> AsyncGenerator[Any, None]:
+    tasks = {asyncio.create_task(gen.__anext__()): gen for gen in gens}
+
+    while tasks:
+        done, _ = await asyncio.wait(tasks.keys(), return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            gen = tasks.pop(task)
+            try:
+                item = task.result()
+            except StopAsyncIteration:
+                continue
+            else:
+                yield item
+                tasks[asyncio.create_task(gen.__anext__())] = gen
+
+
 async def deploy_to_accelbrain_service(
     file_path: str, model_name: str, deploy_path: str, accelbrain_url: str
 ) -> AsyncGenerator[str, None]:
     try:
-        zip_folder_and_get_hash(path=file_path, zip_path=deploy_path)
-        boundary = os.urandom(16).hex().encode("ascii")
+        monitor_progress_generator = monitor_progress(model_name=model_name)
+        accelbrain_deploy_generator = call_accelbrain_deploy(
+            file_path=file_path,
+            model_name=model_name,
+            deploy_path=deploy_path,
+            accelbrain_url=accelbrain_url,
+            boundary=os.urandom(16).hex().encode("ascii"),
+        )
 
-        async with httpx.AsyncClient(timeout=None) as aclient:
-            async with aclient.stream(
-                "POST",
-                f"http://{accelbrain_url}/model_handler/deploy/",
-                headers={
-                    "Content-Type": f"multipart/form-data; boundary={boundary.decode('ascii')}"
-                },
-                content=generate_multi_part(
-                    file_path=deploy_path, model_name=model_name, boundary=boundary
-                ),
-            ) as response:
-                if response.status_code == 200:
-                    async for chunk in response.aiter_lines():
-                        if chunk:
-                            yield chunk
-                else:
-                    error_content = await response.aread()
-                    yield error_content.decode()
+        async for item in merge_async_generators(monitor_progress_generator, accelbrain_deploy_generator):
+            yield item
 
     except httpx.ConnectError:
-        yield f"Can not connect to {accelbrain_url}"
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 502,
+                    "message": {
+                        "action": "connected error",
+                        "progress": -1,
+                    },
+                }
+            }
+        )
 
     except httpx.TimeoutException:
-        yield "Request timeout"
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 408,
+                    "message": {
+                        "action": "request timeout",
+                        "progress": -1,
+                    },
+                }
+            }
+        )
 
     except Exception as e:
-        yield f"{e}"
-
-
-def save_url_in_env(url: str = "") -> str:
-    os.environ["ACCELBRAIN_URL"] = url
-    return url
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 500,
+                    "message": {
+                        "action": "unexpected error",
+                        "progress": -1,
+                        "detail": {f"{e}"},
+                    },
+                }
+            }
+        )
