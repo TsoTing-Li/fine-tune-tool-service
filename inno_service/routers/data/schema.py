@@ -3,28 +3,54 @@ from typing import Literal, Union
 
 from fastapi import UploadFile, status
 from fastapi.exceptions import HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 from inno_service.utils.error import ResponseErrorHandler
 
 
 class Columns(BaseModel):
-    prompt: str = "instruction"
-    query: str = "input"
-    response: str = "output"
+    prompt: Union[str, None] = None
+    query: Union[str, None] = None
+    response: Union[str, None] = None
     history: Union[str, None] = None
-    messages: str = "conversations"
+    messages: Union[str, None] = None
     system: Union[str, None] = None
     tools: Union[str, None] = None
 
 
 class Tags(BaseModel):
-    role_tag: str = "from"
-    content_tag: str = "value"
-    user_tag: str = "human"
-    assistant_tag: str = "gpt"
-    observation_tag: str = "observation"
-    function_tag: str = "function_call"
+    role_tag: str
+    content_tag: str
+    user_tag: str
+    assistant_tag: str
+    observation_tag: Union[str, None] = None
+    function_tag: Union[str, None] = None
+    system_tag: Union[str, None] = None
+
+    @model_validator(mode="after")
+    def check(self: "Tags") -> "Tags":
+        error_handler = ResponseErrorHandler()
+
+        if (self.observation_tag and not self.function_tag) or (
+            not self.observation_tag and self.function_tag
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="observation_tag and function_tag must exist at the same time",
+                input={
+                    "observation_tag": self.observation_tag,
+                    "function_tag": self.function_tag,
+                },
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
 
 
 class DatasetInfo(BaseModel):
@@ -34,8 +60,8 @@ class DatasetInfo(BaseModel):
     subset: Union[str, None] = None
     split: str = "train"
     num_samples: Union[int, None] = None
-    formatting: Literal["alpaca", "sharegpt"] = "alpaca"
-    columns: Union[Columns, None] = Field(default_factory=Columns)
+    formatting: Literal["alpaca", "sharegpt"]
+    columns: Columns
     tags: Union[Tags, None] = None
 
     @model_validator(mode="after")
@@ -80,6 +106,14 @@ class DatasetInfo(BaseModel):
                     input={"load_from": self.load_from, "subset": self.subset},
                 )
 
+        if bool(re.search(r"[^a-zA-Z0-9_\-]+", self.split)) is True:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="'split contain invalid characters",
+                input={"split": self.split},
+            )
+
         if self.formatting == "alpaca" and self.tags is not None:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
@@ -87,7 +121,8 @@ class DatasetInfo(BaseModel):
                 msg="'tags' only used for 'sharegpt' formatting",
                 input={"formatting": self.formatting},
             )
-        elif self.formatting == "sharegpt" and self.tags is None:
+
+        if self.formatting == "sharegpt" and self.tags is None:
             self.tags = Tags()
 
         if error_handler.errors != []:

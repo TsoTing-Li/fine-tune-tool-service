@@ -82,34 +82,43 @@ def check_sharegpt_format(
         )
         if key is not None
     }
-    tags_values = {
-        dataset_tags.user_tag,
-        dataset_tags.assistant_tag,
-        dataset_tags.observation_tag,
-        dataset_tags.function_tag,
-    }
+
+    messages_order = [
+        value
+        for value in (
+            dataset_tags.user_tag,
+            dataset_tags.function_tag,
+            dataset_tags.observation_tag,
+            dataset_tags.assistant_tag,
+        )
+        if value
+    ]
 
     for column in dataset_content:
         if not columns_keys.issubset(column.keys()):
-            raise KeyError("Invalid column key in required dataset")
+            raise KeyError(
+                f"Invalid column key in required dataset: {list(column.keys())[0]}"
+            )
 
         if not isinstance(column[dataset_columns.messages], list):
             raise TypeError(
                 f"Value format in '{dataset_columns.messages}' must be list"
             )
 
-        for tag in column[dataset_columns.messages]:
+        for index, tag in enumerate(column[dataset_columns.messages]):
             if not tags_keys.issubset(tag.keys()):
-                raise KeyError("Invalid tag key in required dataset")
-
-            if tag[dataset_tags.user_tag] not in tags_values:
-                raise ValueError(
-                    f"Invalid '{dataset_tags.user_tag}' value: {tag[dataset_tags.user_tag]}"
+                raise KeyError(
+                    f"Invalid tag key in required dataset: {list(tag.keys())[0]}"
                 )
 
             if not isinstance(tag[dataset_tags.content_tag], str):
                 raise TypeError(
                     f"Value format in '{dataset_tags.content_tag}' must be string"
+                )
+
+            if tag[dataset_tags.role_tag] != messages_order[index]:
+                raise ValueError(
+                    f"Invalid tag value in required dataset: {tag[dataset_tags.role_tag]}"
                 )
 
 
@@ -140,6 +149,9 @@ def check_dataset_key_value(
     dataset_tags: Union[Tags, None],
     dataset_format: Literal["alpaca", "sharegpt"],
 ) -> None:
+    if len(dataset_content) < 2:
+        raise ValueError("the number of dataset must be more than 1")
+
     if dataset_format == "alpaca":
         check_alpaca_format(
             dataset_content=dataset_content, dataset_columns=dataset_columns
@@ -175,16 +187,19 @@ async def async_add_dataset_info(
             "formatting": dataset_info.formatting,
             "num_samples": dataset_info.num_samples,
             "split": dataset_info.split,
-            "columns": dataset_info.columns.model_dump(),
+            "columns": dataset_info.columns.model_dump(exclude_none=True),
             "time": current_time,
         }
     }
-    if dataset_info.formatting == "sharegpt":
-        update_data[dataset_info.dataset_name]["tags"] = {
-            "tags": dataset_info.tags.model_dump()
-        }
-    dataset_info_content.update(update_data)
 
+    if dataset_info.formatting == "sharegpt" and dataset_info.tags.model_dump(
+        exclude_none=True
+    ):
+        update_data[dataset_info.dataset_name]["tags"] = dataset_info.tags.model_dump(
+            exclude_none=True
+        )
+
+    dataset_info_content.update(update_data)
     dataset_info_content = await async_write_dataset_info_file(
         dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
     )

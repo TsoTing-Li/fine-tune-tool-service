@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Annotated, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
@@ -20,25 +20,26 @@ router = APIRouter(prefix="/data", tags=["Data"])
 @router.post("/")
 async def add_dataset(
     dataset_name: str = Form(...),
-    load_from: str = Form(...),
+    load_from: Annotated[Literal["file_name", "hf_hub_url"], Form(...)] = "file_name",
     dataset_src: str = Form(...),
     subset: str = Form(None),
     split: str = Form(None),
     num_samples: int = Form(None),
-    formatting: str = Form("alpaca"),
-    prompt: str = Form("instruction"),
-    query: str = Form("input"),
-    response: str = Form("output"),
-    history: str = Form(None),
-    messages: str = Form("conversations"),
-    system: str = Form(None),
-    tools: str = Form(None),
-    role_tag: str = Form("from"),
-    content_tag: str = Form("value"),
-    user_tag: str = Form("human"),
-    assistant_tag: str = Form("gpt"),
-    observation_tag: str = Form("observation"),
-    function_tag: str = Form("function_call"),
+    formatting: Annotated[Literal["alpaca", "sharegpt"], Form(...)] = "alpaca",
+    prompt: Annotated[str, Form(...)] = "instruction",
+    query: Annotated[Union[str, None], Form(...)] = "input",
+    response: Annotated[str, Form(...)] = "output",
+    history: Annotated[Union[str, None], Form(...)] = None,
+    messages: Annotated[str, Form(...)] = "conversations",
+    system: Annotated[Union[str, None], Form(...)] = None,
+    tools: Annotated[Union[str, None], Form(...)] = None,
+    role_tag: Annotated[str, Form(...)] = "from",
+    content_tag: Annotated[str, Form(...)] = "value",
+    user_tag: Annotated[str, Form(...)] = "human",
+    assistant_tag: Annotated[str, Form(...)] = "gpt",
+    observation_tag: Annotated[Union[str, None], Form(...)] = "observation",
+    function_tag: Annotated[Union[str, None], Form(...)] = "function_call",
+    system_tag: Annotated[Union[str, None], Form(...)] = "system",
     dataset_file: Union[UploadFile, None] = File(None),
 ):
     dataset_info = {
@@ -57,11 +58,14 @@ async def add_dataset(
             "query": query,
             "response": response,
             "history": history,
+            "system": system,
+        }
+    elif formatting == "sharegpt":
+        dataset_info["columns"] = {
             "messages": messages,
             "system": system,
             "tools": tools,
         }
-    elif formatting == "sharegpt":
         dataset_info["tags"] = {
             "role_tag": role_tag,
             "content_tag": content_tag,
@@ -69,6 +73,7 @@ async def add_dataset(
             "assistant_tag": assistant_tag,
             "observation_tag": observation_tag,
             "function_tag": function_tag,
+            "system_tag": system_tag,
         }
 
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
