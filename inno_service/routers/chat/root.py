@@ -36,7 +36,7 @@ async def start_chat(request_data: schema.PostStartChat):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -59,7 +59,7 @@ async def stop_chat(request_data: schema.PostStopChat):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(

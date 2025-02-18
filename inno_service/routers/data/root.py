@@ -131,7 +131,7 @@ async def add_dataset(
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=dict(),
         )
         raise HTTPException(
@@ -173,7 +173,7 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={},
         )
         raise HTTPException(
@@ -226,7 +226,7 @@ async def modify_dataset(request_data: schema.PutData):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -268,7 +268,7 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"dataset_name": dataset_name},
         )
         raise HTTPException(
