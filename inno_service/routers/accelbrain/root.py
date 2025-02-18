@@ -1,10 +1,10 @@
 import json
 import os
+from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
-from typing_extensions import Annotated
 
 from inno_service.routers.accelbrain import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
@@ -85,7 +85,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
 
     except Exception as e:
         error_handler.add(
-            type=error_handler.ERR_VALIDATE,
+            type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_QUERY],
             msg=f"{e}",
             input={"accelbrain_url": query_data.accelbrain_url},
