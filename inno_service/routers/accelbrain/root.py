@@ -19,11 +19,8 @@ router = APIRouter(prefix="/accelbrain", tags=["Accelbrain"])
 async def deploy_accelbrain(request_data: schema.PostDeploy):
     validator.PostDeploy(deploy_name=request_data.deploy_name)
     error_handler = ResponseErrorHandler()
-    accelbrain_url = os.getenv("ACCELBRAIN_URL", None)
 
     try:
-        assert accelbrain_url, "'accelbrain_url' not found, save 'accelbrain_url' first"
-
         return StreamingResponse(
             content=utils.deploy_to_accelbrain_service(
                 file_path=os.path.join(SAVE_PATH, request_data.deploy_name, "quantize"),
@@ -34,22 +31,11 @@ async def deploy_accelbrain(request_data: schema.PostDeploy):
                     "quantize",
                     f"{request_data.deploy_name}.zip",
                 ),
-                accelbrain_url=accelbrain_url,
+                accelbrain_url=request_data.accelbrain_url,
             ),
             status_code=status.HTTP_200_OK,
             media_type="text/event-stream",
         )
-
-    except AssertionError as e:
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_BODY],
-            msg=f"{e}",
-            input={"accelbrain_url": accelbrain_url},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_handler.errors
-        ) from None
 
     except Exception as e:
         error_handler.add(
