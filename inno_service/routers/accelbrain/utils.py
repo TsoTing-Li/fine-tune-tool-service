@@ -3,7 +3,7 @@ import hashlib
 import os
 import zipfile
 from collections.abc import AsyncGenerator
-from typing import Tuple, Any
+from typing import Any, Tuple
 
 import aiofiles
 import httpx
@@ -197,7 +197,7 @@ async def monitor_progress(model_name: str):
             if upload_progress == "1.0":
                 break
 
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as e:
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -205,13 +205,16 @@ async def monitor_progress(model_name: str):
                     "message": {
                         "action": "Async task cancelled",
                         "progress": -1,
-                        "detail": "",
+                        "detail": {"error": f"{e}"},
                     },
                 }
             }
         )
 
-async def merge_async_generators(*gens: AsyncGenerator[Any, None]) -> AsyncGenerator[Any, None]:
+
+async def merge_async_generators(
+    *gens: AsyncGenerator[Any, None],
+) -> AsyncGenerator[Any, None]:
     tasks = {asyncio.create_task(gen.__anext__()): gen for gen in gens}
 
     while tasks:
@@ -240,10 +243,12 @@ async def deploy_to_accelbrain_service(
             boundary=os.urandom(16).hex().encode("ascii"),
         )
 
-        async for item in merge_async_generators(monitor_progress_generator, accelbrain_deploy_generator):
+        async for item in merge_async_generators(
+            monitor_progress_generator, accelbrain_deploy_generator
+        ):
             yield item
 
-    except httpx.ConnectError:
+    except httpx.ConnectError as e:
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -251,12 +256,13 @@ async def deploy_to_accelbrain_service(
                     "message": {
                         "action": "connected error",
                         "progress": -1,
+                        "detail": {"error": f"{e}"},
                     },
                 }
             }
         )
 
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as e:
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -264,6 +270,7 @@ async def deploy_to_accelbrain_service(
                     "message": {
                         "action": "request timeout",
                         "progress": -1,
+                        "detail": {"error": f"{e}"},
                     },
                 }
             }
@@ -277,7 +284,7 @@ async def deploy_to_accelbrain_service(
                     "message": {
                         "action": "unexpected error",
                         "progress": -1,
-                        "detail": {f"{e}"},
+                        "detail": {"error": f"{e}"},
                     },
                 }
             }
