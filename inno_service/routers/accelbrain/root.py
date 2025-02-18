@@ -76,7 +76,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
+            msg=f"Unexpected error: {e}",
             input={"accelbrain_url": query_data.accelbrain_url},
         )
         raise HTTPException(
