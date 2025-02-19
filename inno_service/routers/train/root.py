@@ -21,9 +21,6 @@ from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid, get_current_time
 
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-os.makedirs(SAVE_PATH, exist_ok=True)
-
 router = APIRouter(prefix="/train", tags=["Train"])
 
 
@@ -235,7 +232,9 @@ async def add_train(
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
         train_args["output_dir"] = os.path.join(
-            SAVE_PATH, request_data.train_name, train_args["finetuning_type"]
+            params.COMMON_CONFIG.save_path,
+            request_data.train_name,
+            train_args["finetuning_type"],
         )
         train_args["dataset"] = ", ".join(train_args["dataset"])
         train_args["dataset_dir"] = os.getenv("DATA_PATH", "/app/data")
@@ -443,7 +442,9 @@ async def modify_train(
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
         train_args["output_dir"] = os.path.join(
-            SAVE_PATH, request_data.train_name, train_args["finetuning_type"]
+            params.COMMON_CONFIG.save_path,
+            request_data.train_name,
+            train_args["finetuning_type"],
         )
         train_args["dataset"] = ", ".join(train_args["dataset"])
         train_args["dataset_dir"] = os.getenv("DATA_PATH", "/app/data")
