@@ -341,11 +341,11 @@ async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
             )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"Database error: {e}",
             input=query_data.model_dump(),
         )
         raise HTTPException(
