@@ -19,3 +19,10 @@ def get_current_time(use_unix: bool) -> Union[int, str]:
     else:
         now = datetime.now()
         return now.strftime("%Y-%m-%d-%H-%M-%S")
+
+
+def assemble_image_name(username: str, repository: str, tag: str) -> str:
+    if repository == "":
+        return f"{username}:{tag}"
+    else:
+        return f"{username}/{repository}:{tag}"

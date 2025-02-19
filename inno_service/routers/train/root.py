@@ -19,7 +19,11 @@ from inno_service.routers.train import schema, utils, validator
 from inno_service.thirdparty import redis
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
-from inno_service.utils.utils import generate_uuid, get_current_time
+from inno_service.utils.utils import (
+    assemble_image_name,
+    generate_uuid,
+    get_current_time,
+)
 
 router = APIRouter(prefix="/train", tags=["Train"])
 
@@ -32,7 +36,11 @@ async def start_train(request_data: schema.PostStartTrain):
     try:
         await utils.async_clear_exists_path(train_name=request_data.train_name)
         container_name = await utils.run_train(
-            image_name=f"{params.COMMON_CONFIG.username}/{params.COMMON_CONFIG.repository}:{params.FINETUNETOOL_CONFIG.tag}",
+            image_name=assemble_image_name(
+                username=params.COMMON_CONFIG.username,
+                repository=params.COMMON_CONFIG.repository,
+                tag=params.FINETUNETOOL_CONFIG.tag,
+            ),
             cmd=[
                 "llamafactory-cli",
                 "train",
