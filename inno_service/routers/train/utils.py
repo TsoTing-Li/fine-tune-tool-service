@@ -87,34 +87,6 @@ async def get_yaml_content(path: str) -> dict:
     return yaml.safe_load(content)
 
 
-def find_all_yaml(base_path: str) -> list:
-    yaml_files = list()
-
-    for task in os.listdir(base_path):
-        yaml_path = os.path.join(base_path, task, f"{task}.yaml")
-        if os.path.isfile(yaml_path):
-            yaml_files.append(yaml_path)
-
-    return yaml_files
-
-
-async def get_train_args(train_name: str) -> list:
-    if not train_name:
-        yaml_files = find_all_yaml(base_path=SAVE_PATH)
-    else:
-        yaml_files = [os.path.join(SAVE_PATH, train_name, f"{train_name}.yaml")]
-
-    get_schedule = [get_yaml_content(path=yaml_path) for yaml_path in yaml_files]
-    file_contents = await asyncio.gather(*get_schedule)
-
-    train_args_info = {
-        os.path.splitext(os.path.basename(yaml_path))[0]: content
-        for yaml_path, content in zip(yaml_files, file_contents)
-    }
-
-    return train_args_info
-
-
 def del_train(path: str) -> str:
     shutil.rmtree(path)
     return path
