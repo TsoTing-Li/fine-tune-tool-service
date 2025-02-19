@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Optional, Union
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
 
+from inno_service.config import params
 from inno_service.routers.data import schema, utils
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
@@ -12,8 +13,6 @@ from inno_service.utils.utils import generate_uuid, get_current_time
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 DATASET_INFO_FILE = "dataset_info.json"
-DATASET_PATH = os.getenv("DATA_PATH", "/app/data")
-os.makedirs(DATASET_PATH, exist_ok=True)
 
 router = APIRouter(prefix="/data", tags=["Data"])
 
@@ -96,7 +95,7 @@ async def add_dataset(
             )
 
             request_body.dataset_info.dataset_src = os.path.join(
-                DATASET_PATH,
+                params.COMMON_CONFIG.data_path,
                 f"{generate_uuid()}-{request_body.dataset_info.dataset_src}",
             )
             await utils.async_write_file_chunk(
@@ -112,7 +111,9 @@ async def add_dataset(
             )
 
         add_content = await utils.async_add_dataset_info(
-            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_info_file=os.path.join(
+                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
+            ),
             dataset_info=request_body.dataset_info,
             current_time=get_current_time(use_unix=True),
         )
@@ -156,7 +157,9 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
 
     try:
         dataset_info = await utils.get_dataset_info(
-            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_info_file=os.path.join(
+                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
+            ),
             dataset_name=query_data.dataset_name,
         )
 
@@ -198,7 +201,9 @@ async def modify_dataset(request_data: schema.PutData):
     error_handler = ResponseErrorHandler()
     try:
         modify_content = await utils.modify_dataset_file(
-            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_info_file=os.path.join(
+                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
+            ),
             ori_name=request_data.dataset_name,
             new_name=request_data.new_name,
         )
@@ -257,7 +262,9 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
 
     try:
         del_content = await utils.async_del_dataset(
-            dataset_info_file=os.path.join(DATASET_PATH, DATASET_INFO_FILE),
+            dataset_info_file=os.path.join(
+                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
+            ),
             del_dataset_name=dataset_name,
         )
 

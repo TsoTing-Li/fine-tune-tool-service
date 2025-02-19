@@ -1,4 +1,3 @@
-import os
 from typing import List, Union
 
 import aiofiles
@@ -8,9 +7,8 @@ from datasets import load_dataset
 from datasets.exceptions import DatasetNotFoundError
 from typing_extensions import Literal
 
+from inno_service.config import params
 from inno_service.routers.data.schema import Columns, DatasetInfo, Tags
-
-MAX_JOBS = os.environ["MAX_JOBS"]
 
 
 def get_json_decode_error_pos(
@@ -226,7 +224,7 @@ def pull_dataset_from_hf(
             dataset_name,
             subset,
             split=split,
-            num_proc=int(MAX_JOBS),
+            num_proc=int(params.COMMON_CONFIG.max_jobs),
             trust_remote_code=True,
         )
     except DatasetNotFoundError as e:

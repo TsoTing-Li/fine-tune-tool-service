@@ -6,6 +6,7 @@ from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, model_validator
 
 from inno_service import thirdparty
+from inno_service.config import params
 from inno_service.utils.error import ResponseErrorHandler
 
 
@@ -19,7 +20,7 @@ class PostDeploy(BaseModel):
 
         try:
             info = thirdparty.redis.handler.redis_sync.client.hget(
-                "TRAIN", self.deploy_name
+                params.TASK_CONFIG.train, self.deploy_name
             )
 
             if not info:
@@ -68,7 +69,7 @@ class PostDevice(BaseModel):
 
         try:
             if thirdparty.redis.handler.redis_sync.client.hexists(
-                "ACCELBRAIN_DEVICE", self.accelbrain_device
+                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device already exists")
 
@@ -112,7 +113,7 @@ class GetDevice(BaseModel):
             if (
                 self.accelbrain_device
                 and not thirdparty.redis.handler.redis_sync.client.hexists(
-                    "ACCELBRAIN_DEVICE", self.accelbrain_device
+                    params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
                 )
             ):
                 raise ValueError("accelbrain_device does not exists")
@@ -155,7 +156,7 @@ class PutDevice(BaseModel):
 
         try:
             if not thirdparty.redis.handler.redis_sync.client.hexists(
-                "ACCELBRAIN_DEVICE", self.accelbrain_device
+                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device does not exists")
 
@@ -197,7 +198,7 @@ class DelDevice(BaseModel):
 
         try:
             if not thirdparty.redis.handler.redis_sync.client.hexists(
-                "ACCELBRAIN_DEVICE", self.accelbrain_device
+                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device does not exists")
 

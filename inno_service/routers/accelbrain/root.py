@@ -8,13 +8,11 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
 
 from inno_service import thirdparty
+from inno_service.config import params
 from inno_service.routers.accelbrain import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import get_current_time
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-DEPLOY_PATH = os.getenv("EXPORT_PATH", "/app/deploy")
 
 router = APIRouter(prefix="/accelbrain", tags=["Accelbrain"])
 
@@ -27,10 +25,12 @@ async def deploy_accelbrain(request_data: schema.PostDeploy):
     try:
         return StreamingResponse(
             content=utils.deploy_to_accelbrain_service(
-                file_path=os.path.join(SAVE_PATH, request_data.deploy_name, "quantize"),
+                file_path=os.path.join(
+                    params.COMMON_CONFIG.save_path, request_data.deploy_name, "quantize"
+                ),
                 model_name=request_data.deploy_name,
                 deploy_path=os.path.join(
-                    SAVE_PATH,
+                    params.COMMON_CONFIG.save_path,
                     request_data.deploy_name,
                     "quantize",
                     f"{request_data.deploy_name}.zip",
@@ -112,7 +112,7 @@ async def set_device(request_data: schema.PostDevice):
             "modified_time": None,
         }
         await thirdparty.redis.handler.redis_async.client.hset(
-            "ACCELBRAIN_DEVICE",
+            params.TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
             orjson.dumps(device_info),
         )
@@ -147,7 +147,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
         if query_data.accelbrain_device:
             accelbrain_device_info = (
                 await thirdparty.redis.handler.redis_async.client.hget(
-                    "ACCELBRAIN_DEVICE", query_data.accelbrain_device
+                    params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
                 )
             )
             device_info = {
@@ -155,7 +155,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
             }
         else:
             info = await thirdparty.redis.handler.redis_async.client.hgetall(
-                "ACCELBRAIN_DEVICE"
+                params.TASK_CONFIG.accelbrain_device
             )
             device_info = (
                 {key: orjson.loads(value) for key, value in info.items()}
@@ -194,14 +194,14 @@ async def modify_device(request_data: schema.PutDevice):
     try:
         modified_time = get_current_time()
         device_info = await thirdparty.redis.handler.redis_async.client.hget(
-            "ACCELBRAIN_DEVICE",
+            params.TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
         )
         device_info = orjson.loads(device_info)
         device_info["url"] = request_data.accelbrain_url
         device_info["modified_time"] = modified_time
         await thirdparty.redis.handler.redis_async.client.hset(
-            "ACCELBRAIN_DEVICE",
+            params.TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
             orjson.dumps(device_info),
         )
@@ -234,10 +234,10 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
 
     try:
         device_info = await thirdparty.redis.handler.redis_async.client.hget(
-            "ACCELBRAIN_DEVICE", query_data.accelbrain_device
+            params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
         await thirdparty.redis.handler.redis_async.client.hdel(
-            "ACCELBRAIN_DEVICE", query_data.accelbrain_device
+            params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
 
     except Exception as e:
