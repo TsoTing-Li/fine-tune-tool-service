@@ -164,20 +164,13 @@ def check_dataset_key_value(
 
 
 async def async_add_dataset_info(
-    dataset_info_file: str, dataset_info: DatasetInfo, current_time: int
+    dataset_info_file: str, dataset_info: DatasetInfo
 ) -> dict:
-    is_exists = await async_check_path_exists(file_name=dataset_info_file)
     dataset_info_content = dict()
 
-    if is_exists:
-        dataset_info_content = await async_get_dataset_info_file(
-            dataset_info_file=dataset_info_file
-        )
-
-        if dataset_info.dataset_name in dataset_info_content.keys():
-            raise ValueError(
-                f"'dataset_name': '{dataset_info.dataset_name}' already in used"
-            )
+    dataset_info_content = await async_get_dataset_info_file(
+        dataset_info_file=dataset_info_file
+    )
 
     update_data = {
         dataset_info.dataset_name: {
@@ -186,7 +179,6 @@ async def async_add_dataset_info(
             "num_samples": dataset_info.num_samples,
             "split": dataset_info.split,
             "columns": dataset_info.columns.model_dump(exclude_none=True),
-            "time": current_time,
         }
     }
 
@@ -251,58 +243,32 @@ async def get_dataset_info(dataset_info_file: str, dataset_name: str) -> dict:
 async def modify_dataset_file(
     dataset_info_file: str, ori_name: str, new_name: str
 ) -> dict:
-    is_exists = await async_check_path_exists(file_name=dataset_info_file)
-
-    if not is_exists:
-        raise FileNotFoundError("There are currently no dataset") from None
-
     dataset_info_content = await async_get_dataset_info_file(
         dataset_info_file=dataset_info_file
     )
 
-    if ori_name not in dataset_info_content.keys():
-        raise ValueError(f"'dataset_name': {ori_name} does not exists") from None
-
-    if new_name in dataset_info_content.keys():
-        raise KeyError(f"'new_name': {new_name} already in used") from None
-
     key_mapping = {ori_name: new_name}
     new_content = {key_mapping.get(k, k): v for k, v in dataset_info_content.items()}
 
-    current_content = await async_write_dataset_info_file(
+    await async_write_dataset_info_file(
         dataset_info_file=dataset_info_file, dataset_info_content=new_content
     )
-
-    return {new_name: current_content[new_name]}
 
 
 async def async_delete_file(file_name: str) -> None:
     await aiofiles.os.remove(file_name)
 
 
-async def async_del_dataset(dataset_info_file: str, del_dataset_name: str) -> dict:
-    is_exists = await async_check_path_exists(file_name=dataset_info_file)
-
-    if not is_exists:
-        raise FileNotFoundError("There are currently no dataset") from None
-
+async def async_del_dataset(dataset_info_file: str, del_dataset_name: str) -> None:
     dataset_info_content = await async_get_dataset_info_file(
         dataset_info_file=dataset_info_file
     )
 
-    if del_dataset_name not in dataset_info_content.keys():
-        raise ValueError(
-            f"'dataset_name': {del_dataset_name} does not exists"
-        ) from None
-
     if "file_name" in dataset_info_content[del_dataset_name].keys():
         await async_delete_file(dataset_info_content[del_dataset_name]["file_name"])
 
-    del_content = dataset_info_content[del_dataset_name]
     del dataset_info_content[del_dataset_name]
 
     await async_write_dataset_info_file(
         dataset_info_file=dataset_info_file, dataset_info_content=dataset_info_content
     )
-
-    return del_content

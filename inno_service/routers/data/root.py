@@ -1,12 +1,14 @@
 import json
 import os
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
+import orjson
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
 
+from inno_service import thirdparty
 from inno_service.config import params
-from inno_service.routers.data import schema, utils
+from inno_service.routers.data import schema, utils, validator
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import generate_uuid, get_current_time
@@ -42,6 +44,7 @@ async def add_dataset(
     system_tag: str = Form("system"),
     dataset_file: Union[UploadFile, None] = File(None),
 ):
+    created_time = get_current_time(use_unix=True)
     dataset_info = {
         "dataset_name": dataset_name,
         "load_from": load_from,
@@ -77,6 +80,7 @@ async def add_dataset(
         }
 
     request_body = schema.PostData(dataset_info=dataset_info, dataset_file=dataset_file)
+    validator.PostData(dataset_name=request_body.dataset_info.dataset_name)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -115,7 +119,6 @@ async def add_dataset(
                 params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
             ),
             dataset_info=request_body.dataset_info,
-            current_time=get_current_time(use_unix=True),
         )
 
     except (TypeError, KeyError, ValueError) as e:
@@ -136,7 +139,34 @@ async def add_dataset(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"Unexpected error: {e}",
-            input=dict(),
+            input=request_body.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        data_info = {
+            "name": request_body.dataset_info.dataset_name,
+            "data_args": add_content[request_body.dataset_info.dataset_name],
+            "is_used": False,
+            "created_time": created_time,
+            "modified_time": None,
+        }
+        await thirdparty.redis.handler.redis_async.client.hset(
+            params.TASK_CONFIG.data,
+            request_body.dataset_info.dataset_name,
+            orjson.dumps(data_info),
+        )
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input={},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -144,45 +174,41 @@ async def add_dataset(
         ) from None
 
     return Response(
-        content=json.dumps(add_content),
+        content=json.dumps([data_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
 
 
 @router.get("/")
-async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
+async def get_dataset(dataset_name: Annotated[Union[str, None], Query()] = None):
     query_data = schema.GetData(dataset_name=dataset_name)
+    validator.GetData(dataset_name=query_data.dataset_name)
     error_handler = ResponseErrorHandler()
 
     try:
-        dataset_info = await utils.get_dataset_info(
-            dataset_info_file=os.path.join(
-                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
-            ),
-            dataset_name=query_data.dataset_name,
-        )
-
-    except ValueError as e:
-        accel_logger.error(f"{e}")
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
-            input={"dataset_name": query_data.dataset_name},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_handler.errors,
-        ) from None
+        if query_data.dataset_name:
+            info = await thirdparty.redis.handler.redis_async.client.hget(
+                params.TASK_CONFIG.data, query_data.dataset_name
+            )
+            dataset_info = [orjson.loads(info)]
+        else:
+            info = await thirdparty.redis.handler.redis_async.client.hgetall(
+                params.TASK_CONFIG.data
+            )
+            dataset_info = (
+                [orjson.loads(value) for value in info.values()]
+                if len(info) != 0
+                else list()
+            )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input={},
+            msg=f"Database error: {e}",
+            input=query_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -198,41 +224,20 @@ async def get_dataset(dataset_name: Optional[Annotated[str, Query("")]] = ""):
 
 @router.put("/")
 async def modify_dataset(request_data: schema.PutData):
+    modified_time = get_current_time(use_unix=True)
+    validator.PutData(
+        dataset_name=request_data.dataset_name, new_name=request_data.new_name
+    )
     error_handler = ResponseErrorHandler()
+
     try:
-        modify_content = await utils.modify_dataset_file(
+        await utils.modify_dataset_file(
             dataset_info_file=os.path.join(
                 params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
             ),
             ori_name=request_data.dataset_name,
             new_name=request_data.new_name,
         )
-
-    except ValueError as e:
-        accel_logger.error(f"{e}")
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_BODY],
-            msg=f"{e}",
-            input={"dataset_name": request_data.dataset_name},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_handler.errors,
-        ) from None
-
-    except KeyError as e:
-        accel_logger.error(f"{e}")
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_BODY],
-            msg=f"{e}",
-            input={"new_name": request_data.new_name},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=error_handler.errors,
-        ) from None
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
@@ -247,46 +252,27 @@ async def modify_dataset(request_data: schema.PutData):
             detail=error_handler.errors,
         ) from None
 
-    return Response(
-        content=json.dumps(modify_content),
-        status_code=status.HTTP_200_OK,
-        media_type="application/json",
-    )
-
-
-@router.delete("/")
-async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
-    dataset_name = schema.DeleteData(dataset_name=dataset_name).dataset_name
-
-    error_handler = ResponseErrorHandler()
-
     try:
-        del_content = await utils.async_del_dataset(
-            dataset_info_file=os.path.join(
-                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
-            ),
-            del_dataset_name=dataset_name,
+        info = await thirdparty.redis.handler.redis_async.client.hget(
+            params.TASK_CONFIG.data, request_data.dataset_name
         )
-
-    except (FileNotFoundError, ValueError) as e:
-        accel_logger.error(f"{e}")
-        error_handler.add(
-            type=error_handler.ERR_VALIDATE,
-            loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
-            input={"dataset_name": dataset_name},
+        dataset_info = orjson.loads(info)
+        dataset_info["name"] = request_data.new_name
+        dataset_info["modified_time"] = modified_time
+        await thirdparty.redis.handler.redis_async.client.hset(
+            params.TASK_CONFIG.data, request_data.new_name, orjson.dumps(dataset_info)
         )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_handler.errors
-        ) from None
+        await thirdparty.redis.handler.redis_async.client.hdel(
+            params.TASK_CONFIG.data, request_data.dataset_name
+        )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input={"dataset_name": dataset_name},
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input=request_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -294,7 +280,63 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
         ) from None
 
     return Response(
-        content=json.dumps(del_content),
+        content=json.dumps([dataset_info]),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.delete("/")
+async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
+    query_data = schema.DeleteData(dataset_name=dataset_name)
+    validator.DelData(dataset_name=query_data.dataset_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        del_dataset_info = await thirdparty.redis.handler.redis_async.client.hget(
+            params.TASK_CONFIG.data, query_data.dataset_name
+        )
+        del_dataset_info = orjson.loads(del_dataset_info)
+        await thirdparty.redis.handler.redis_async.client.hdel(
+            params.TASK_CONFIG.data, query_data.dataset_name
+        )
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        await utils.async_del_dataset(
+            dataset_info_file=os.path.join(
+                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
+            ),
+            del_dataset_name=query_data.dataset_name,
+        )
+
+    except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"Unexpected error: {e}",
+            input={"dataset_name": query_data.dataset_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps([del_dataset_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

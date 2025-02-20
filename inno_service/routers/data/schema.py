@@ -179,7 +179,7 @@ class PostData(BaseModel):
 
 
 class GetData(BaseModel):
-    dataset_name: str = ""
+    dataset_name: Union[str, None]
 
     @model_validator(mode="after")
     def check(self: "GetData") -> "GetData":
