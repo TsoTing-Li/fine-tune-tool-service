@@ -99,6 +99,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
 
 @router.post("/device/")
 async def set_device(request_data: schema.PostDevice):
+    current_time = get_current_time(use_unix=True)
     validator.PostDevice(
         accelbrain_device=request_data.accelbrain_device,
         accelbrain_url=request_data.accelbrain_url,
@@ -108,7 +109,7 @@ async def set_device(request_data: schema.PostDevice):
     try:
         device_info = {
             "url": request_data.accelbrain_url,
-            "created_time": get_current_time(use_unix=True),
+            "created_time": current_time,
             "modified_time": None,
         }
         await thirdparty.redis.handler.redis_async.client.hset(
@@ -185,6 +186,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
 
 @router.put("/device/")
 async def modify_device(request_data: schema.PutDevice):
+    modified_time = get_current_time(use_unix=True)
     validator.PutDevice(
         accelbrain_device=request_data.accelbrain_device,
         accelbrain_url=request_data.accelbrain_url,
@@ -192,7 +194,6 @@ async def modify_device(request_data: schema.PutDevice):
     error_handler = ResponseErrorHandler()
 
     try:
-        modified_time = get_current_time()
         device_info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
