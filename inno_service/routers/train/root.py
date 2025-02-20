@@ -14,9 +14,9 @@ from fastapi import (
     status,
 )
 
+from inno_service import thirdparty
 from inno_service.config import params
 from inno_service.routers.train import schema, utils, validator
-from inno_service.thirdparty import redis
 from inno_service.utils.error import ResponseErrorHandler
 from inno_service.utils.logger import accel_logger
 from inno_service.utils.utils import (
@@ -67,13 +67,13 @@ async def start_train(request_data: schema.PostStartTrain):
         ) from None
 
     try:
-        info = await redis.handler.redis_async.client.hget(
+        info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.train, request_data.train_name
         )
         info = orjson.loads(info)
         info["container"]["train"]["status"] = "active"
         info["container"]["train"]["id"] = container_name
-        await redis.handler.redis_async.client.hset(
+        await thirdparty.redis.handler.redis_async.client.hset(
             params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
@@ -103,12 +103,12 @@ async def stop_train(request_data: schema.PostStopTrain):
     error_handler = ResponseErrorHandler()
 
     try:
-        info = await redis.handler.redis_async.client.hget(
+        info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.train, request_data.train_name
         )
         info = orjson.loads(info)
         info["container"]["train"]["status"] = "stopped"
-        await redis.handler.redis_async.client.hset(
+        await thirdparty.redis.handler.redis_async.client.hset(
             params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
@@ -297,7 +297,7 @@ async def add_train(
             "created_time": created_time,
             "modified_time": None,
         }
-        await redis.handler.redis_async.client.hset(
+        await thirdparty.redis.handler.redis_async.client.hset(
             params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(train_info)
         )
 
@@ -329,12 +329,12 @@ async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
 
     try:
         if query_data.train_name:
-            info = await redis.handler.redis_async.client.hget(
+            info = await thirdparty.redis.handler.redis_async.client.hget(
                 params.TASK_CONFIG.train, query_data.train_name
             )
             train_info = [orjson.loads(info)]
         else:
-            info = await redis.handler.redis_async.client.hgetall("TRAIN")
+            info = await thirdparty.redis.handler.redis_async.client.hgetall("TRAIN")
             train_info = (
                 [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
@@ -494,14 +494,14 @@ async def modify_train(
         ) from None
 
     try:
-        info = await redis.handler.redis_async.client.hget(
+        info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.train, request_data.train_name
         )
         info = orjson.loads(info)
         info["train_args"] = train_args
         info["container"]["train"]["status"] = "setup"
         info["modified_time"] = modified_time
-        await redis.handler.redis_async.client.hset(
+        await thirdparty.redis.handler.redis_async.client.hset(
             params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
@@ -532,11 +532,11 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        del_info = await redis.handler.redis_async.client.hget(
+        del_info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.train, query_data.train_name
         )
         del_info = orjson.loads(del_info)
-        await redis.handler.redis_async.client.hdel(
+        await thirdparty.redis.handler.redis_async.client.hdel(
             params.TASK_CONFIG.train, query_data.train_name
         )
 
