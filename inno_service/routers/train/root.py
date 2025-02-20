@@ -289,6 +289,7 @@ async def add_train(
 
     try:
         train_info = {
+            "name": request_data.train_name,
             "train_args": train_args,
             "container": {
                 "train": {"status": "setup", "id": None},
@@ -314,7 +315,7 @@ async def add_train(
         ) from None
 
     return Response(
-        content=json.dumps({request_data.train_name: train_info}),
+        content=json.dumps([train_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -331,13 +332,13 @@ async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
             info = await redis.handler.redis_async.client.hget(
                 params.TASK_CONFIG.train, query_data.train_name
             )
-            train_info = {query_data.train_name: orjson.loads(info)}
+            train_info = [orjson.loads(info)]
         else:
             info = await redis.handler.redis_async.client.hgetall("TRAIN")
             train_info = (
-                {key: orjson.loads(value) for key, value in info.items()}
+                [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
-                else dict()
+                else list()
             )
 
     except Exception as e:
@@ -518,7 +519,7 @@ async def modify_train(
         ) from None
 
     return Response(
-        content=json.dumps({request_data.train_name: info}),
+        content=json.dumps([info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -571,7 +572,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         ) from None
 
     return Response(
-        content=json.dumps(del_info),
+        content=json.dumps([del_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
