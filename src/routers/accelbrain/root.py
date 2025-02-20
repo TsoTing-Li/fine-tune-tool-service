@@ -108,6 +108,7 @@ async def set_device(request_data: schema.PostDevice):
 
     try:
         device_info = {
+            "device": request_data.accelbrain_device,
             "url": request_data.accelbrain_url,
             "created_time": current_time,
             "modified_time": None,
@@ -132,7 +133,7 @@ async def set_device(request_data: schema.PostDevice):
         ) from None
 
     return Response(
-        content=json.dumps({request_data.accelbrain_device: device_info}),
+        content=json.dumps([device_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -151,17 +152,15 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
                     params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
                 )
             )
-            device_info = {
-                query_data.accelbrain_device: orjson.loads(accelbrain_device_info)
-            }
+            device_info = [orjson.loads(accelbrain_device_info)]
         else:
             info = await thirdparty.redis.handler.redis_async.client.hgetall(
                 params.TASK_CONFIG.accelbrain_device
             )
             device_info = (
-                {key: orjson.loads(value) for key, value in info.items()}
+                [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
-                else dict()
+                else list()
             )
 
     except Exception as e:
@@ -221,7 +220,7 @@ async def modify_device(request_data: schema.PutDevice):
         ) from None
 
     return Response(
-        content=json.dumps({request_data.accelbrain_device: device_info}),
+        content=json.dumps([device_info]),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
@@ -237,6 +236,7 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
         device_info = await thirdparty.redis.handler.redis_async.client.hget(
             params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
+        device_info = orjson.loads(device_info)
         await thirdparty.redis.handler.redis_async.client.hdel(
             params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
@@ -255,7 +255,7 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
         ) from None
 
     return Response(
-        content=json.dumps({query_data.accelbrain_device: device_info}),
+        content=json.dumps([device_info]),
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         media_type="application/json",
     )
