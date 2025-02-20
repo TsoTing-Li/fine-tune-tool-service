@@ -256,6 +256,6 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
 
     return Response(
         content=json.dumps([device_info]),
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
