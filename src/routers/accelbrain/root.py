@@ -120,11 +120,11 @@ async def set_device(request_data: schema.PostDevice):
         )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"Database error: {e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -164,11 +164,11 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
             )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"Database error: {e}",
             input=query_data.model_dump(),
         )
         raise HTTPException(
@@ -207,11 +207,11 @@ async def modify_device(request_data: schema.PutDevice):
         )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"Database error: {e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -242,11 +242,11 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
         )
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"Database error: {e}",
             input=query_data.model_dump(),
         )
         raise HTTPException(
