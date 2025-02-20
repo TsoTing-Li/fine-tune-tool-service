@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from inno_service.routers.main import acceltune_api
-from inno_service.thirdparty import redis
-from inno_service.utils.logger import accel_logger
+from src.routers.main import acceltune_api
+from src.thirdparty import redis
+from src.utils.logger import accel_logger
 
 
 @asynccontextmanager
