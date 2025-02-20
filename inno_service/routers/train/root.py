@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Union
 
 import orjson
 from fastapi import (
@@ -321,7 +321,7 @@ async def add_train(
 
 
 @router.get("/")
-async def get_train(train_name: Optional[Annotated[str, Query("")]] = ""):
+async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
     query_data = schema.GetTrain(train_name=train_name)
     validator.GetTrain(train_name=query_data.train_name)
     error_handler = ResponseErrorHandler()

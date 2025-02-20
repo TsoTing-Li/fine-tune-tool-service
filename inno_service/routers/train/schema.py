@@ -229,7 +229,7 @@ class PostTrain(BaseModel):
 
 
 class GetTrain(BaseModel):
-    train_name: str = ""
+    train_name: Union[str, None]
 
     @model_validator(mode="after")
     def check(self: "GetTrain") -> "GetTrain":
