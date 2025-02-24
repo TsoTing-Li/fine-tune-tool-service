@@ -1,5 +1,4 @@
 import json
-import os
 import re
 
 import httpx
@@ -7,6 +6,7 @@ import orjson
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src import thirdparty
+from src.config import params
 from src.routers.ws import utils
 from src.thirdparty.docker import api_handler
 from src.utils.logger import accel_logger
@@ -169,7 +169,7 @@ async def hw_info_log(websocket: WebSocket):
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
             async for log in api_handler.get_container_log(
                 aclient=aclient,
-                container_name_or_id=os.environ["HWINFO_CONTAINER_NAME"],
+                container_name_or_id=params.HWINFO_CONFIG.container_name,
                 tail=1,
             ):
                 for log_split in log.splitlines():

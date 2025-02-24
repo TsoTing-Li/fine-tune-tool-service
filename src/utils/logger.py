@@ -1,7 +1,8 @@
 import logging
-import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+from src.config import params
 
 BASE_LOGGER = "uvicorn.error"
 
@@ -38,8 +39,8 @@ def setup_logger(folder: str, name: str, limit: int, count: int):
 
 
 accel_logger = setup_logger(
-    folder=os.environ["ACCELTUNE_LOG_FOLDER"],
-    name=os.environ["ACCELTUNE_LOG_NAME"],
-    limit=os.environ["ACCELTUNE_LOG_LIMIT"],
-    count=os.environ["ACCELTUNE_LOG_COUNT"],
+    folder=params.LOGGER_CONFIG.log_folder,
+    name=params.LOGGER_CONFIG.log_name,
+    limit=params.LOGGER_CONFIG.log_limit,
+    count=params.LOGGER_CONFIG.log_count,
 )

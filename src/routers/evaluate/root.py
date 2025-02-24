@@ -3,11 +3,11 @@ import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
+from src.config import params
 from src.routers.evaluate import schema, utils, validator
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
+from src.utils.utils import assemble_image_name
 
 router = APIRouter(prefix="/eval", tags=["Evaluate"])
 
@@ -20,14 +20,18 @@ async def start_lm_eval(request_data: schema.PostStartEval):
     try:
         model_params = await utils.get_model_params(
             path=os.path.join(
-                os.environ["WS"],
-                os.environ["SAVE_PATH"],
-                f"{request_data.eval_name}/{request_data.eval_name}.yaml",
+                params.COMMON_CONFIG.save_path,
+                request_data.eval_name,
+                f"{request_data.eval_name}.yaml",
             )
         )
 
         eval_container = await utils.run_lm_eval(
-            image_name=f"{os.environ['USER_NAME']}/{os.environ['REPOSITORY']}:{os.environ['LM_EVAL_TAG']}",
+            image_name=assemble_image_name(
+                username=params.COMMON_CONFIG.username,
+                repository=params.COMMON_CONFIG.repository,
+                tag=params.LMEVAL_CONFIG.tag,
+            ),
             cmd=[
                 "lm-eval",
                 "--model",
@@ -39,9 +43,9 @@ async def start_lm_eval(request_data: schema.PostStartEval):
                 "--batch_size",
                 "auto",
                 "--output_path",
-                f"{os.environ['WS']}/{os.getenv('SAVE_PATH', 'saves')}",
+                params.COMMON_CONFIG.save_path,
                 "--use_cache",
-                f"{os.environ['WS']}/cache",
+                params.COMMON_CONFIG.cache_path,
                 "--model_args",
                 f"model={request_data.eval_name},"
                 f"base_url=http://{request_data.model_server_url}:8000/v1/completions,"

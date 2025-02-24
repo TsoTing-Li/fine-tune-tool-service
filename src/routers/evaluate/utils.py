@@ -1,10 +1,10 @@
-import os
 from typing import Literal
 
 import aiofiles
 import httpx
 import yaml
 
+from src.config import params
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
@@ -25,8 +25,6 @@ async def get_model_params(path: str) -> dict:
 
 async def run_lm_eval(image_name: str, cmd: list, eval_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    hf_home = os.environ["HF_HOME"]
-    root_path = os.environ["ROOT_PATH"]
     data = {
         "User": "root",
         "Image": image_name,
@@ -36,13 +34,13 @@ async def run_lm_eval(image_name: str, cmd: list, eval_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{hf_home}:{hf_home}:rw",
-                f"{root_path}/saves:{os.environ['WS']}/saves:rw",
+                f"{params.COMMON_CONFIG.hf_home}:{params.COMMON_CONFIG.hf_home}:rw",
+                f"{params.COMMON_CONFIG.root_path}/saves:{params.COMMON_CONFIG.save_path}:rw",
             ],
             "NetworkMode": "host",
         },
         "Cmd": cmd,
-        "Env": [f"HF_HOME={hf_home}"],
+        "Env": [f"HF_HOME={params.COMMON_CONFIG.hf_home}"],
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:

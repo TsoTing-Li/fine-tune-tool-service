@@ -3,14 +3,15 @@ import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
+from src.config import params
 from src.routers.vllm import schema, utils, validator
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
+from src.utils.utils import assemble_image_name
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-VLLM_SERVICE_PORT = os.getenv("VLLM_SERVICE_PORT", 8003)
 
 
 @router.post("/start/safetensors/")
@@ -27,7 +28,11 @@ async def start_vllm(request_data: schema.PostStartVLLM):
         )
 
         container_name = await utils.start_vllm_container(
-            image_name=f"{os.environ['USER_NAME']}/{os.environ['VLLM_SERVICE_NAME']}:{os.environ['VLLM_SERVICE_TAG']}",
+            image_name=assemble_image_name(
+                username=params.COMMON_CONFIG.username,
+                repository=params.COMMON_CONFIG.repository,
+                tag=params.VLLM_CONFIG.tag,
+            ),
             cmd=[
                 "--model",
                 model_params["model_name_or_path"]
@@ -43,7 +48,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
                 "--tokenizer",
                 model_params["model_name_or_path"],
             ],
-            service_port=VLLM_SERVICE_PORT,
+            service_port=params.VLLM_CONFIG.port,
             model_name=request_data.model_name,
             base_model=model_params["model_name_or_path"],
             finetune_type=model_params["finetuning_type"],
@@ -71,7 +76,7 @@ async def start_vllm(request_data: schema.PostStartVLLM):
     return Response(
         content=json.dumps(
             {
-                "vllm_service": f"http://{container_name}:{VLLM_SERVICE_PORT}",
+                "vllm_service": f"http://{container_name}:{params.VLLM_CONFIG.port}",
                 "container_name": container_name,
                 "model_name": service_model_name,
             }

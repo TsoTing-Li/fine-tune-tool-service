@@ -245,7 +245,7 @@ async def add_train(
             train_args["finetuning_type"],
         )
         train_args["dataset"] = ", ".join(train_args["dataset"])
-        train_args["dataset_dir"] = os.getenv("DATA_PATH", "/app/data")
+        train_args["dataset_dir"] = params.COMMON_CONFIG.data_path
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
 

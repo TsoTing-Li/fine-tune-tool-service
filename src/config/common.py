@@ -11,3 +11,4 @@ class CommonConfig(BaseModel):
     save_path: str
     nvme_path: str
     data_path: str
+    cache_path: str

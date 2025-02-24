@@ -3,6 +3,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
+from src.config import params
 from src.routers.ollama import schema, utils, validator
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
@@ -10,7 +11,6 @@ from src.utils.logger import accel_logger
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-OLLAMA_SERVICE_PORT = os.getenv("OLLAMA_SERVICE_PORT", 11434)
 
 
 @router.post("/start/")
@@ -24,7 +24,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
             model_name=request_data.model_name,
         )
         await utils.run_ollama_model(
-            ollama_url=f"http://127.0.0.1:{OLLAMA_SERVICE_PORT}",
+            ollama_url=f"http://127.0.0.1:{params.OLLAMA_CONFIG.port}",
             model_name=request_data.model_name,
         )
 
@@ -44,7 +44,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
     return Response(
         content=json.dumps(
             {
-                "ollama_service": f"http://127.0.0.1:{OLLAMA_SERVICE_PORT}",
+                "ollama_service": f"http://127.0.0.1:{params.OLLAMA_CONFIG.port}",
                 "container_name": container_name,
                 "model_name": request_data.model_name,
             }

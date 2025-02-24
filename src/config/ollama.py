@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class VllmConfig(BaseModel):
+class OllamaConfig(BaseModel):
     name: str
     tag: str
     host: str
