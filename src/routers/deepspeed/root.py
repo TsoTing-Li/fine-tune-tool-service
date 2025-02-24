@@ -26,7 +26,6 @@ router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
 @router.post("/default/")
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
-    validator.PostDeepSpeedDefault(train_name=f"{SAVE_PATH}/{request_data.train_name}")
     error_handler = ResponseErrorHandler()
 
     ds_config_adapter = adapter.PostDeepSpeedDefault(
@@ -83,7 +82,6 @@ async def add_deepspeed_file(
     ds_file: UploadFile = File(...), train_name: str = Form(...)
 ):
     request_data = schema.PostDeepSpeedFile(train_name=train_name, ds_file=ds_file)
-    validator.PostDeepSpeedFile(train_name=f"{SAVE_PATH}/{request_data.train_name}")
     error_handler = ResponseErrorHandler()
 
     try:
