@@ -1,13 +1,10 @@
-import json
-import os
-
-import httpx
+import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
+from src.config.params import STATUS_CONFIG, TASK_CONFIG
+from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 class PostStartEval(BaseModel):
@@ -17,17 +14,51 @@ class PostStartEval(BaseModel):
     def check(self: "PostStartEval") -> "PostStartEval":
         error_handler = ResponseErrorHandler()
 
-        if not os.path.exists(os.path.join(SAVE_PATH, self.eval_name)):
+        try:
+            info = redis_sync.client.hget(TASK_CONFIG.eval, self.eval_name)
+            if not info:
+                raise KeyError("eval_name does not exists")
+
+            info = orjson.loads(info)
+
+            if not info["load_model"]:
+                raise ValueError("model has not been loaded")
+
+            if info["container"][TASK_CONFIG.eval]["status"] == STATUS_CONFIG.active:
+                raise ValueError("eval task is being executed")
+
+        except KeyError as e:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'eval_name' does not exists",
+                msg=f"{e}",
                 input={"eval_name": self.eval_name},
             )
-
-        if error_handler.errors != []:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            ) from None
+
+        except ValueError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg=f"{e}",
+                input={"eval_name": self.eval_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=error_handler.errors
+            ) from None
+
+        except Exception as e:
+            error_handler.add(
+                type=error_handler.ERR_REDIS,
+                loc=[error_handler.LOC_DATABASE],
+                msg=f"Database error: {e}",
+                input={"eval_name": self.eval_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_handler.errors,
             ) from None
 
@@ -35,41 +66,37 @@ class PostStartEval(BaseModel):
 
 
 class PostStopEval(BaseModel):
-    eval_container: str
+    eval_name: str
 
     @model_validator(mode="after")
     def check(self: "PostStopEval") -> "PostStopEval":
         error_handler = ResponseErrorHandler()
 
         try:
-            transport = httpx.HTTPTransport(uds="/var/run/docker.sock")
-            with httpx.Client(transport=transport, timeout=None) as client:
-                response = client.get(
-                    "http://docker/containers/json",
-                    params={"filters": json.dumps({"name": [self.eval_container]})},
-                )
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.eval_name)
+            if not info:
+                raise KeyError("eval_name dose not exists")
 
-            if response.status_code == 200:
-                if response.json() == []:
-                    error_handler.add(
-                        type=error_handler.ERR_VALIDATE,
-                        loc=[error_handler.LOC_BODY],
-                        msg="'eval_container' does not exists",
-                        input={"eval_container": self.eval_container},
-                    )
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=error_handler.errors,
-                    ) from None
-            else:
-                raise RuntimeError(f"{response.json()['message']}")
+            if orjson.loads(info)["container"][TASK_CONFIG.eval]["status"] != "active":
+                raise KeyError("eval task is not being executed")
+
+        except KeyError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg=f"{e}",
+                input={"eval_name": self.eval_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            ) from None
 
         except Exception as e:
             error_handler.add(
-                type=error_handler.ERR_DOCKER,
-                loc=[error_handler.LOC_PROCESS],
-                msg=f"Unexpected error: {e}",
-                input={"eval_container": self.eval_container},
+                type=error_handler.ERR_REDIS,
+                loc=[error_handler.LOC_DATABASE],
+                msg=f"Database error: {e}",
+                input={"eval_name": self.eval_name},
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

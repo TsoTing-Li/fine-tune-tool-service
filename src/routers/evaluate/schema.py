@@ -40,18 +40,18 @@ class PostStartEval(BaseModel):
 
 
 class PostStopEval(BaseModel):
-    eval_container: str
+    eval_name: str
 
     @model_validator(mode="after")
     def check(self: "PostStopEval") -> "PostStopEval":
         error_handler = ResponseErrorHandler()
 
-        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.eval_container):
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.eval_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'eval_container' contain invalid characters",
-                input={"eval_container": self.eval_container},
+                msg="'eval_name' contain invalid characters",
+                input={"eval_name": self.eval_name},
             )
 
         if error_handler.errors != []:

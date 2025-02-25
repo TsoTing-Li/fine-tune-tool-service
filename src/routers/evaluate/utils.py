@@ -1,8 +1,6 @@
 from typing import Literal
 
-import aiofiles
 import httpx
-import yaml
 
 from src.config import params
 from src.thirdparty.docker.api_handler import (
@@ -10,17 +8,6 @@ from src.thirdparty.docker.api_handler import (
     start_container,
     stop_container,
 )
-
-
-async def get_model_params(path: str) -> dict:
-    try:
-        async with aiofiles.open(path) as af:
-            content = await af.read()
-
-        return yaml.safe_load(content)
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{path} does not exists") from None
 
 
 async def run_lm_eval(image_name: str, cmd: list, eval_name: str) -> str:
