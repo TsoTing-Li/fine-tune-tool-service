@@ -293,7 +293,11 @@ async def add_train(
             "train_args": train_args,
             "container": {
                 "train": {"status": "setup", "id": None},
+                "eval": {"status": "setup", "id": None},
+                "chat": {"status": "setup", "id": None},
             },
+            "is_quantize": False,
+            "load_model": False,
             "created_time": created_time,
             "modified_time": None,
         }
