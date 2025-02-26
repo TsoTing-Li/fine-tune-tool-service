@@ -10,7 +10,13 @@ class PostStartVLLM(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=()
     )  # solve can not start with "model_"
+    image_name: str
+    service_port: int
+    docker_network_name: str
     model_name: str
+    local_safetensors_path: str
+    base_model: str
+    hf_home: str
     gpu_memory_utilization: float = 0.95
     max_model_len: int = 8192
     cpu_offload_gb: int = 0

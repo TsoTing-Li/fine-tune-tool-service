@@ -2,11 +2,10 @@ import json
 
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.config.params import COMMON_CONFIG, OLLAMA_CONFIG
+from src.config.params import OLLAMA_CONFIG
 from src.routers.ollama import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
-from src.utils.utils import assemble_image_name
 
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
@@ -17,16 +16,15 @@ async def start_ollama(request_data: schema.PostStartOllama):
 
     try:
         container_name = await utils.start_ollama_container(
-            image_name=assemble_image_name(
-                username=COMMON_CONFIG.username,
-                repository=OLLAMA_CONFIG.name,
-                tag=OLLAMA_CONFIG.tag,
-            ),
+            image_name=request_data.image_name,
+            docker_network_name=request_data.docker_network_name,
             model_name=request_data.model_name,
+            local_gguf_path=request_data.local_gguf_path,
         )
         await utils.run_ollama_model(
             ollama_url=f"http://{container_name}:{OLLAMA_CONFIG.port}",
             model_name=request_data.model_name,
+            local_gguf_file=f"{request_data.local_gguf_path}/{request_data.model_name}-full.gguf",
         )
 
     except Exception as e:

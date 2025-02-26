@@ -3,11 +3,10 @@ import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.config import params
+from src.config.params import VLLM_CONFIG
 from src.routers.vllm import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
-from src.utils.utils import assemble_image_name
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
 
@@ -19,24 +18,13 @@ async def start_vllm(request_data: schema.PostStartVLLM):
     error_handler = ResponseErrorHandler()
 
     try:
-        model_params = await utils.get_model_params(
-            path=os.path.join(
-                SAVE_PATH,
-                f"{request_data.model_name}/{request_data.model_name}.yaml",
-            )
-        )
-
         container_name = await utils.start_vllm_container(
-            image_name=assemble_image_name(
-                username=params.COMMON_CONFIG.username,
-                repository=params.COMMON_CONFIG.repository,
-                tag=params.VLLM_CONFIG.tag,
-            ),
+            image_name=request_data.image_name,
+            service_port=request_data.service_port,
+            docker_network_name=request_data.docker_network_name,
             cmd=[
                 "--model",
-                model_params["model_name_or_path"]
-                if model_params["finetuning_type"] == "lora"
-                else model_params["output_dir"],
+                request_data.local_safetensors_path,
                 "--gpu_memory_utilization",
                 f"{request_data.gpu_memory_utilization}",
                 "--max_model_len",
@@ -45,18 +33,17 @@ async def start_vllm(request_data: schema.PostStartVLLM):
                 f"{request_data.tensor_parallel_size}",
                 "--enforce-eager",
                 "--tokenizer",
-                model_params["model_name_or_path"],
+                request_data.base_model,
+                "--cpu-offload-gb",
+                f"{request_data.cpu_offload_gb}",
+                "--served-model-name",
+                request_data.model_name,
+                "--port",
+                f"{request_data.service_port}",
             ],
-            service_port=params.VLLM_CONFIG.port,
             model_name=request_data.model_name,
-            base_model=model_params["model_name_or_path"],
-            finetune_type=model_params["finetuning_type"],
-            cpu_offload_gb=request_data.cpu_offload_gb,
-        )
-        service_model_name = (
-            request_data.model_name
-            if model_params["finetuning_type"] == "lora"
-            else model_params["output_dir"]
+            local_safetensors_path=request_data.local_safetensors_path,
+            hf_home=request_data.hf_home,
         )
 
     except Exception as e:
@@ -75,9 +62,9 @@ async def start_vllm(request_data: schema.PostStartVLLM):
     return Response(
         content=json.dumps(
             {
-                "vllm_service": f"http://{container_name}:{params.VLLM_CONFIG.port}",
+                "vllm_service": f"http://{container_name}:{VLLM_CONFIG.port}",
                 "container_name": container_name,
-                "model_name": service_model_name,
+                "model_name": request_data.model_name,
             }
         ),
         status_code=status.HTTP_200_OK,

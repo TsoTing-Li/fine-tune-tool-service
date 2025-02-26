@@ -10,6 +10,9 @@ class PostStartOllama(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=()
     )  # solve can not start with "model_"
+    image_name: str
+    docker_network_name: str
+    local_gguf_path: str
     model_name: str
 
     @model_validator(mode="after")

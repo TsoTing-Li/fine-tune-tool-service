@@ -1,51 +1,22 @@
-import json
-import os
 from typing import Literal
 
-import aiofiles
 import httpx
-import yaml
 
-from src.utils.utils import generate_uuid
-
-
-async def get_model_params(path: str) -> dict:
-    try:
-        async with aiofiles.open(path) as af:
-            content = await af.read()
-
-        return yaml.safe_load(content)
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{path} does not exists") from None
+from src.thirdparty.docker.api_handler import create_container, start_container
 
 
 async def start_vllm_container(
     image_name: str,
-    cmd: list,
     service_port: int,
+    docker_network_name: str,
+    cmd: list,
     model_name: str,
-    base_model: str,
-    finetune_type: Literal["full", "lora"],
-    cpu_offload_gb: int = 0,
+    local_safetensors_path: str,
+    hf_home: str,
 ) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    hf_home = os.environ["HF_HOME"]
-    custom_model_path = f"{os.environ['SAVE_PATH']}/{model_name}/{finetune_type}"
-    ws_path = os.environ["WS"]
-    container_name = f"vllm-{model_name}-{generate_uuid()}"
-
-    if finetune_type == "full":
-        cmd.extend(["--cpu-offload-gb", f"{cpu_offload_gb}"])
-    elif finetune_type == "lora":
-        lora_data = {
-            "name": model_name,
-            "path": f"{ws_path}/{custom_model_path}",
-            "base_model_name": base_model,
-        }
-        cmd.extend(["--enable-lora", "--lora-modules", json.dumps(lora_data)])
-
     data = {
+        "User": "root",
         "Image": image_name,
         "HostConfig": {
             "IpcMode": "host",
@@ -54,45 +25,26 @@ async def start_vllm_container(
             ],
             "Binds": [
                 f"{hf_home}:{hf_home}:rw",
-                f"{os.environ['ROOT_PATH']}/{custom_model_path}:{ws_path}/{custom_model_path}:rw",
+                f"{local_safetensors_path}:{local_safetensors_path}:rw",
             ],
-            "PortBindings": {"8000/tcp": [{"HostPort": f"{service_port}"}]},
+            "PortBindings": {f"{service_port}/tcp": [{"HostPort": f"{service_port}"}]},
             "AutoRemove": True,
-            "NetworkMode": "host",
+            "NetworkMode": docker_network_name,
         },
-        # "NetworkingConfig": {"EndpointsConfig": {acceltune_network: {}}},
         "Cmd": cmd,
         "Env": [f"HF_HOME={hf_home}"],
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(
-            "http://docker/containers/create",
-            json=data,
-            params={"name": container_name},
+        container_name_or_id = await create_container(
+            aclient=aclient, name=f"vllm-{model_name}", data=data
         )
 
-        if response.status_code == 201:
-            print("created")
-            response = await aclient.post(
-                f"http://docker/containers/{container_name}/start"
-            )
+        started_container = await start_container(
+            aclient=aclient, container_name_or_id=container_name_or_id
+        )
 
-            if response.status_code == 204:
-                print("started")
-                return container_name
-
-            else:
-                print("startup fail")
-                raise RuntimeError(
-                    f"Error: {response.status_code}, {response.text}"
-                ) from None
-
-        else:
-            print("created fail")
-            raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
-            ) from None
+        return started_container
 
 
 async def stop_vllm_container(

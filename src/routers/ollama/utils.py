@@ -3,7 +3,6 @@ from typing import Literal
 
 import httpx
 
-from src.config.params import COMMON_CONFIG, DOCKERNETWORK_CONFIG
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
@@ -11,7 +10,12 @@ from src.thirdparty.docker.api_handler import (
 )
 
 
-async def start_ollama_container(image_name: str, model_name: str) -> str:
+async def start_ollama_container(
+    image_name: str,
+    docker_network_name: str,
+    model_name: str,
+    local_gguf_path: str,
+) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     data = {
         "User": "root",
@@ -22,11 +26,10 @@ async def start_ollama_container(image_name: str, model_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{COMMON_CONFIG.root_path}/ollama:/root/.ollama:rw",
-                f"{COMMON_CONFIG.root_path}/saves:{COMMON_CONFIG.save_path}:rw",
+                f"{local_gguf_path}:{local_gguf_path}:rw",
             ],
             "AutoRemove": True,
-            "NetworkMode": DOCKERNETWORK_CONFIG.network_name,
+            "NetworkMode": docker_network_name,
         },
         "Tty": True,
     }
@@ -43,14 +46,16 @@ async def start_ollama_container(image_name: str, model_name: str) -> str:
         return started_container
 
 
-async def run_ollama_model(ollama_url: str, model_name: str) -> None:
+async def run_ollama_model(
+    ollama_url: str, model_name: str, local_gguf_file: str
+) -> None:
     async with httpx.AsyncClient() as aclient:
         async with aclient.stream(
             "POST",
             f"{ollama_url}/api/create",
             json={
                 "model": model_name,
-                "modelfile": f"FROM {COMMON_CONFIG.save_path}/{model_name}/quantize/{model_name}-full.gguf",
+                "modelfile": f"FROM {local_gguf_file}",
             },
         ) as response:
             if response.status_code == 200:
