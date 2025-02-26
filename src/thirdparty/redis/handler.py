@@ -1,15 +1,14 @@
-import os
-
 import redis as sync_redis
 import redis.asyncio as async_redis
+from src.config import params
 
 
 class redis_py_async:
     def __init__(self) -> None:
         self.pool: async_redis.ConnectionPool = async_redis.ConnectionPool(
-            host=os.environ["REDIS_HOST"],
-            port=os.environ["REDIS_PORT"],
-            password=os.environ["REDIS_PASSWORD"],
+            host=params.REDIS_CONFIG.container_name,
+            port=params.REDIS_CONFIG.port,
+            password=params.REDIS_CONFIG.password,
             decode_responses=True,
         )
         self.client = async_redis.Redis.from_pool(self.pool)
@@ -37,9 +36,9 @@ class AsyncRedisClient:
 class redis_py_sync:
     def __init__(self) -> None:
         self.pool: sync_redis.ConnectionPool = sync_redis.ConnectionPool(
-            host=os.environ["REDIS_HOST"],
-            port=os.environ["REDIS_PORT"],
-            password=os.environ["REDIS_PASSWORD"],
+            host=params.REDIS_CONFIG.container_name,
+            port=params.REDIS_CONFIG.port,
+            password=params.REDIS_CONFIG.password,
             decode_responses=True,
         )
         self.client = sync_redis.Redis.from_pool(self.pool)
