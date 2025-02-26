@@ -1,9 +1,12 @@
 import json
 import os
 
+import orjson
 from fastapi import APIRouter, HTTPException, Response, status
 
+from src.config.params import COMMON_CONFIG, QUANTIZESERVICE_CONFIG, TASK_CONFIG
 from src.routers.quantize import schema, utils, validator
+from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
@@ -20,26 +23,16 @@ async def start_quantize(request_data: schema.PostStartQuantize):
     error_handler = ResponseErrorHandler()
 
     try:
-        checkpoint_path, finetune_type = await utils.get_quantize_args(
-            os.path.join(
-                SAVE_PATH,
-                request_data.quantize_name,
-                f"{request_data.quantize_name}.yaml",
-            )
-        )
-
-        container_ids = await utils.quantize_as_gguf(
-            quantize_service_url="http://127.0.0.1:8002/gguf",
+        await utils.quantize_as_gguf(
+            quantize_service_url=f"http://{QUANTIZESERVICE_CONFIG.container_name}:{QUANTIZESERVICE_CONFIG.port}/gguf/full/",
             quantize_name=request_data.quantize_name,
-            checkpoint_path=checkpoint_path,
-            output_path=os.path.join(SAVE_PATH, request_data.quantize_name, "quantize"),
-            finetune_type=finetune_type,
+            checkpoint_path=os.path.join(
+                COMMON_CONFIG.save_path, request_data.quantize_name, "merge"
+            ),
+            output_path=os.path.join(
+                COMMON_CONFIG.save_path, request_data.quantize_name, "quantize"
+            ),
         )
-        result = {
-            "quantize_name": request_data.quantize_name,
-            "finetune_type": finetune_type,
-        }
-        result.update(container_ids)
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
@@ -54,8 +47,27 @@ async def start_quantize(request_data: schema.PostStartQuantize):
             detail=error_handler.errors,
         ) from None
 
+    try:
+        info = await redis_async.client.hget(
+            TASK_CONFIG.train, request_data.quantize_name
+        )
+        info = orjson.loads(info)
+        info["is_quantize"] = True
+        await redis_async.client.hset(
+            TASK_CONFIG.train, request_data.quantize_name, orjson.dumps(info)
+        )
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg=f"Database error: {e}",
+            input=request_data.model_dump(),
+        )
+
     return Response(
-        content=json.dumps(result),
+        content=json.dumps({"quantize_name": request_data.quantize_name}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

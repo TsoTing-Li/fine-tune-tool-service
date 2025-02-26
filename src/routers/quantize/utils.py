@@ -6,6 +6,9 @@ import httpx
 import orjson
 import yaml
 
+from src.config.params import COMMON_CONFIG
+from src.thirdparty.docker.api_handler import get_container_log
+
 
 async def get_quantize_args(yaml_path: str) -> Tuple[str, str]:
     try:
@@ -64,84 +67,32 @@ async def quantize_as_gguf(
     quantize_name: str,
     checkpoint_path: str,
     output_path: str,
-    finetune_type: Literal["full", "lora"],
-) -> dict:
-    host_path = os.environ["ROOT_PATH"]
-    base_path = os.environ["WS"]
-    container_ids = dict()
+) -> None:
+    data = {
+        "quantize_name": quantize_name,
+        "checkpoint_path": f"{os.path.join(COMMON_CONFIG.root_path, os.path.relpath(checkpoint_path, COMMON_CONFIG.workspace_path))}",
+        "output_path": f"{os.path.join(COMMON_CONFIG.root_path, os.path.relpath(output_path, COMMON_CONFIG.workspace_path))}",
+        "hf_ori": False,
+    }
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        response = await aclient.post(quantize_service_url, json=data)
 
-    if finetune_type == "full":
-        full_data = {
-            "quantize_name": quantize_name,
-            "checkpoint_path": f"{os.path.join(host_path, os.path.relpath(checkpoint_path, base_path))}",
-            "output_path": f"{os.path.join(host_path, os.path.relpath(output_path, base_path))}",
-            "hf_ori": False,
-        }
-        async with httpx.AsyncClient(timeout=None) as aclient:
-            response = await aclient.post(
-                f"{quantize_service_url}/{finetune_type}/", json=full_data
-            )
+        if response.status_code == 200:
+            print(f"Full Container: {quantize_name} success")
+        else:
+            print(f"Full Container: {quantize_name} failed")
+            print(f"Error: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Error: {response.status_code}, {response.text}"
+            ) from None
 
-            if response.status_code == 200:
-                print(f"Full Container: {quantize_name} success")
-                container_ids["full_container"] = response.json()["container_name"]
-            else:
-                print(f"Full Container: {quantize_name} failed")
-                print(f"Error: {response.status_code}, {response.text}")
-                raise RuntimeError(
-                    f"Error: {response.status_code}, {response.text}"
-                ) from None
-
-    elif finetune_type == "lora":
-        base_model = await get_lora_base_model(train_name=quantize_name)
-        model_snapshot_path = get_model_snapshot(model_name=base_model)[base_model]
-
-        full_data = {
-            "quantize_name": quantize_name,
-            "checkpoint_path": f"{model_snapshot_path}",
-            "output_path": f"{os.path.join(host_path, os.path.relpath(output_path, base_path))}",
-            "hf_ori": True,
-        }
-
-        lora_data = {
-            "quantize_name": quantize_name,
-            "base_model": model_snapshot_path,
-            "lora_path": f"{os.path.join(host_path, os.path.relpath(checkpoint_path, base_path))}",
-            "output_path": f"{os.path.join(host_path, os.path.relpath(output_path, base_path))}",
-            "hf_ori": True,
-        }
-
-        async with httpx.AsyncClient(timeout=None) as aclient:
-            response = await aclient.post(
-                f"{quantize_service_url}/full/", json=full_data
-            )
-
-            if response.status_code == 200:
-                container_ids["full_container"] = response.json()["container_name"]
-                print(f"Full Container: {quantize_name} success")
-
-                response = await aclient.post(
-                    f"{quantize_service_url}/{finetune_type}/", json=lora_data
-                )
-
-                if response.status_code == 200:
-                    container_ids["lora_container"] = response.json()["container_name"]
-                    print(f"Lora Container: {quantize_name} success")
-
-                else:
-                    print(f"Lora Container: {quantize_name} failed")
-                    print(f"Error: {response.status_code}, {response.text}")
-                    raise RuntimeError(
-                        f"Error: {response.status_code}, {response.text}"
-                    ) from None
-            else:
-                print(f"Full Container: {quantize_name} failed")
-                print(f"Error: {response.status_code}, {response.text}")
-                raise RuntimeError(
-                    f"Error: {response.status_code}, {response.text}"
-                ) from None
-
-    return container_ids
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        async for log in get_container_log(
+            aclient=aclient, container_name_or_id=response.json()["container_name"]
+        ):
+            if not log:
+                return
 
 
 async def stop_quantize(
