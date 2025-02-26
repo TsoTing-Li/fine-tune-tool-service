@@ -4,18 +4,15 @@ import os
 from fastapi import APIRouter, HTTPException, Response, status
 
 from src.config import params
-from src.routers.ollama import schema, utils, validator
+from src.routers.ollama import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-
 
 @router.post("/start/")
 async def start_ollama(request_data: schema.PostStartOllama):
-    validator.PostStartOllama(model_name=f"{SAVE_PATH}/{request_data.model_name}")
     error_handler = ResponseErrorHandler()
 
     try:
@@ -56,7 +53,6 @@ async def start_ollama(request_data: schema.PostStartOllama):
 
 @router.post("/stop/")
 async def stop_ollama(request_data: schema.PostStopOllama):
-    validator.PostStopOllama(ollama_container=request_data.ollama_container)
     error_handler = ResponseErrorHandler()
 
     try:
