@@ -1,21 +1,18 @@
 import json
-import os
 from typing import Literal
 
 import httpx
 
+from src.config.params import COMMON_CONFIG
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
     stop_container,
 )
 
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
-
 
 async def start_ollama_container(image_name: str, model_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    root_path = os.environ["ROOT_PATH"]
     data = {
         "User": "root",
         "Image": image_name,
@@ -25,8 +22,8 @@ async def start_ollama_container(image_name: str, model_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{root_path}/ollama:/root/.ollama:rw",
-                f"{root_path}/saves:{SAVE_PATH}:rw",
+                f"{COMMON_CONFIG.root_path}/ollama:/root/.ollama:rw",
+                f"{COMMON_CONFIG.root_path}/saves:{COMMON_CONFIG.save_path}:rw",
             ],
             "NetworkMode": "host",
             "AutoRemove": True,
@@ -53,7 +50,7 @@ async def run_ollama_model(ollama_url: str, model_name: str) -> None:
             f"{ollama_url}/api/create",
             json={
                 "model": model_name,
-                "modelfile": f"FROM {SAVE_PATH}/{model_name}/quantize/{model_name}.gguf",
+                "modelfile": f"FROM {COMMON_CONFIG.save_path}/{model_name}/quantize/{model_name}-full.gguf",
             },
         ) as response:
             if response.status_code == 200:
