@@ -3,7 +3,7 @@ from typing import Literal
 
 import httpx
 
-from src.config.params import COMMON_CONFIG
+from src.config.params import COMMON_CONFIG, DOCKERNETWORK_CONFIG
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
@@ -25,8 +25,8 @@ async def start_ollama_container(image_name: str, model_name: str) -> str:
                 f"{COMMON_CONFIG.root_path}/ollama:/root/.ollama:rw",
                 f"{COMMON_CONFIG.root_path}/saves:{COMMON_CONFIG.save_path}:rw",
             ],
-            "NetworkMode": "host",
             "AutoRemove": True,
+            "NetworkMode": DOCKERNETWORK_CONFIG.network_name,
         },
         "Tty": True,
     }

@@ -24,7 +24,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
             model_name=request_data.model_name,
         )
         await utils.run_ollama_model(
-            ollama_url=f"http://127.0.0.1:{params.OLLAMA_CONFIG.port}",
+            ollama_url=f"http://{container_name}:{params.OLLAMA_CONFIG.port}",
             model_name=request_data.model_name,
         )
 
@@ -44,7 +44,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
     return Response(
         content=json.dumps(
             {
-                "ollama_service": f"http://127.0.0.1:{params.OLLAMA_CONFIG.port}",
+                "ollama_service": f"http://{container_name}:{params.OLLAMA_CONFIG.port}",
                 "container_name": container_name,
                 "model_name": request_data.model_name,
             }
