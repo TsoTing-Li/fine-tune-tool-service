@@ -4,7 +4,7 @@ import os
 from fastapi import APIRouter, HTTPException, Response, status
 
 from src.config import params
-from src.routers.vllm import schema, utils, validator
+from src.routers.vllm import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 from src.utils.utils import assemble_image_name
@@ -16,7 +16,6 @@ SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 @router.post("/start/safetensors/")
 async def start_vllm(request_data: schema.PostStartVLLM):
-    validator.PostStartVLLM(model_name=request_data.model_name)
     error_handler = ResponseErrorHandler()
 
     try:
@@ -88,7 +87,6 @@ async def start_vllm(request_data: schema.PostStartVLLM):
 
 @router.post("/stop/")
 async def stop_vllm(request_data: schema.PostStopVLLM):
-    validator.PostStopVLLM(vllm_container=request_data.vllm_container)
     error_handler = ResponseErrorHandler()
 
     try:
