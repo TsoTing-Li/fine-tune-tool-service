@@ -1,12 +1,12 @@
 import json
-import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.config import params
+from src.config.params import COMMON_CONFIG, OLLAMA_CONFIG
 from src.routers.ollama import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
+from src.utils.utils import assemble_image_name
 
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
@@ -17,11 +17,15 @@ async def start_ollama(request_data: schema.PostStartOllama):
 
     try:
         container_name = await utils.start_ollama_container(
-            image_name=f"{os.environ['USER_NAME']}/{os.environ['OLLAMA_SERVICE_NAME']}:{os.environ['OLLAMA_SERVICE_TAG']}",
+            image_name=assemble_image_name(
+                username=COMMON_CONFIG.username,
+                repository=OLLAMA_CONFIG.name,
+                tag=OLLAMA_CONFIG.tag,
+            ),
             model_name=request_data.model_name,
         )
         await utils.run_ollama_model(
-            ollama_url=f"http://{container_name}:{params.OLLAMA_CONFIG.port}",
+            ollama_url=f"http://{container_name}:{OLLAMA_CONFIG.port}",
             model_name=request_data.model_name,
         )
 
@@ -41,7 +45,7 @@ async def start_ollama(request_data: schema.PostStartOllama):
     return Response(
         content=json.dumps(
             {
-                "ollama_service": f"http://{container_name}:{params.OLLAMA_CONFIG.port}",
+                "ollama_service": f"http://{container_name}:{OLLAMA_CONFIG.port}",
                 "container_name": container_name,
                 "model_name": request_data.model_name,
             }
