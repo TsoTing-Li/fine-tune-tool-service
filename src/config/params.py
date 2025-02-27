@@ -10,6 +10,7 @@ from src.config.main_service import MainServiceConfig
 from src.config.ollama import OllamaConfig
 from src.config.quantize_service import QuantizeServiceConfig
 from src.config.redis import RedisConfig
+from src.config.status import StatusConfig
 from src.config.task import TaskConfig
 from src.config.vllm import VllmConfig
 
@@ -35,6 +36,13 @@ ACCELTUNE_SETTING = {
         "chat": "CHAT",
         "quantize": "QUANTIZE",
         "accelbrain_device": "ACCELBRAIN_DEVICE",
+    },
+    "status": {
+        "setup": "setup",
+        "active": "active",
+        "finish": "finish",
+        "failed": "failed",
+        "stopped": "stopped",
     },
     "logger": {
         "log_folder": os.environ["ACCELTUNE_LOG_FOLDER"],
@@ -105,3 +113,4 @@ DOCKERNETWORK_CONFIG = DockerNetworkConfig(network_name=PROJECT_NAME)
 TASK_CONFIG = TaskConfig(**ACCELTUNE_SETTING["task"])
 MAINSERVICE_CONFIG = MainServiceConfig(**ACCELTUNE_SETTING["main_service"])
 OLLAMA_CONFIG = OllamaConfig(**ACCELTUNE_SETTING["ollama"])
+STATUS_CONFIG = StatusConfig(**ACCELTUNE_SETTING["status"])
