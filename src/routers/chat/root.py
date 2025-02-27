@@ -24,7 +24,7 @@ async def start_chat(request_data: schema.PostStartChat):
         return StreamingResponse(
             utils.post_openai_chat(
                 request_id=request_id,
-                model_server=request_data.model_service,
+                model_service=request_data.model_service,
                 model_name=request_data.chat_model_name,
                 messages=request_data.messages,
                 active_requests=active_requests,
