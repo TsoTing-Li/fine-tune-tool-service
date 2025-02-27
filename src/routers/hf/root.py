@@ -9,9 +9,10 @@ from src.utils.logger import accel_logger
 router = APIRouter(prefix="/hf", tags=["HF"])
 
 
-@router.post("/add-token/")
+@router.post("/token/")
 async def add_hf_token(request_data: schema.PostAddToken):
     error_handler = ResponseErrorHandler()
+
     try:
         token = utils.add_token(request_data.hf_token)
 
