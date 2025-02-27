@@ -2,7 +2,11 @@ from typing import Literal
 
 import httpx
 
-from src.thirdparty.docker.api_handler import create_container, start_container
+from src.thirdparty.docker.api_handler import (
+    create_container,
+    start_container,
+    stop_container,
+)
 
 
 async def start_vllm_container(
@@ -52,20 +56,13 @@ async def stop_vllm_container(
     signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
     wait_sec: int = 10,
 ) -> str:
-    params = {"signal": signal, "t": wait_sec}
-
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(
-            f"http://docker/containers/{container_name_or_id}/stop", params=params
+        stopped_container = await stop_container(
+            aclient=aclient,
+            container_name_or_id=container_name_or_id,
+            signal=signal,
+            wait_sec=wait_sec,
         )
 
-        if response.status_code == 204:
-            print(f"VLLM stopped, container: {container_name_or_id}")
-            return container_name_or_id
-        else:
-            print(f"VLLM failed, container: {container_name_or_id}")
-            print(f"Error: {response.status_code}, {response.text}")
-            raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
-            ) from None
+        return stopped_container
