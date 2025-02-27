@@ -1,0 +1,24 @@
+FROM python:3.10-slim-bookworm
+
+USER root
+
+# Set environment variable
+ENV DEBIAN_FRONTEND=noninteractive \
+    TIMEZONE=Asia/Taipei \
+    MAX_JOBS=4 \
+    WS=/app \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Set TimeZone
+RUN apt -yq update && \
+    apt -yq install tzdata && \
+    ln -fs /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+WORKDIR $WS
+
+COPY docker/requirements.txt /app/requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD [ "bin/bash" ]
