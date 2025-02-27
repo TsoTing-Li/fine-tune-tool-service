@@ -34,3 +34,29 @@ async def add_hf_token(request_data: schema.PostAddToken):
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
+
+
+@router.get("/token/")
+def get_hf_token():
+    error_handler = ResponseErrorHandler()
+
+    try:
+        token = utils.get_token()
+
+    except Exception as e:
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"Unexpected error: {e}",
+            input=dict(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps({"hf_token": token}),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
