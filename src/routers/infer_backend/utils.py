@@ -1,6 +1,7 @@
 from typing import Literal
 
 import httpx
+from fastapi import status
 
 from src.config.params import (
     COMMON_CONFIG,
@@ -44,7 +45,7 @@ async def startup_vllm_service(
             },
         )
 
-        if response.status_code == 200:
+        if response.status_code == status.HTTP_200_OK:
             return response.json()
         else:
             raise RuntimeError(f"{response.text}") from None
@@ -66,7 +67,7 @@ async def startup_ollama_service(local_gguf_path: str, model_name: str) -> dict:
             },
         )
 
-        if response.status_code == 200:
+        if response.status_code == status.HTTP_200_OK:
             return response.json()
         else:
             raise RuntimeError(f"{response.text}") from None
@@ -81,7 +82,7 @@ async def stop_model_service(
             json={f"{infer_backend_type}_container": container_name},
         )
 
-        if response.status_code != 200:
+        if response.status_code != status.HTTP_200_OK:
             raise RuntimeError(f"{response.text}")
 
         return response.json()[f"{infer_backend_type}_container"]

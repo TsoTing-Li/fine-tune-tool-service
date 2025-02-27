@@ -7,7 +7,7 @@ import aiofiles
 import aiofiles.os
 import httpx
 import yaml
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, status
 
 from src.thirdparty.docker import api_handler
 from src.utils.logger import accel_logger
@@ -61,7 +61,7 @@ async def call_ds_api(
 
         response = await aclient.post(f"{base_url}/{ds_args['src']}/", **payload)
 
-        if response.status_code != 200:
+        if response.status_code != status.HTTP_200_OK:
             raise HTTPException(
                 status_code=response.status_code, detail=response.json()
             )

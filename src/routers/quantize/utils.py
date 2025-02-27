@@ -5,6 +5,7 @@ import aiofiles
 import httpx
 import orjson
 import yaml
+from fastapi import status
 
 from src.config.params import COMMON_CONFIG
 from src.thirdparty.docker.api_handler import get_container_log
@@ -77,7 +78,7 @@ async def quantize_as_gguf(
     async with httpx.AsyncClient(timeout=None) as aclient:
         response = await aclient.post(quantize_service_url, json=data)
 
-        if response.status_code == 200:
+        if response.status_code == status.HTTP_200_OK:
             print(f"Full Container: {quantize_name} success")
         else:
             print(f"Full Container: {quantize_name} failed")

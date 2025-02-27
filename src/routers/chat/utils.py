@@ -2,6 +2,7 @@ import json
 from collections.abc import AsyncGenerator
 
 import httpx
+from fastapi import status
 
 
 async def post_openai_chat(
@@ -22,7 +23,7 @@ async def post_openai_chat(
             async with aclient.stream(
                 "POST", f"{model_service}/v1/chat/completions", json=data
             ) as response:
-                if response.status_code != 200:
+                if response.status_code != status.HTTP_200_OK:
                     active_requests.pop(request_id, None)
                     raise RuntimeError(
                         f"Error: {response.status_code}, {response.text}"

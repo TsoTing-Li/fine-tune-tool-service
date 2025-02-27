@@ -2,6 +2,7 @@ import json
 from typing import Literal
 
 import httpx
+from fastapi import status
 
 from src.thirdparty.docker.api_handler import (
     create_container,
@@ -58,7 +59,7 @@ async def run_ollama_model(
                 "modelfile": f"FROM {local_gguf_file}",
             },
         ) as response:
-            if response.status_code == 200:
+            if response.status_code == status.HTTP_200_OK:
                 async for chunk in response.aiter_lines():
                     if chunk:
                         data_chunk = json.loads(chunk)
@@ -74,7 +75,7 @@ async def run_ollama_model(
         response = await aclient.post(
             f"{ollama_url}/api/generate", json={"model": model_name, "keep_alive": -1}
         )
-        if response.status_code != 200:
+        if response.status_code != status.HTTP_200_OK:
             raise RuntimeError(f"{response.text}")
 
 

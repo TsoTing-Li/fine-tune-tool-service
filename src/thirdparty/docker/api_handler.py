@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from typing import Literal, Union
 
 import httpx
+from fastapi import status
 
 from src.utils.utils import generate_uuid
 
@@ -14,7 +15,7 @@ async def create_container(aclient: httpx.AsyncClient, name: str, data: dict) ->
         params={"name": container_name_or_id},
     )
 
-    if response.status_code == 201:
+    if response.status_code == status.HTTP_201_CREATED:
         return container_name_or_id
     else:
         raise RuntimeError(
@@ -27,7 +28,7 @@ async def start_container(aclient: httpx.AsyncClient, container_name_or_id: str)
         f"http://docker/containers/{container_name_or_id}/start"
     )
 
-    if response.status_code == 204:
+    if response.status_code == status.HTTP_204_NO_CONTENT:
         return container_name_or_id
     else:
         raise RuntimeError(
@@ -46,9 +47,9 @@ async def stop_container(
         params={"signal": signal, "t": wait_sec},
     )
 
-    if response.status_code == 204:
+    if response.status_code == status.HTTP_204_NO_CONTENT:
         return container_name_or_id
-    elif response.status_code == 304:
+    elif response.status_code == status.HTTP_304_NOT_MODIFIED:
         return f"{container_name_or_id}, already stopped"
     else:
         raise RuntimeError(
@@ -63,10 +64,10 @@ async def get_container_log(
     async with aclient.stream(
         "GET", f"http://docker/containers/{container_name_or_id}/logs", params=params
     ) as response:
-        if response.status_code == 200:
+        if response.status_code == status.HTTP_200_OK:
             async for chunk in response.aiter_text():
                 yield chunk
-        elif response.status_code == 404:
+        elif response.status_code == status.HTTP_404_NOT_FOUND:
             raise ValueError(response.json()["message"])
         else:
             raise RuntimeError(response.json()["message"])

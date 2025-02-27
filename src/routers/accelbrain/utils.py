@@ -8,6 +8,7 @@ from typing import Any, Tuple
 import aiofiles
 import httpx
 import orjson
+from fastapi import status
 
 from src import thirdparty
 
@@ -17,7 +18,10 @@ async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
         async with httpx.AsyncClient() as aclient:
             response = await aclient.get(f"http://{accelbrain_url}/model_handler/")
 
-            if response.status_code == 200 and response.json()["status"] == "alive":
+            if (
+                response.status_code == status.HTTP_200_OK
+                and response.json()["status"] == "alive"
+            ):
                 return response.json()["status"], response.status_code
             else:
                 raise ValueError(f"AccelBrain Url: {accelbrain_url} is not alive")
@@ -130,7 +134,7 @@ async def call_accelbrain_deploy(
         orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 200,
+                    "status": status.HTTP_200_OK,
                     "message": {"action": "Start compress file", "progress": 0.0},
                     "detail": {"model_name": model_name},
                 }
@@ -142,7 +146,7 @@ async def call_accelbrain_deploy(
         orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 200,
+                    "status": status.HTTP_200_OK,
                     "message": {"action": "Finish compress file", "progress": 0.0},
                     "detail": {"model_name": model_name},
                 }
@@ -161,7 +165,7 @@ async def call_accelbrain_deploy(
                 file_path=deploy_path, model_name=model_name, boundary=boundary
             ),
         ) as response:
-            if response.status_code == 200:
+            if response.status_code == status.HTTP_200_OK:
                 async for chunk in response.aiter_lines():
                     if chunk:
                         accelbrain_info = {"AccelBrain": orjson.loads(chunk)}
@@ -184,7 +188,7 @@ async def monitor_progress(model_name: str):
             yield orjson.dumps(
                 {
                     "AccelTune": {
-                        "status": 200,
+                        "status": status.HTTP_200_OK,
                         "message": {
                             "action": "Upload file",
                             "progress": float(upload_progress),
@@ -201,7 +205,7 @@ async def monitor_progress(model_name: str):
         yield orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 500,
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     "message": {
                         "action": "Async task cancelled",
                         "progress": -1,
@@ -252,7 +256,7 @@ async def deploy_to_accelbrain_service(
         yield orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 502,
+                    "status": status.HTTP_502_BAD_GATEWAY,
                     "message": {
                         "action": "connected error",
                         "progress": -1,
@@ -266,7 +270,7 @@ async def deploy_to_accelbrain_service(
         yield orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 408,
+                    "status": status.HTTP_408_REQUEST_TIMEOUT,
                     "message": {
                         "action": "request timeout",
                         "progress": -1,
@@ -280,7 +284,7 @@ async def deploy_to_accelbrain_service(
         yield orjson.dumps(
             {
                 "AccelTune": {
-                    "status": 500,
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     "message": {
                         "action": "unexpected error",
                         "progress": -1,
