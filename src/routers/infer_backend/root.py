@@ -1,6 +1,5 @@
 import json
 import os
-import traceback
 
 import orjson
 from fastapi import APIRouter, HTTPException, Response, status
@@ -74,7 +73,6 @@ async def start_infer_backend(
         )
 
     except Exception as e:
-        traceback.print_exc()
         accel_logger.error(f"Database error: {e}")
         error_handler.add(
             type=error_handler.ERR_REDIS,
