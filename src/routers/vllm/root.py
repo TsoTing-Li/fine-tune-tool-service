@@ -1,5 +1,4 @@
 import json
-import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
@@ -9,8 +8,6 @@ from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
 router = APIRouter(prefix="/vllm", tags=["VLLM"])
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 @router.post("/start/safetensors/")

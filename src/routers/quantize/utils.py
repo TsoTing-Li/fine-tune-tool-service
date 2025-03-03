@@ -11,7 +11,6 @@ from fastapi import status
 
 from src.config.params import COMMON_CONFIG, TASK_CONFIG
 from src.thirdparty.docker.api_handler import (
-    get_container_log,
     remove_container,
     stop_container,
     wait_for_container,
@@ -53,13 +52,6 @@ async def update_quantize_info(quantize_name: str, container_name: str) -> None:
 async def check_quantize_status(container_name_or_id: str) -> None:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        async for log in get_container_log(
-            aclient=aclient,
-            container_name_or_id=container_name_or_id,
-        ):
-            if not log:
-                break
-
         container_info = await wait_for_container(
             aclient=aclient, container_name=container_name_or_id
         )
