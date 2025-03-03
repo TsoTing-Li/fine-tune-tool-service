@@ -26,7 +26,7 @@ class PostDeploy(BaseModel):
             if not info:
                 raise ValueError("deploy_name does not exists")
 
-            if not orjson.loads(info)["is_quantize"]:
+            if not orjson.loads(info)["container"]["quantize"]["status"] == "finish":
                 raise ValueError("deploy_name has not been quantified yet")
 
         except ValueError as e:

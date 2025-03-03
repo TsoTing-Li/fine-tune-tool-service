@@ -294,9 +294,9 @@ async def add_train(
             "container": {
                 "train": {"status": "setup", "id": None},
                 "eval": {"status": "setup", "id": None},
+                "quantize": {"status": "setup", "id": None},
                 "infer_backend": {"status": "setup", "id": None},
             },
-            "is_quantize": False,
             "created_time": created_time,
             "modified_time": None,
         }

@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncGenerator
 from typing import Literal, Union
 
@@ -58,9 +59,14 @@ async def stop_container(
 
 
 async def get_container_log(
-    aclient: httpx.AsyncClient, container_name_or_id: str, tail: Union[str, int] = "all"
+    aclient: httpx.AsyncClient,
+    container_name_or_id: str,
+    follow: bool = True,
+    stdout: bool = True,
+    stderr: bool = True,
+    tail: Union[str, int] = "all",
 ) -> AsyncGenerator[str, None]:
-    params = {"follow": True, "stdout": True, "stderr": True, "tail": str(tail)}
+    params = {"follow": follow, "stdout": stdout, "stderr": stderr, "tail": str(tail)}
     async with aclient.stream(
         "GET", f"http://docker/containers/{container_name_or_id}/logs", params=params
     ) as response:
@@ -71,3 +77,46 @@ async def get_container_log(
             raise ValueError(response.json()["message"])
         else:
             raise RuntimeError(response.json()["message"])
+
+
+async def get_container_info(aclient: httpx.AsyncClient, container_name: str) -> dict:
+    params = {"all": True, "filters": json.dumps({"name": [container_name]})}
+
+    response = await aclient.get("http://docker/containers/json", params=params)
+
+    if response.status_code == status.HTTP_200_OK:
+        return response.json()[0] if response.json() else dict()
+    elif response.status_code == status.HTTP_400_BAD_REQUEST:
+        raise ValueError(response.json()["message"])
+    else:
+        raise RuntimeError(response.json()["message"])
+
+
+async def wait_for_container(aclient: httpx.AsyncClient, container_name: str) -> dict:
+    response = await aclient.post(f"http://docker/containers/{container_name}/wait")
+
+    if response.status_code == status.HTTP_200_OK:
+        return response.json()
+    elif response.status_code == status.HTTP_400_BAD_REQUEST:
+        raise ValueError(response.json()["message"])
+    elif response.status_code == status.HTTP_404_NOT_FOUND:
+        raise ValueError(response.json()["message"])
+    else:
+        raise RuntimeError(response.json()["message"])
+
+
+async def remove_container(
+    aclient: httpx.AsyncClient, container_name_or_id: str
+) -> None:
+    response = await aclient.delete(f"http://docker/containers/{container_name_or_id}")
+
+    if response.status_code == status.HTTP_204_NO_CONTENT:
+        return
+    elif response.status_code == status.HTTP_400_BAD_REQUEST:
+        raise ValueError(response.json()["message"])
+    elif response.status_code == status.HTTP_404_NOT_FOUND:
+        raise ValueError(response.json()["message"])
+    elif response.status_code == status.HTTP_409_CONFLICT:
+        raise ValueError(response.json()["message"])
+    else:
+        raise RuntimeError(response.json()["message"])

@@ -24,7 +24,7 @@ async def start_infer_backend(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.model_name)
         info = orjson.loads(info)
 
-        if info["is_quantize"]:
+        if info["container"]["quantize"]["status"] == "finish":
             service_type = "ollama"
             model_service_info = await utils.startup_ollama_service(
                 local_gguf_path=os.path.join(
