@@ -5,7 +5,7 @@ import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
-from src.thirdparty import redis
+from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
@@ -19,7 +19,7 @@ class PostTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if redis.handler.redis_sync.client.hexists("TRAIN", self.train_name):
+            if redis_sync.client.hexists("TRAIN", self.train_name):
                 raise ValueError("train_name already exists")
 
         except ValueError as e:
@@ -57,7 +57,7 @@ class GetTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if self.train_name and not redis.handler.redis_sync.client.hexists(
+            if self.train_name and not redis_sync.client.hexists(
                 "TRAIN", self.train_name
             ):
                 raise KeyError("train_name does not exists")
@@ -97,10 +97,10 @@ class PutTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis.handler.redis_sync.client.hexists("TRAIN", self.train_name):
+            if not redis_sync.client.hexists("TRAIN", self.train_name):
                 raise KeyError("train_name does not exists")
 
-            info = redis.handler.redis_sync.client.hget("TRAIN", self.train_name)
+            info = redis_sync.client.hget("TRAIN", self.train_name)
             if orjson.loads(info)["container"]["train"]["status"] == "active":
                 raise ValueError("train_name is being executed")
 
@@ -151,10 +151,10 @@ class DelTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis.handler.redis_sync.client.hexists("TRAIN", self.train_name):
+            if not redis_sync.client.hexists("TRAIN", self.train_name):
                 raise KeyError("train_name does not exists")
 
-            info = redis.handler.redis_sync.client.hget("TRAIN", self.train_name)
+            info = redis_sync.client.hget("TRAIN", self.train_name)
             if orjson.loads(info)["container"]["train"]["status"] == "active":
                 raise ValueError("train_name is being executed")
 
@@ -205,12 +205,12 @@ class PostStartTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis.handler.redis_sync.client.hexists(
+            if not redis_sync.client.hexists(
                 "TRAIN", self.train_name
             ) or not os.path.exists(os.path.join(SAVE_PATH, self.train_name)):
                 raise KeyError("train_name does not exists")
 
-            info = redis.handler.redis_sync.client.hget("TRAIN", self.train_name)
+            info = redis_sync.client.hget("TRAIN", self.train_name)
             if orjson.loads(info)["container"]["train"]["status"] == "active":
                 raise ValueError("train_name is being executed")
 
@@ -261,10 +261,10 @@ class PostStopTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis.handler.redis_sync.client.hexists("TRAIN", self.train_name):
+            if not redis_sync.client.hexists("TRAIN", self.train_name):
                 raise KeyError("train_name does not exists")
 
-            info = redis.handler.redis_sync.client.hget("TRAIN", self.train_name)
+            info = redis_sync.client.hget("TRAIN", self.train_name)
             if orjson.loads(info)["container"]["train"]["status"] != "active":
                 raise KeyError("train_name is not being executed")
 

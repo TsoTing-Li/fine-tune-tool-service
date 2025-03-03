@@ -7,9 +7,9 @@ from fastapi import APIRouter, Query, Response, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
 
-from src import thirdparty
-from src.config import params
+from src.config.params import COMMON_CONFIG, TASK_CONFIG
 from src.routers.accelbrain import schema, utils, validator
+from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 from src.utils.utils import get_current_time
@@ -26,11 +26,11 @@ async def deploy_accelbrain(request_data: schema.PostDeploy):
         return StreamingResponse(
             content=utils.deploy_to_accelbrain_service(
                 file_path=os.path.join(
-                    params.COMMON_CONFIG.save_path, request_data.deploy_name, "quantize"
+                    COMMON_CONFIG.save_path, request_data.deploy_name, "quantize"
                 ),
                 model_name=request_data.deploy_name,
                 deploy_path=os.path.join(
-                    params.COMMON_CONFIG.save_path,
+                    COMMON_CONFIG.save_path,
                     request_data.deploy_name,
                     "quantize",
                     f"{request_data.deploy_name}.zip",
@@ -113,8 +113,8 @@ async def set_device(request_data: schema.PostDevice):
             "created_time": current_time,
             "modified_time": None,
         }
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.accelbrain_device,
+        await redis_async.client.hset(
+            TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
             orjson.dumps(device_info),
         )
@@ -147,16 +147,12 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
 
     try:
         if query_data.accelbrain_device:
-            accelbrain_device_info = (
-                await thirdparty.redis.handler.redis_async.client.hget(
-                    params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
-                )
+            accelbrain_device_info = await redis_async.client.hget(
+                TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
             )
             device_info = [orjson.loads(accelbrain_device_info)]
         else:
-            info = await thirdparty.redis.handler.redis_async.client.hgetall(
-                params.TASK_CONFIG.accelbrain_device
-            )
+            info = await redis_async.client.hgetall(TASK_CONFIG.accelbrain_device)
             device_info = (
                 [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
@@ -193,15 +189,15 @@ async def modify_device(request_data: schema.PutDevice):
     error_handler = ResponseErrorHandler()
 
     try:
-        device_info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.accelbrain_device,
+        device_info = await redis_async.client.hget(
+            TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
         )
         device_info = orjson.loads(device_info)
         device_info["url"] = request_data.accelbrain_url
         device_info["modified_time"] = modified_time
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.accelbrain_device,
+        await redis_async.client.hset(
+            TASK_CONFIG.accelbrain_device,
             request_data.accelbrain_device,
             orjson.dumps(device_info),
         )
@@ -233,12 +229,12 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        device_info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
+        device_info = await redis_async.client.hget(
+            TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
         device_info = orjson.loads(device_info)
-        await thirdparty.redis.handler.redis_async.client.hdel(
-            params.TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
+        await redis_async.client.hdel(
+            TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
         )
 
     except Exception as e:

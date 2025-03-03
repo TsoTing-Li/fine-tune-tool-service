@@ -10,7 +10,7 @@ import httpx
 import orjson
 from fastapi import status
 
-from src import thirdparty
+from src.thirdparty.redis.handler import redis_async
 
 
 async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
@@ -88,7 +88,7 @@ async def async_file_generator(
             while data := await af.read(chunk_size):
                 uploaded_size += len(data)
                 upload_progress = round((uploaded_size / file_size), 2)
-                await thirdparty.redis.handler.redis_async.client.rpush(
+                await redis_async.client.rpush(
                     f"{model_name}-upload_progress", upload_progress
                 )
                 yield data
@@ -182,9 +182,7 @@ async def monitor_progress(model_name: str):
             (
                 _,
                 upload_progress,
-            ) = await thirdparty.redis.handler.redis_async.client.blpop(
-                f"{model_name}-upload_progress"
-            )
+            ) = await redis_async.client.blpop(f"{model_name}-upload_progress")
             yield orjson.dumps(
                 {
                     "AccelTune": {

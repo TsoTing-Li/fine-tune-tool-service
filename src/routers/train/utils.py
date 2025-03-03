@@ -9,7 +9,11 @@ import httpx
 import yaml
 from fastapi import HTTPException, UploadFile, status
 
-from src.thirdparty.docker import api_handler
+from src.thirdparty.docker.api_handler import (
+    create_container,
+    start_container,
+    stop_container,
+)
 from src.utils.logger import accel_logger
 
 SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
@@ -139,12 +143,12 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            container_name_or_id = await api_handler.create_container(
+            container_name_or_id = await create_container(
                 aclient=aclient, name=f"train-{train_name}", data=data
             )
             accel_logger.info(f"Fine-tune created, container: {container_name_or_id}")
 
-            started_container = await api_handler.start_container(
+            started_container = await start_container(
                 aclient=aclient, container_name_or_id=container_name_or_id
             )
             accel_logger.info(f"Fine-tune started, container: {started_container}")
@@ -165,7 +169,7 @@ async def stop_train(
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            stopped_container = await api_handler.stop_container(
+            stopped_container = await stop_container(
                 aclient=aclient,
                 container_name_or_id=container_name_or_id,
                 signal=signal,

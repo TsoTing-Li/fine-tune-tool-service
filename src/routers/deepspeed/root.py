@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from src.config import params
+from src.config.params import COMMON_CONFIG
 from src.routers.deepspeed import adapter, schema, utils, validator
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
@@ -31,7 +31,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         stage=request_data.stage,
         enable_offload=request_data.enable_offload,
         offload_device=request_data.offload_device,
-        nvme_path=params.COMMON_CONFIG.nvme_path
+        nvme_path=COMMON_CONFIG.nvme_path
         if request_data.offload_device == "nvme"
         else None,
     )
@@ -50,7 +50,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
 
     try:
         path = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
             f"ds_config_{request_data.train_name}.json",
         )
@@ -90,7 +90,7 @@ async def add_deepspeed_file(
         await utils.async_load_bytes(content=ds_file)
 
         ds_file_path = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
             f"ds_config_{request_data.train_name}.json",
         )
@@ -145,7 +145,7 @@ async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
 
     try:
         ds_config = await utils.async_preview_ds_config(
-            path=os.path.join(params.COMMON_CONFIG.save_path, query_data.ds_file_name)
+            path=os.path.join(COMMON_CONFIG.save_path, query_data.ds_file_name)
         )
 
     except (FileNotFoundError, TypeError) as e:

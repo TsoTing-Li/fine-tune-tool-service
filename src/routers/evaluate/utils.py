@@ -2,7 +2,7 @@ from typing import Literal
 
 import httpx
 
-from src.config import params
+from src.config.params import COMMON_CONFIG
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
@@ -21,13 +21,13 @@ async def run_lm_eval(image_name: str, cmd: list, eval_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{params.COMMON_CONFIG.hf_home}:{params.COMMON_CONFIG.hf_home}:rw",
-                f"{params.COMMON_CONFIG.root_path}/saves:{params.COMMON_CONFIG.save_path}:rw",
+                f"{COMMON_CONFIG.hf_home}:{COMMON_CONFIG.hf_home}:rw",
+                f"{COMMON_CONFIG.root_path}/saves:{COMMON_CONFIG.save_path}:rw",
             ],
             "NetworkMode": "host",
         },
         "Cmd": cmd,
-        "Env": [f"HF_HOME={params.COMMON_CONFIG.hf_home}"],
+        "Env": [f"HF_HOME={COMMON_CONFIG.hf_home}"],
     }
 
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:

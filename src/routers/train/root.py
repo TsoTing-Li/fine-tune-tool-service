@@ -14,9 +14,9 @@ from fastapi import (
     status,
 )
 
-from src import thirdparty
-from src.config import params
+from src.config.params import COMMON_CONFIG, FINETUNETOOL_CONFIG, TASK_CONFIG
 from src.routers.train import schema, utils, validator
+from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 from src.utils.utils import (
@@ -37,15 +37,15 @@ async def start_train(request_data: schema.PostStartTrain):
         await utils.async_clear_exists_path(train_name=request_data.train_name)
         container_name = await utils.run_train(
             image_name=assemble_image_name(
-                username=params.COMMON_CONFIG.username,
-                repository=params.COMMON_CONFIG.repository,
-                tag=params.FINETUNETOOL_CONFIG.tag,
+                username=COMMON_CONFIG.username,
+                repository=COMMON_CONFIG.repository,
+                tag=FINETUNETOOL_CONFIG.tag,
             ),
             cmd=[
                 "llamafactory-cli",
                 "train",
                 os.path.join(
-                    params.COMMON_CONFIG.save_path,
+                    COMMON_CONFIG.save_path,
                     request_data.train_name,
                     f"{request_data.train_name}.yaml",
                 ),
@@ -67,14 +67,12 @@ async def start_train(request_data: schema.PostStartTrain):
         ) from None
 
     try:
-        info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.train_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["container"]["train"]["status"] = "active"
         info["container"]["train"]["id"] = container_name
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
+        await redis_async.client.hset(
+            TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
     except Exception as e:
@@ -103,13 +101,11 @@ async def stop_train(request_data: schema.PostStopTrain):
     error_handler = ResponseErrorHandler()
 
     try:
-        info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.train_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["container"]["train"]["status"] = "stopped"
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
+        await redis_async.client.hset(
+            TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
     except Exception as e:
@@ -240,17 +236,17 @@ async def add_train(
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
         train_args["output_dir"] = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
             train_args["finetuning_type"],
         )
         train_args["dataset"] = ", ".join(train_args["dataset"])
-        train_args["dataset_dir"] = params.COMMON_CONFIG.data_path
+        train_args["dataset_dir"] = COMMON_CONFIG.data_path
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
 
         train_path = utils.add_train_path(
-            path=os.path.join(params.COMMON_CONFIG.save_path, request_data.train_name)
+            path=os.path.join(COMMON_CONFIG.save_path, request_data.train_name)
         )
 
         if request_data.deepspeed_args:
@@ -300,8 +296,8 @@ async def add_train(
             "created_time": created_time,
             "modified_time": None,
         }
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(train_info)
+        await redis_async.client.hset(
+            TASK_CONFIG.train, request_data.train_name, orjson.dumps(train_info)
         )
 
     except Exception as e:
@@ -332,12 +328,12 @@ async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
 
     try:
         if query_data.train_name:
-            info = await thirdparty.redis.handler.redis_async.client.hget(
-                params.TASK_CONFIG.train, query_data.train_name
+            info = await redis_async.client.hget(
+                TASK_CONFIG.train, query_data.train_name
             )
             train_info = [orjson.loads(info)]
         else:
-            info = await thirdparty.redis.handler.redis_async.client.hgetall("TRAIN")
+            info = await redis_async.client.hgetall("TRAIN")
             train_info = (
                 [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
@@ -454,7 +450,7 @@ async def modify_train(
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
         train_args["output_dir"] = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
             train_args["finetuning_type"],
         )
@@ -476,7 +472,7 @@ async def modify_train(
 
         await utils.write_yaml(
             path=os.path.join(
-                params.COMMON_CONFIG.save_path,
+                COMMON_CONFIG.save_path,
                 request_data.train_name,
                 f"{request_data.train_name}.yaml",
             ),
@@ -497,15 +493,13 @@ async def modify_train(
         ) from None
 
     try:
-        info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.train_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["train_args"] = train_args
         info["container"]["train"]["status"] = "setup"
         info["modified_time"] = modified_time
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
+        await redis_async.client.hset(
+            TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )
 
     except Exception as e:
@@ -535,13 +529,11 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        del_info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.train, query_data.train_name
+        del_info = await redis_async.client.hget(
+            TASK_CONFIG.train, query_data.train_name
         )
         del_info = orjson.loads(del_info)
-        await thirdparty.redis.handler.redis_async.client.hdel(
-            params.TASK_CONFIG.train, query_data.train_name
-        )
+        await redis_async.client.hdel(TASK_CONFIG.train, query_data.train_name)
 
     except Exception as e:
         accel_logger.error(f"Database error: {e}")
@@ -558,7 +550,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
 
     try:
         utils.del_train(
-            path=os.path.join(params.COMMON_CONFIG.save_path, query_data.train_name)
+            path=os.path.join(COMMON_CONFIG.save_path, query_data.train_name)
         )
 
     except Exception as e:

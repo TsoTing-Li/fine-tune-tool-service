@@ -4,7 +4,7 @@ from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.routers.main import acceltune_api
-from src.thirdparty import redis
+from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
 
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await redis.handler.redis_async.aclose()
+    await redis_async.aclose()
     accel_logger.info("End Service")
 
 

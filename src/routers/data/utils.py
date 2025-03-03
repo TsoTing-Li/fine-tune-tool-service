@@ -7,7 +7,7 @@ from datasets import load_dataset
 from datasets.exceptions import DatasetNotFoundError
 from typing_extensions import Literal
 
-from src.config import params
+from src.config.params import COMMON_CONFIG
 from src.routers.data.schema import Columns, DatasetInfo, Tags
 
 
@@ -216,7 +216,7 @@ def pull_dataset_from_hf(
             dataset_name,
             subset,
             split=split,
-            num_proc=int(params.COMMON_CONFIG.max_jobs),
+            num_proc=int(COMMON_CONFIG.max_jobs),
             trust_remote_code=True,
         )
     except DatasetNotFoundError as e:

@@ -5,10 +5,10 @@ import httpx
 import orjson
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from src import thirdparty
-from src.config import params
+from src.config.params import HWINFO_CONFIG
 from src.routers.ws import utils
 from src.thirdparty.docker import api_handler
+from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ws")
@@ -67,9 +67,7 @@ async def train_log(websocket: WebSocket, id: str):
                     if "Training completed" in log_split:
                         train_complete = True
 
-        info = await thirdparty.redis.handler.redis_async.client.hget(
-            "TRAIN", train_name
-        )
+        info = await redis_async.client.hget("TRAIN", train_name)
         info = orjson.loads(info)
 
         if train_complete:
@@ -77,9 +75,7 @@ async def train_log(websocket: WebSocket, id: str):
             await websocket.send_json({"trainLog": "train finish"})
         else:
             info["container"]["train"]["status"] = "failed"
-        await thirdparty.redis.handler.redis_async.client.hset(
-            "TRAIN", train_name, orjson.dumps(info)
-        )
+        await redis_async.client.hset("TRAIN", train_name, orjson.dumps(info))
 
     except WebSocketDisconnect:
         accel_logger.info("trainLog: Client disconnected")
@@ -169,7 +165,7 @@ async def hw_info_log(websocket: WebSocket):
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
             async for log in api_handler.get_container_log(
                 aclient=aclient,
-                container_name_or_id=params.HWINFO_CONFIG.container_name,
+                container_name_or_id=HWINFO_CONFIG.container_name,
                 tail=1,
             ):
                 for log_split in log.splitlines():

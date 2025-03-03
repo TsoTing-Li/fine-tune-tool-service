@@ -5,8 +5,8 @@ from fastapi import status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, model_validator
 
-from src import thirdparty
 from src.config import params
+from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
 
 
@@ -19,9 +19,7 @@ class PostDeploy(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            info = thirdparty.redis.handler.redis_sync.client.hget(
-                params.TASK_CONFIG.train, self.deploy_name
-            )
+            info = redis_sync.client.hget(params.TASK_CONFIG.train, self.deploy_name)
 
             if not info:
                 raise ValueError("deploy_name does not exists")
@@ -68,7 +66,7 @@ class PostDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if thirdparty.redis.handler.redis_sync.client.hexists(
+            if redis_sync.client.hexists(
                 params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device already exists")
@@ -110,11 +108,8 @@ class GetDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if (
-                self.accelbrain_device
-                and not thirdparty.redis.handler.redis_sync.client.hexists(
-                    params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
-                )
+            if self.accelbrain_device and not redis_sync.client.hexists(
+                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device does not exists")
 
@@ -155,7 +150,7 @@ class PutDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not thirdparty.redis.handler.redis_sync.client.hexists(
+            if not redis_sync.client.hexists(
                 params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device does not exists")
@@ -197,7 +192,7 @@ class DelDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not thirdparty.redis.handler.redis_sync.client.hexists(
+            if not redis_sync.client.hexists(
                 params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
                 raise ValueError("accelbrain_device does not exists")

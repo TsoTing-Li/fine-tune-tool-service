@@ -6,9 +6,9 @@ import orjson
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import HTTPException
 
-from src import thirdparty
-from src.config import params
+from src.config.params import COMMON_CONFIG, TASK_CONFIG
 from src.routers.data import schema, utils, validator
+from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 from src.utils.utils import generate_uuid, get_current_time
@@ -99,7 +99,7 @@ async def add_dataset(
             )
 
             request_body.dataset_info.dataset_src = os.path.join(
-                params.COMMON_CONFIG.data_path,
+                COMMON_CONFIG.data_path,
                 f"{generate_uuid()}-{request_body.dataset_info.dataset_src}",
             )
             await utils.async_write_file_chunk(
@@ -115,9 +115,7 @@ async def add_dataset(
             )
 
         add_content = await utils.async_add_dataset_info(
-            dataset_info_file=os.path.join(
-                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
-            ),
+            dataset_info_file=os.path.join(COMMON_CONFIG.data_path, DATASET_INFO_FILE),
             dataset_info=request_body.dataset_info,
         )
 
@@ -154,8 +152,8 @@ async def add_dataset(
             "created_time": created_time,
             "modified_time": None,
         }
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.data,
+        await redis_async.client.hset(
+            TASK_CONFIG.data,
             request_body.dataset_info.dataset_name,
             orjson.dumps(data_info),
         )
@@ -188,14 +186,12 @@ async def get_dataset(dataset_name: Annotated[Union[str, None], Query()] = None)
 
     try:
         if query_data.dataset_name:
-            info = await thirdparty.redis.handler.redis_async.client.hget(
-                params.TASK_CONFIG.data, query_data.dataset_name
+            info = await redis_async.client.hget(
+                TASK_CONFIG.data, query_data.dataset_name
             )
             dataset_info = [orjson.loads(info)]
         else:
-            info = await thirdparty.redis.handler.redis_async.client.hgetall(
-                params.TASK_CONFIG.data
-            )
+            info = await redis_async.client.hgetall(TASK_CONFIG.data)
             dataset_info = (
                 [orjson.loads(value) for value in info.values()]
                 if len(info) != 0
@@ -232,9 +228,7 @@ async def modify_dataset(request_data: schema.PutData):
 
     try:
         await utils.modify_dataset_file(
-            dataset_info_file=os.path.join(
-                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
-            ),
+            dataset_info_file=os.path.join(COMMON_CONFIG.data_path, DATASET_INFO_FILE),
             ori_name=request_data.dataset_name,
             new_name=request_data.new_name,
         )
@@ -253,18 +247,16 @@ async def modify_dataset(request_data: schema.PutData):
         ) from None
 
     try:
-        info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.data, request_data.dataset_name
+        info = await redis_async.client.hget(
+            TASK_CONFIG.data, request_data.dataset_name
         )
         dataset_info = orjson.loads(info)
         dataset_info["name"] = request_data.new_name
         dataset_info["modified_time"] = modified_time
-        await thirdparty.redis.handler.redis_async.client.hset(
-            params.TASK_CONFIG.data, request_data.new_name, orjson.dumps(dataset_info)
+        await redis_async.client.hset(
+            TASK_CONFIG.data, request_data.new_name, orjson.dumps(dataset_info)
         )
-        await thirdparty.redis.handler.redis_async.client.hdel(
-            params.TASK_CONFIG.data, request_data.dataset_name
-        )
+        await redis_async.client.hdel(TASK_CONFIG.data, request_data.dataset_name)
 
     except Exception as e:
         accel_logger.error(f"Database error: {e}")
@@ -293,13 +285,11 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
     error_handler = ResponseErrorHandler()
 
     try:
-        del_dataset_info = await thirdparty.redis.handler.redis_async.client.hget(
-            params.TASK_CONFIG.data, query_data.dataset_name
+        del_dataset_info = await redis_async.client.hget(
+            TASK_CONFIG.data, query_data.dataset_name
         )
         del_dataset_info = orjson.loads(del_dataset_info)
-        await thirdparty.redis.handler.redis_async.client.hdel(
-            params.TASK_CONFIG.data, query_data.dataset_name
-        )
+        await redis_async.client.hdel(TASK_CONFIG.data, query_data.dataset_name)
 
     except Exception as e:
         accel_logger.error(f"Database error: {e}")
@@ -316,9 +306,7 @@ async def delete_dataset(dataset_name: Annotated[str, Query(...)]):
 
     try:
         await utils.async_del_dataset(
-            dataset_info_file=os.path.join(
-                params.COMMON_CONFIG.data_path, DATASET_INFO_FILE
-            ),
+            dataset_info_file=os.path.join(COMMON_CONFIG.data_path, DATASET_INFO_FILE),
             del_dataset_name=query_data.dataset_name,
         )
 
