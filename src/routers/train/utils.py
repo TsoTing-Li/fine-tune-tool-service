@@ -88,20 +88,22 @@ def del_train(path: str) -> str:
     return path
 
 
-async def async_clear_exists_path(train_path: str) -> None:
-    is_exists = await aiofiles.os.path.exists(train_path)
+async def async_clear_last_checkpoint(train_path: str) -> None:
+    for method in {"full", "lora"}:
+        checkpoint_path = os.path.join(train_path, method)
+        is_exists = await aiofiles.os.path.exists(checkpoint_path)
 
-    if is_exists:
-        if not await aiofiles.os.path.isdir(train_path):
-            return
+        if is_exists:
+            if not await aiofiles.os.path.isdir(checkpoint_path):
+                return
 
-        for item in await asyncio.to_thread(os.listdir, train_path):
-            item_path = os.path.join(train_path, item)
+            for item in await asyncio.to_thread(os.listdir, checkpoint_path):
+                item_path = os.path.join(checkpoint_path, item)
 
-            if await aiofiles.os.path.isfile(item_path):
-                await aiofiles.os.remove(item_path)
-            elif await aiofiles.os.path.isdir(item_path):
-                await asyncio.to_thread(shutil.rmtree, item_path)
+                if await aiofiles.os.path.isfile(item_path):
+                    await aiofiles.os.remove(item_path)
+                elif await aiofiles.os.path.isdir(item_path):
+                    await asyncio.to_thread(shutil.rmtree, item_path)
 
 
 async def async_clear_file(paths: List[str]) -> None:
