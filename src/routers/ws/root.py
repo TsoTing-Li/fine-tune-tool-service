@@ -123,39 +123,6 @@ async def quantize_log(websocket: WebSocket, id: str):
         await websocket.close()
 
 
-@router.websocket("/mergeLogs/{id}")
-async def merge_log(websocket: WebSocket, id: str):
-    await websocket.accept()
-    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-
-    try:
-        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            async for log in api_handler.get_container_log(
-                aclient=aclient, container_name_or_id=id
-            ):
-                for log_split in log.splitlines():
-                    if log_split == "":
-                        break
-                    elif log_split[0] in ("\x01", "\x02"):
-                        log_split = log_split[8:]
-
-                    accel_logger.info(f"mergeLog: {log_split}")
-                    await websocket.send_json({"mergeLog": log_split})
-        await websocket.send_json({"mergeLog": "merge finish"})
-
-    except WebSocketDisconnect:
-        accel_logger.info("mergeLog: Client disconnected")
-
-    except ValueError as e:
-        accel_logger.info(f"mergeLog: {e}")
-
-    except Exception as e:
-        accel_logger.error(f"mergeLog: Unexpected error: {e}")
-
-    finally:
-        await websocket.close()
-
-
 @router.websocket("/hwInfo")
 async def hw_info_log(websocket: WebSocket):
     await websocket.accept()
