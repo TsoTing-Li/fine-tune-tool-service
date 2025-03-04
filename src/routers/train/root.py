@@ -68,6 +68,7 @@ async def start_train(request_data: schema.PostStartTrain):
                 ),
             ],
             train_name=request_data.train_name,
+            is_deepspeed=True if info["train_args"].get("deepspeed", None) else False,
         )
 
     except Exception as e:

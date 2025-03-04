@@ -111,8 +111,13 @@ async def async_clear_ds_config(ds_path: str) -> None:
         await aiofiles.os.remove(ds_path)
 
 
-async def run_train(image_name: str, cmd: list, train_name: str) -> str:
+async def run_train(
+    image_name: str, cmd: list, train_name: str, is_deepspeed: bool
+) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    env_var = [f"HF_HOME={COMMON_CONFIG.hf_home}"]
+    if is_deepspeed:
+        env_var.append("FORCE_TORCHRUN=1")
     data = {
         "User": "root",
         "Image": image_name,
@@ -128,7 +133,7 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
             ],
         },
         "Cmd": cmd,
-        "Env": [f"HF_HOME={COMMON_CONFIG.hf_home}"],
+        "Env": env_var,
     }
 
     try:
