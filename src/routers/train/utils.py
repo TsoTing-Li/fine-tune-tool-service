@@ -9,14 +9,13 @@ import httpx
 import yaml
 from fastapi import HTTPException, UploadFile, status
 
+from src.config.params import COMMON_CONFIG
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
     stop_container,
 )
 from src.utils.logger import accel_logger
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 def basemodel2dict(data) -> dict:
@@ -84,28 +83,20 @@ async def write_yaml(path: str, data: dict) -> None:
         raise OSError(f"Unexpected error: {e}") from None
 
 
-async def get_yaml_content(path: str) -> dict:
-    async with aiofiles.open(path) as af:
-        content = await af.read()
-
-    return yaml.safe_load(content)
-
-
 def del_train(path: str) -> str:
     shutil.rmtree(path)
     return path
 
 
-async def async_clear_exists_path(train_name: str) -> None:
-    train_args = await get_yaml_content(f"{SAVE_PATH}/{train_name}/{train_name}.yaml")
-    is_exists = await aiofiles.os.path.exists(train_args["output_dir"])
+async def async_clear_exists_path(train_path: str) -> None:
+    is_exists = await aiofiles.os.path.exists(train_path)
 
     if is_exists:
-        if not await aiofiles.os.path.isdir(train_args["output_dir"]):
+        if not await aiofiles.os.path.isdir(train_path):
             return
 
-        for item in await asyncio.to_thread(os.listdir, train_args["output_dir"]):
-            item_path = os.path.join(train_args["output_dir"], item)
+        for item in await asyncio.to_thread(os.listdir, train_path):
+            item_path = os.path.join(train_path, item)
 
             if await aiofiles.os.path.isfile(item_path):
                 await aiofiles.os.remove(item_path)
@@ -113,16 +104,15 @@ async def async_clear_exists_path(train_name: str) -> None:
                 await asyncio.to_thread(shutil.rmtree, item_path)
 
 
-async def async_clear_ds_config(train_name: str):
-    train_args = await get_yaml_content(f"{SAVE_PATH}/{train_name}/{train_name}.yaml")
-    if train_args.get("deepspeed"):
-        await aiofiles.os.remove(train_args["deepspeed"])
+async def async_clear_ds_config(ds_path: str) -> None:
+    is_exists = await aiofiles.os.path.exists(ds_path)
+
+    if is_exists:
+        await aiofiles.os.remove(ds_path)
 
 
 async def run_train(image_name: str, cmd: list, train_name: str) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    hf_home = os.environ["HF_HOME"]
-    root_path = os.environ["ROOT_PATH"]
     data = {
         "User": "root",
         "Image": image_name,
@@ -132,13 +122,13 @@ async def run_train(image_name: str, cmd: list, train_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{hf_home}:{hf_home}:rw",
-                f"{root_path}/data:/app/data:rw",
-                f"{root_path}/saves/{train_name}:{SAVE_PATH}/{train_name}:rw",
+                f"{COMMON_CONFIG.hf_home}:{COMMON_CONFIG.hf_home}:rw",
+                f"{COMMON_CONFIG.root_path}/data:{COMMON_CONFIG.data_path}:rw",
+                f"{COMMON_CONFIG.root_path}/saves/{train_name}:{COMMON_CONFIG.save_path}/{train_name}:rw",
             ],
         },
         "Cmd": cmd,
-        "Env": [f"HF_HOME={hf_home}"],
+        "Env": [f"HF_HOME={COMMON_CONFIG.hf_home}"],
     }
 
     try:

@@ -34,7 +34,24 @@ async def start_train(request_data: schema.PostStartTrain):
     error_handler = ResponseErrorHandler()
 
     try:
-        await utils.async_clear_exists_path(train_name=request_data.train_name)
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
+        info = orjson.loads(info)
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        await utils.async_clear_exists_path(train_path=info["train_args"]["output_dir"])
         container_name = await utils.run_train(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
@@ -67,8 +84,6 @@ async def start_train(request_data: schema.PostStartTrain):
         ) from None
 
     try:
-        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
-        info = orjson.loads(info)
         info["container"]["train"]["status"] = "active"
         info["container"]["train"]["id"] = container_name
         await redis_async.client.hset(
@@ -459,6 +474,13 @@ async def modify_train(
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
 
+        await utils.async_clear_ds_config(
+            ds_path=os.path.join(
+                COMMON_CONFIG.save_path,
+                request_data.train_name,
+                f"ds_config_{request_data.train_name}.json",
+            )
+        )
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args.model_dump()
             ds_api_response = await utils.call_ds_api(
@@ -467,8 +489,6 @@ async def modify_train(
                 ds_file=request_data.deepspeed_file,
             )
             train_args["deepspeed"] = ds_api_response["ds_path"]
-        else:
-            await utils.async_clear_ds_config(train_name=request_data.train_name)
 
         await utils.write_yaml(
             path=os.path.join(

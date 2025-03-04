@@ -5,10 +5,9 @@ import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
+from src.config.params import COMMON_CONFIG
 from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
 
 
 class PostTrain(BaseModel):
@@ -207,7 +206,9 @@ class PostStartTrain(BaseModel):
         try:
             if not redis_sync.client.hexists(
                 "TRAIN", self.train_name
-            ) or not os.path.exists(os.path.join(SAVE_PATH, self.train_name)):
+            ) or not os.path.exists(
+                os.path.join(COMMON_CONFIG.save_path, self.train_name)
+            ):
                 raise KeyError("train_name does not exists")
 
             info = redis_sync.client.hget("TRAIN", self.train_name)
