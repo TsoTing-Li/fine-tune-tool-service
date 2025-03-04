@@ -592,7 +592,12 @@ async def modify_train(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["train_args"] = train_args
-        info["container"]["train"]["status"] = "setup"
+        info["container"] = {
+            "train": {"status": "setup", "id": None},
+            "eval": {"status": "setup", "id": None},
+            "quantize": {"status": "setup", "id": None},
+            "infer_backend": {"status": "setup", "id": None},
+        }
         info["modified_time"] = modified_time
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
