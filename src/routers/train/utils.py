@@ -1,7 +1,7 @@
 import asyncio
 import os
 import shutil
-from typing import Literal, Union
+from typing import List, Literal, Union
 
 import aiofiles
 import aiofiles.os
@@ -104,11 +104,13 @@ async def async_clear_exists_path(train_path: str) -> None:
                 await asyncio.to_thread(shutil.rmtree, item_path)
 
 
-async def async_clear_file(file_path: str) -> None:
-    is_exists = await aiofiles.os.path.exists(file_path)
+async def async_clear_file(paths: List[str]) -> None:
+    async def delete_file(file_path: str) -> None:
+        is_exists = await aiofiles.os.path.exists(file_path)
+        if is_exists:
+            await aiofiles.os.remove(file_path)
 
-    if is_exists:
-        await aiofiles.os.remove(file_path)
+    await asyncio.gather(*(delete_file(path) for path in paths))
 
 
 async def run_train(

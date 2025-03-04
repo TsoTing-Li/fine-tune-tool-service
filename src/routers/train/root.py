@@ -51,6 +51,14 @@ async def start_train(request_data: schema.PostStartTrain):
         ) from None
 
     try:
+        commands = [
+            f"llamafactory-cli train {os.path.join(COMMON_CONFIG.save_path, request_data.train_name, f'{request_data.train_name}.yaml')}"
+        ]
+        if info["train_args"]["finetuning_type"] == "lora":
+            commands.append(
+                f"llamafactory-cli export {os.path.join(COMMON_CONFIG.save_path, request_data.train_name, 'export.yaml')}"
+            )
+
         await utils.async_clear_exists_path(train_path=info["train_args"]["output_dir"])
         container_name = await utils.run_train(
             image_name=assemble_image_name(
@@ -58,15 +66,7 @@ async def start_train(request_data: schema.PostStartTrain):
                 repository=COMMON_CONFIG.repository,
                 tag=FINETUNETOOL_CONFIG.tag,
             ),
-            cmd=[
-                "llamafactory-cli",
-                "train",
-                os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.train_name,
-                    f"{request_data.train_name}.yaml",
-                ),
-            ],
+            cmd=["sh", "-c", " && ".join(commands)],
             train_name=request_data.train_name,
             is_deepspeed=True if info["train_args"].get("deepspeed", None) else False,
         )
@@ -264,6 +264,26 @@ async def add_train(
         train_path = utils.add_train_path(
             path=os.path.join(COMMON_CONFIG.save_path, request_data.train_name)
         )
+
+        if train_args["finetuning_type"] == "lora":
+            export_data = {
+                "adapter_name_or_path": train_args["output_dir"],
+                "export_dir": os.path.join(
+                    COMMON_CONFIG.save_path, request_data.train_name, "merge"
+                ),
+                "export_size": 5,
+                "export_device": "auto",
+                "export_legacy_format": False,
+                "model_name_or_path": train_args["model_name_or_path"],
+                "template": train_args["template"],
+                "finetuning_type": train_args["finetuning_type"],
+            }
+            await utils.write_yaml(
+                path=os.path.join(
+                    COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
+                ),
+                data=export_data,
+            )
 
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args.model_dump()
@@ -476,12 +496,40 @@ async def modify_train(
         train_args["do_train"] = True
 
         await utils.async_clear_file(
-            file_path=os.path.join(
-                COMMON_CONFIG.save_path,
-                request_data.train_name,
-                f"ds_config_{request_data.train_name}.json",
-            )
+            paths=[
+                os.path.join(
+                    COMMON_CONFIG.save_path,
+                    request_data.train_name,
+                    "export.yaml",
+                ),
+                os.path.join(
+                    COMMON_CONFIG.save_path,
+                    request_data.train_name,
+                    f"ds_config_{request_data.train_name}.json",
+                ),
+            ]
         )
+
+        if train_args["finetuning_type"] == "lora":
+            export_data = {
+                "adapter_name_or_path": train_args["output_dir"],
+                "export_dir": os.path.join(
+                    COMMON_CONFIG.save_path, request_data.train_name, "merge"
+                ),
+                "export_size": 5,
+                "export_device": "auto",
+                "export_legacy_format": False,
+                "model_name_or_path": train_args["model_name_or_path"],
+                "template": train_args["template"],
+                "finetuning_type": train_args["finetuning_type"],
+            }
+            await utils.write_yaml(
+                path=os.path.join(
+                    COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
+                ),
+                data=export_data,
+            )
+
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args.model_dump()
             ds_api_response = await utils.call_ds_api(
