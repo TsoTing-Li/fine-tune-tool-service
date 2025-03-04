@@ -568,6 +568,13 @@ async def modify_train(
             data=train_args,
         )
 
+    except HTTPException as e:
+        accel_logger.error(f"DeepSpeed default error: {e.detail['detail']}")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.detail["detail"],
+        ) from None
+
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
