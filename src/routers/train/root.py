@@ -650,7 +650,7 @@ async def delete_train(train_name: Annotated[str, Query(...)]):
         ) from None
 
     try:
-        utils.del_train(
+        await utils.del_train(
             path=os.path.join(COMMON_CONFIG.save_path, query_data.train_name)
         )
 

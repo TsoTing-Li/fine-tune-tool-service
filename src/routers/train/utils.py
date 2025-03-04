@@ -83,9 +83,8 @@ async def write_yaml(path: str, data: dict) -> None:
         raise OSError(f"Unexpected error: {e}") from None
 
 
-def del_train(path: str) -> str:
-    shutil.rmtree(path)
-    return path
+async def del_train(path: str) -> None:
+    await asyncio.to_thread(shutil.rmtree, path)
 
 
 async def async_clear_last_checkpoint(train_path: str) -> None:
