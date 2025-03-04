@@ -7,7 +7,6 @@ import src.routers.deepspeed.root
 import src.routers.evaluate.root
 import src.routers.hf.root
 import src.routers.infer_backend.root
-import src.routers.merge.root
 import src.routers.ollama.root
 import src.routers.quantize.root
 import src.routers.train.root
@@ -22,7 +21,6 @@ acceltune_api.include_router(src.routers.train.root.router)
 acceltune_api.include_router(src.routers.quantize.root.router)
 acceltune_api.include_router(src.routers.ws.root.router)
 acceltune_api.include_router(src.routers.vllm.root.router)
-acceltune_api.include_router(src.routers.merge.root.router)
 acceltune_api.include_router(src.routers.chat.root.router)
 acceltune_api.include_router(src.routers.evaluate.root.router)
 acceltune_api.include_router(src.routers.accelbrain.root.router)
