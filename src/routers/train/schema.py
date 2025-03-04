@@ -35,7 +35,7 @@ class DeepSpeedArgs(BaseModel):
 
 
 class Method(BaseModel):
-    stage: Literal["sft"] = "sft"
+    stage: Literal["sft"]
     finetuning_type: Literal["full", "lora"]
     lora_target: Union[str, None] = None
 
@@ -62,7 +62,7 @@ class Method(BaseModel):
 
 class Dataset(BaseModel):
     dataset: List[str]
-    template: Literal["llama3", "gemma", "qwen", "mistral"]
+    template: str
     cutoff_len: int
     max_samples: int
     overwrite_cache: bool
@@ -70,8 +70,8 @@ class Dataset(BaseModel):
 
 
 class Output(BaseModel):
-    logging_steps: int = 5
-    save_steps: int = 5
+    logging_steps: int
+    save_steps: int
     plot_loss: bool = False
     overwrite_output_dir: bool = False
     log_level: str = "info"
@@ -96,7 +96,7 @@ class Params(BaseModel):
         "warmup_stable_decay",
     ]
     warmup_ratio: float
-    bf16: bool = True
+    bf16: bool
     ddp_timeout: int
 
     @model_validator(mode="after")
@@ -121,13 +121,21 @@ class Params(BaseModel):
 
 
 class Val(BaseModel):
-    val_size: float = 0.1
-    per_device_eval_batch_size: int = 1
-    eval_strategy: Literal["steps"] = "steps"
+    val_size: float
+    per_device_eval_batch_size: int
+    eval_strategy: Literal["steps"]
 
     @model_validator(mode="after")
     def check(self: "Val") -> "Val":
         error_handler = ResponseErrorHandler()
+
+        if self.val_size > 1.0 or self.val_size < 0.1:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="val_size must be between 0.1 and 1.0",
+                input={"val_size": self.val_size},
+            )
 
         if self.per_device_eval_batch_size <= 0:
             error_handler.add(
