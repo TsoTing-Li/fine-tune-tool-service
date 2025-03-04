@@ -104,11 +104,11 @@ async def async_clear_exists_path(train_path: str) -> None:
                 await asyncio.to_thread(shutil.rmtree, item_path)
 
 
-async def async_clear_ds_config(ds_path: str) -> None:
-    is_exists = await aiofiles.os.path.exists(ds_path)
+async def async_clear_file(file_path: str) -> None:
+    is_exists = await aiofiles.os.path.exists(file_path)
 
     if is_exists:
-        await aiofiles.os.remove(ds_path)
+        await aiofiles.os.remove(file_path)
 
 
 async def run_train(

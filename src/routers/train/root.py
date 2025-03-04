@@ -475,8 +475,8 @@ async def modify_train(
         train_args["eval_steps"] = train_args["save_steps"]
         train_args["do_train"] = True
 
-        await utils.async_clear_ds_config(
-            ds_path=os.path.join(
+        await utils.async_clear_file(
+            file_path=os.path.join(
                 COMMON_CONFIG.save_path,
                 request_data.train_name,
                 f"ds_config_{request_data.train_name}.json",
