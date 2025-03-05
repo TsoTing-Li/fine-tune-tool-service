@@ -4,13 +4,12 @@ from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 
 from src.routers.chat import schema, utils, validator
+from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 from src.utils.utils import generate_uuid
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
-
-active_requests = dict()
 
 
 @router.post("/stream/start/")
@@ -19,7 +18,7 @@ async def start_chat(request_data: schema.PostStartChat):
 
     try:
         request_id = generate_uuid()
-        active_requests[request_id] = "processing"
+        await redis_async.client.hset("chat_requests", request_id, "processing")
 
         return StreamingResponse(
             utils.post_openai_chat(
@@ -27,7 +26,6 @@ async def start_chat(request_data: schema.PostStartChat):
                 model_service=request_data.model_service,
                 model_name=request_data.chat_model_name,
                 messages=request_data.messages,
-                active_requests=active_requests,
             ),
             status_code=status.HTTP_200_OK,
             media_type="text/event-stream",
@@ -48,13 +46,16 @@ async def start_chat(request_data: schema.PostStartChat):
 
 @router.post("/stream/stop/")
 async def stop_chat(request_data: schema.PostStopChat):
-    validator.PostStopChat(
-        request_id=request_data.request_id, active_requests=active_requests
-    )
+    validator.PostStopChat(request_id=request_data.request_id)
     error_handler = ResponseErrorHandler()
 
     try:
-        active_requests[request_data.request_id] = "cancelled"
+        await redis_async.client.hset(
+            "chat_requests", request_data.request_id, "cancelled"
+        )
+        await redis_async.client.publish(
+            "chat_requests", f"{request_data.request_id}:cancelled"
+        )
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
@@ -70,8 +71,11 @@ async def stop_chat(request_data: schema.PostStopChat):
         ) from None
 
     finally:
-        if active_requests.get(request_data.request_id):
-            active_requests.pop(request_data.request_id, None)
+        request_id_exitst = await redis_async.client.hexists(
+            "chat_requests", request_data.request_id
+        )
+        if request_id_exitst:
+            await redis_async.client.hdel("chat_requests", request_data.request_id)
 
     return Response(
         content=json.dumps({"request_id": request_data.request_id}),
