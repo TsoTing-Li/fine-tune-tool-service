@@ -439,7 +439,7 @@ async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
 async def modify_train(
     train_name: str = Form(...),
     model_name_or_path: str = Form(...),
-    finetuning_type: str = Form(...),
+    finetuning_type: Literal["full", "lora"] = Form(...),
     dataset: List[str] = Form(...),
     template: str = Form(...),
     cutoff_len: int = Form(...),
