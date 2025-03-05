@@ -221,6 +221,10 @@ async def add_train(
         "output": {
             "logging_steps": save_steps,
             "save_steps": save_steps,
+            "plot_loss": False,
+            "overwrite_output_dir": False,
+            "log_level": "info",
+            "logging_first_step": True,
         },
         "params": {
             "per_device_train_batch_size": per_device_train_batch_size,
@@ -484,6 +488,10 @@ async def modify_train(
         "output": {
             "logging_steps": save_steps,
             "save_steps": save_steps,
+            "plot_loss": False,
+            "overwrite_output_dir": False,
+            "log_level": "info",
+            "logging_first_step": True,
         },
         "params": {
             "per_device_train_batch_size": per_device_train_batch_size,

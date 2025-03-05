@@ -2,7 +2,7 @@ import re
 from typing import List, Literal, Union
 
 from fastapi import HTTPException, UploadFile, status
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from src.utils.error import ResponseErrorHandler
 
@@ -51,10 +51,10 @@ class Dataset(BaseModel):
 class Output(BaseModel):
     logging_steps: int
     save_steps: int
-    plot_loss: bool = False
-    overwrite_output_dir: bool = False
-    log_level: str = "info"
-    logging_first_step: bool = True
+    plot_loss: bool
+    overwrite_output_dir: bool
+    log_level: str
+    logging_first_step: bool
 
 
 class Params(BaseModel):
@@ -145,11 +145,11 @@ class TrainArgs(BaseModel):
         protected_namespaces=()
     )  # solve can not start with "model_"
     model_name_or_path: str
-    method: Method = Field(default_factory=Method)
-    dataset: Dataset = Field(default_factory=Dataset)
-    output: Output = Field(default_factory=Output)
-    params: Params = Field(default_factory=Params)
-    val: Val = Field(default_factory=Val)
+    method: Method
+    dataset: Dataset
+    output: Output
+    params: Params
+    val: Val
     lora: Union[Lora, None]
 
     @model_validator(mode="after")
