@@ -115,7 +115,11 @@ async def async_clear_file(paths: List[str]) -> None:
 
 
 async def run_train(
-    image_name: str, cmd: list, train_name: str, is_deepspeed: bool
+    image_name: str,
+    cmd: list,
+    docker_network_name: str,
+    train_name: str,
+    is_deepspeed: bool,
 ) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     env_var = [f"HF_HOME={COMMON_CONFIG.hf_home}"]
@@ -134,6 +138,7 @@ async def run_train(
                 f"{COMMON_CONFIG.root_path}/data:{COMMON_CONFIG.data_path}:rw",
                 f"{COMMON_CONFIG.root_path}/saves/{train_name}:{COMMON_CONFIG.save_path}/{train_name}:rw",
             ],
+            "NetworkMode": docker_network_name,
         },
         "Cmd": cmd,
         "Env": env_var,

@@ -14,7 +14,12 @@ from fastapi import (
     status,
 )
 
-from src.config.params import COMMON_CONFIG, FINETUNETOOL_CONFIG, TASK_CONFIG
+from src.config.params import (
+    COMMON_CONFIG,
+    DOCKERNETWORK_CONFIG,
+    FINETUNETOOL_CONFIG,
+    TASK_CONFIG,
+)
 from src.routers.train import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
@@ -69,6 +74,7 @@ async def start_train(request_data: schema.PostStartTrain):
                 tag=FINETUNETOOL_CONFIG.tag,
             ),
             cmd=["sh", "-c", " && ".join(commands)],
+            docker_network_name=DOCKERNETWORK_CONFIG.network_name,
             train_name=request_data.train_name,
             is_deepspeed=True if info["train_args"].get("deepspeed", None) else False,
         )
