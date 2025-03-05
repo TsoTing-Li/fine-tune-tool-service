@@ -59,7 +59,9 @@ async def start_train(request_data: schema.PostStartTrain):
                 f"llamafactory-cli export {os.path.join(COMMON_CONFIG.save_path, request_data.train_name, 'export.yaml')}"
             )
 
-        await utils.async_clear_exists_path(train_path=info["train_args"]["output_dir"])
+        await utils.async_clear_last_checkpoint(
+            train_path=os.path.dirname(info["train_args"]["output_dir"])
+        )
         container_name = await utils.run_train(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
