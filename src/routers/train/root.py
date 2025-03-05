@@ -165,7 +165,6 @@ async def add_train(
     train_name: str = Form(None),
     model_name_or_path: str = Form(...),
     finetuning_type: Literal["full", "lora"] = Form(...),
-    lora_target: str = Form(None),
     dataset: List[str] = Form(...),
     template: str = Form(...),
     cutoff_len: int = Form(1024),
@@ -194,6 +193,10 @@ async def add_train(
     ddp_timeout: int = Form(180000000),
     val_size: float = Form(0.1),
     per_device_eval_batch_size: int = Form(1),
+    lora_alpha: int = Form(None),
+    lora_dropout: float = Form(0.0),
+    lora_rank: int = Form(8),
+    lora_target: List[str] = Form(["all"]),
     deepspeed_src: str = Form(None),
     deepspeed_stage: str = Form(None),
     deepspeed_enable_offload: bool = Form(False),
@@ -206,7 +209,6 @@ async def add_train(
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
-            "lora_target": lora_target,
         },
         "dataset": {
             "dataset": dataset,
@@ -235,6 +237,14 @@ async def add_train(
             "per_device_eval_batch_size": per_device_eval_batch_size,
             "eval_strategy": "steps",
         },
+        "lora": {
+            "lora_alpha": lora_alpha,
+            "lora_dropout": lora_dropout,
+            "lora_rank": lora_rank,
+            "lora_target": lora_target,
+        }
+        if finetuning_type == "lora"
+        else None,
     }
 
     deepspeed_args = (
@@ -276,6 +286,13 @@ async def add_train(
         )
 
         if train_args["finetuning_type"] == "lora":
+            train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
+            train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
+            train_args["lora_rank"] = request_data.train_args.lora.lora_rank
+            train_args["lora_target"] = ", ".join(
+                request_data.train_args.lora.lora_target
+            )
+
             export_data = {
                 "adapter_name_or_path": train_args["output_dir"],
                 "export_dir": os.path.join(
@@ -411,7 +428,6 @@ async def modify_train(
     train_name: str = Form(...),
     model_name_or_path: str = Form(...),
     finetuning_type: str = Form(...),
-    lora_target: str = Form(None),
     dataset: List[str] = Form(...),
     template: str = Form(...),
     cutoff_len: int = Form(...),
@@ -440,6 +456,10 @@ async def modify_train(
     ddp_timeout: int = Form(...),
     val_size: float = Form(...),
     per_device_eval_batch_size: int = Form(...),
+    lora_alpha: int = Form(None),
+    lora_dropout: float = Form(None),
+    lora_rank: int = Form(None),
+    lora_target: List[str] = Form(None),
     deepspeed_src: str = Form(None),
     deepspeed_stage: str = Form(None),
     deepspeed_enable_offload: bool = Form(False),
@@ -452,7 +472,6 @@ async def modify_train(
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
-            "lora_target": lora_target,
         },
         "dataset": {
             "dataset": dataset,
@@ -481,6 +500,14 @@ async def modify_train(
             "per_device_eval_batch_size": per_device_eval_batch_size,
             "eval_strategy": "steps",
         },
+        "lora": {
+            "lora_alpha": lora_alpha,
+            "lora_dropout": lora_dropout,
+            "lora_rank": lora_rank,
+            "lora_target": lora_target,
+        }
+        if finetuning_type == "lora"
+        else None,
     }
 
     deepspeed_args = (
@@ -531,6 +558,15 @@ async def modify_train(
         )
 
         if train_args["finetuning_type"] == "lora":
+            train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
+            train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
+            train_args["lora_rank"] = request_data.train_args.lora.lora_rank
+            train_args["lora_target"] = (
+                ", ".join(request_data.train_args.lora.lora_target)
+                if request_data.train_args.lora.lora_target
+                else None
+            )
+
             export_data = {
                 "adapter_name_or_path": train_args["output_dir"],
                 "export_dir": os.path.join(

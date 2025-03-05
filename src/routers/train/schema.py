@@ -37,27 +37,6 @@ class DeepSpeedArgs(BaseModel):
 class Method(BaseModel):
     stage: Literal["sft"]
     finetuning_type: Literal["full", "lora"]
-    lora_target: Union[str, None] = None
-
-    @model_validator(mode="after")
-    def check(self: "Method") -> "Method":
-        error_handler = ResponseErrorHandler()
-
-        if self.finetuning_type == "lora" and not self.lora_target:
-            error_handler.add(
-                type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
-                msg="'lora_target' can not be empty when 'finetuning_type' is 'lora'",
-                input={"lora_target": self.lora_target},
-            )
-
-        if error_handler.errors != []:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=error_handler.errors,
-            )
-
-        return self
 
 
 class Dataset(BaseModel):
@@ -154,6 +133,13 @@ class Val(BaseModel):
         return self
 
 
+class Lora(BaseModel):
+    lora_alpha: Union[int, None]
+    lora_dropout: Union[float, None]
+    lora_rank: Union[int, None]
+    lora_target: Union[List[str], None]
+
+
 class TrainArgs(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=()
@@ -164,6 +150,7 @@ class TrainArgs(BaseModel):
     output: Output = Field(default_factory=Output)
     params: Params = Field(default_factory=Params)
     val: Val = Field(default_factory=Val)
+    lora: Union[Lora, None]
 
     @model_validator(mode="after")
     def check(self: "TrainArgs") -> "TrainArgs":
@@ -226,6 +213,17 @@ class PostTrain(BaseModel):
                     msg="'content_type' must be 'application/json'",
                     input={"deepspeed_file": self.deepspeed_file.content_type},
                 )
+
+        if (
+            self.train_args.method.finetuning_type == "lora"
+            and not self.train_args.lora
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="lora params can not be empty when 'finetuning_type' is 'lora'",
+                input={"lora": self.train_args.lora},
+            )
 
         if error_handler.errors != []:
             raise HTTPException(
@@ -301,6 +299,17 @@ class PutTrain(BaseModel):
                     msg="'content_type' must be 'application/json'",
                     input={"deepspeed_file": self.deepspeed_file.content_type},
                 )
+
+        if (
+            self.train_args.method.finetuning_type == "lora"
+            and not self.train_args.lora
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="lora params can not be empty when 'finetuning_type' is 'lora'",
+                input={"lora": self.train_args.lora},
+            )
 
         if error_handler.errors != []:
             raise HTTPException(
