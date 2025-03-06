@@ -1,8 +1,9 @@
 import json
 import os
+from typing import Annotated, Union
 
 import orjson
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from src.config.params import COMMON_CONFIG, STATUS_CONFIG, TASK_CONFIG
 from src.routers.infer_backend import schema, utils, validator
@@ -149,6 +150,57 @@ async def stop_infer_backend(
 
     return Response(
         content=json.dumps({"stopped_container": stopped_container}),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.get("/")
+async def get_infer_backend(
+    model_name: Annotated[Union[str, None], Query()] = None,
+):
+    query_data = schema.GetInferBackend(model_name=model_name)
+    validator.GetInferBackend(model_name=query_data.model_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        if query_data.model_name:
+            info = await redis_async.client.hget(
+                TASK_CONFIG.train, query_data.model_name
+            )
+            info = orjson.loads(info)
+            infer_backend_info = {
+                "name": info["name"],
+                "loaded": True
+                if info["container"]["infer_backend"]["status"] == STATUS_CONFIG.active
+                else False,
+            }
+        else:
+            info = await redis_async.client.hgetall(TASK_CONFIG.train)
+            infer_backend_info = [
+                {
+                    "name": (value := orjson.loads(v))["name"],
+                    "loaded": value["container"]["infer_backend"]["status"]
+                    == STATUS_CONFIG.active,
+                }
+                for v in info.values()
+            ]
+
+    except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg="Unexpected error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps(infer_backend_info),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )
