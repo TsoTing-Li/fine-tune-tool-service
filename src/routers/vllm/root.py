@@ -43,6 +43,10 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             hf_home=request_data.hf_home,
         )
 
+        await utils.run_vllm_model(
+            vllm_url=f"http://{container_name}:{VLLM_CONFIG.port}"
+        )
+
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(

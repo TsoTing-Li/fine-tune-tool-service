@@ -1,3 +1,5 @@
+import asyncio
+import time
 from typing import Literal
 
 import httpx
@@ -49,6 +51,40 @@ async def start_vllm_container(
         )
 
         return started_container
+
+
+async def health_check(
+    aclient: httpx.AsyncClient,
+    health_check_url: str,
+    timeout: int = 30,
+    interval: int = 2,
+) -> bool:
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            response = await aclient.get(health_check_url)
+            if response.status_code == 200:
+                return True
+
+        except httpx.RequestError:
+            pass
+
+        await asyncio.sleep(interval)
+
+    return False
+
+
+async def run_vllm_model(vllm_url: str) -> None:
+    async with httpx.AsyncClient() as aclient:
+        is_loaded = await health_check(
+            aclient=aclient, health_check_url=f"{vllm_url}/health"
+        )
+
+        if is_loaded:
+            return
+        else:
+            raise RuntimeError("model loading failed")
 
 
 async def stop_vllm_container(
