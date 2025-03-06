@@ -653,7 +653,12 @@ async def modify_train(
             "train": {"status": "setup", "id": None},
             "eval": {"status": "setup", "id": None},
             "quantize": {"status": "setup", "id": None},
-            "infer_backend": {"status": "setup", "id": None},
+            "infer_backend": {
+                "status": "setup",
+                "id": None,
+                "url": None,
+                "type": None,
+            },
         }
         info["modified_time"] = modified_time
         await redis_async.client.hset(
