@@ -68,6 +68,9 @@ async def start_infer_backend(
     try:
         info["container"]["infer_backend"]["status"] = STATUS_CONFIG.active
         info["container"]["infer_backend"]["id"] = model_service_info["container_name"]
+        info["container"]["infer_backend"]["url"] = model_service_info[
+            f"{service_type}_service"
+        ]
         info["container"]["infer_backend"]["type"] = service_type
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.model_name, orjson.dumps(info)
@@ -111,6 +114,7 @@ async def stop_infer_backend(
         info = orjson.loads(info)
         container_id = info["container"]["infer_backend"]["id"]
         info["container"]["infer_backend"]["status"] = "stopped"
+        info["container"]["infer_backend"]["url"] = None
         info["container"]["infer_backend"]["id"] = None
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.model_name, orjson.dumps(info)
@@ -174,6 +178,7 @@ async def get_infer_backend(
                 "loaded": True
                 if info["container"]["infer_backend"]["status"] == STATUS_CONFIG.active
                 else False,
+                "model_service_url": info["container"]["infer_backend"]["url"],
             }
         else:
             info = await redis_async.client.hgetall(TASK_CONFIG.train)
@@ -182,6 +187,7 @@ async def get_infer_backend(
                     "name": (value := orjson.loads(v))["name"],
                     "loaded": value["container"]["infer_backend"]["status"]
                     == STATUS_CONFIG.active,
+                    "model_service_url": value["container"]["infer_backend"]["url"],
                 }
                 for v in info.values()
             ]
