@@ -7,7 +7,7 @@ from src.routers.vllm import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
-router = APIRouter(prefix="/vllm", tags=["VLLM"])
+router = APIRouter(prefix="/vllm", tags=["VLLM"], include_in_schema=False)
 
 
 @router.post("/start/safetensors/")

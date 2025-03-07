@@ -20,7 +20,7 @@ from src.utils.logger import accel_logger
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 
-router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
+router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"], include_in_schema=False)
 
 
 @router.post("/default/")

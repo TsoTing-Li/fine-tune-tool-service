@@ -7,7 +7,11 @@ from src.routers.ollama import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
-router = APIRouter(prefix="/ollama", tags=["Ollama"])
+router = APIRouter(
+    prefix="/ollama",
+    tags=["Ollama"],
+    include_in_schema=False,
+)
 
 
 @router.post("/start/")
