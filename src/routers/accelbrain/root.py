@@ -32,7 +32,7 @@ async def deploy_accelbrain(request_data: schema.PostDeploy):
                 deploy_path=os.path.join(
                     COMMON_CONFIG.save_path,
                     request_data.deploy_name,
-                    "quantize",
+                    "deploy",
                     f"{request_data.deploy_name}.zip",
                 ),
                 accelbrain_url=request_data.accelbrain_url,
