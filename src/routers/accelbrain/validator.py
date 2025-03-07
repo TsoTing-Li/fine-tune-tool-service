@@ -12,7 +12,6 @@ from src.utils.error import ResponseErrorHandler
 
 class PostDeploy(BaseModel):
     deploy_name: str
-    accelbrain_url: str
 
     @model_validator(mode="after")
     def check(self: "PostDeploy") -> "PostDeploy":
@@ -46,7 +45,6 @@ class PostDeploy(BaseModel):
                 msg=f"Unexpected error: {e}",
                 input={
                     "deploy_name": self.deploy_name,
-                    "accelbrain_url": self.accelbrain_url,
                 },
             )
             raise HTTPException(
