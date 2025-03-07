@@ -34,6 +34,7 @@ class ResponseErrorLoc:
     LOC_BODY: Literal["body"] = "body"
     LOC_FORM: Literal["form"] = "form"
     LOC_QUERY: Literal["query"] = "query"
+    LOC_HEADERS: Literal["header"] = "header"
     LOC_PROCESS: Literal["process"] = "process"
     LOC_DATABASE: Literal["database"] = "database"
 
