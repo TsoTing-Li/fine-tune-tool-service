@@ -60,6 +60,7 @@ def get_hf_token():
         token = utils.get_token()
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -75,6 +76,11 @@ def get_hf_token():
         content=json.dumps({"hf_token": token}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 
