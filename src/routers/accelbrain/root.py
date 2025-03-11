@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query, Response, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
 
-from src.config.params import COMMON_CONFIG, TASK_CONFIG
+from src.config.params import COMMON_CONFIG, STATUS_CONFIG, TASK_CONFIG
 from src.routers.accelbrain import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
@@ -17,10 +17,38 @@ from src.utils.utils import get_current_time
 router = APIRouter(prefix="/accelbrain", tags=["Accelbrain"])
 
 
-@router.post("/deploy/")
-async def deploy_accelbrain(request_data: schema.PostDeploy):
-    validator.PostDeploy(deploy_name=request_data.deploy_name)
+@router.post("/deploy/start/")
+async def start_deploy_accelbrain(request_data: schema.PostDeploy):
+    validator.PostDeploy(
+        deploy_name=request_data.deploy_name,
+        accelbrain_device=request_data.accelbrain_device,
+    )
     error_handler = ResponseErrorHandler()
+
+    try:
+        info = await redis_async.client.hget(
+            TASK_CONFIG.accelbrain_device, request_data.accelbrain_device
+        )
+        info = orjson.loads(info)
+        info["deploy_status"][request_data.deploy_name] = STATUS_CONFIG.active
+        await redis_async.client.hset(
+            TASK_CONFIG.accelbrain_device,
+            request_data.accelbrain_device,
+            orjson.dumps(info),
+        )
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
 
     try:
         return StreamingResponse(
@@ -35,7 +63,7 @@ async def deploy_accelbrain(request_data: schema.PostDeploy):
                     "deploy",
                     f"{request_data.deploy_name}.zip",
                 ),
-                accelbrain_url=request_data.accelbrain_url,
+                accelbrain_device_info=info,
             ),
             status_code=status.HTTP_200_OK,
             media_type="text/event-stream",
@@ -108,8 +136,9 @@ async def set_device(request_data: schema.PostDevice):
 
     try:
         device_info = {
-            "device": request_data.accelbrain_device,
+            "name": request_data.accelbrain_device,
             "url": request_data.accelbrain_url,
+            "deploy_status": {},
             "created_time": current_time,
             "modified_time": None,
         }

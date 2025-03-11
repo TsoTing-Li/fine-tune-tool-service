@@ -5,37 +5,63 @@ from fastapi import status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, model_validator
 
-from src.config import params
+from src.config.params import STATUS_CONFIG, TASK_CONFIG
 from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
 
 
 class PostDeploy(BaseModel):
     deploy_name: str
+    accelbrain_device: str
 
     @model_validator(mode="after")
     def check(self: "PostDeploy") -> "PostDeploy":
         error_handler = ResponseErrorHandler()
 
         try:
-            info = redis_sync.client.hget(params.TASK_CONFIG.train, self.deploy_name)
+            train_info = redis_sync.client.hget(TASK_CONFIG.train, self.deploy_name)
+            if not train_info:
+                raise KeyError("deploy_name does not exists")
 
-            if not info:
-                raise ValueError("deploy_name does not exists")
+            accelbrain_info = redis_sync.client.hget(
+                TASK_CONFIG.accelbrain_device, self.accelbrain_device
+            )
+            if not accelbrain_info:
+                raise KeyError("accelbrain_device does not exists")
 
-            if not orjson.loads(info)["container"]["quantize"]["status"] == "finish":
-                raise ValueError("deploy_name has not been quantified yet")
+            if (
+                orjson.loads(accelbrain_info)["deploy_status"][self.deploy_name]
+                == STATUS_CONFIG.active
+            ):
+                raise ValueError("deploy_name is deploying to accelbrain_device ")
+
+        except KeyError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg=f"{e}",
+                input={
+                    "deploy_name": self.deploy_name,
+                    "accelbrain_device": self.accelbrain_device,
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_handler.errors,
+            ) from None
 
         except ValueError as e:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
                 msg=f"{e}",
-                input={"deploy_name": self.deploy_name},
+                input={
+                    "deploy_name": self.deploy_name,
+                    "accelbrain_device": self.accelbrain_device,
+                },
             )
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_handler.errors,
+                status_code=status.HTTP_409_CONFLICT, detail=error_handler.errors
             ) from None
 
         except Exception as e:
@@ -65,11 +91,11 @@ class PostDevice(BaseModel):
 
         try:
             if redis_sync.client.hexists(
-                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
+                TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
-                raise ValueError("accelbrain_device already exists")
+                raise KeyError("accelbrain_device already exists")
 
-        except ValueError as e:
+        except KeyError as e:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
@@ -106,12 +132,12 @@ class GetDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if self.accelbrain_device and not redis_sync.client.hexists(
-                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
+            if self.accelbrain_device is not None and not redis_sync.client.hexists(
+                TASK_CONFIG.accelbrain_device, self.accelbrain_device
             ):
-                raise ValueError("accelbrain_device does not exists")
+                raise KeyError("accelbrain_device does not exists")
 
-        except ValueError as e:
+        except KeyError as e:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
@@ -141,19 +167,37 @@ class GetDevice(BaseModel):
 
 class PutDevice(BaseModel):
     accelbrain_device: str
-    accelbrain_url: str
 
     @model_validator(mode="after")
     def check(self: "PutDevice") -> "PutDevice":
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis_sync.client.hexists(
-                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
-            ):
+            accelbrain_info = redis_sync.client.hget(
+                TASK_CONFIG.accelbrain_device, self.accelbrain_device
+            )
+
+            if not accelbrain_info:
                 raise ValueError("accelbrain_device does not exists")
 
+            if any(
+                status == STATUS_CONFIG.active
+                for status in orjson.loads(accelbrain_info)["deploy_status"].values()
+            ):
+                raise KeyError("accelbrain_device is executing deploy")
+
         except ValueError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg=f"{e}",
+                input={"accelbrain_device": self.accelbrain_device},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            ) from None
+
+        except KeyError as e:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
@@ -171,7 +215,6 @@ class PutDevice(BaseModel):
                 msg=f"{e}",
                 input={
                     "accelbrain_device": self.accelbrain_device,
-                    "accelbrain_url": self.accelbrain_url,
                 },
             )
             raise HTTPException(
@@ -190,10 +233,18 @@ class DelDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis_sync.client.hexists(
-                params.TASK_CONFIG.accelbrain_device, self.accelbrain_device
-            ):
+            accelbrain_info = redis_sync.client.hget(
+                TASK_CONFIG.accelbrain_device, self.accelbrain_device
+            )
+
+            if not accelbrain_info:
                 raise ValueError("accelbrain_device does not exists")
+
+            if any(
+                status == STATUS_CONFIG.active
+                for status in orjson.loads(accelbrain_info)["deploy_status"].values()
+            ):
+                raise KeyError("accelbrain_device is executing deploy")
 
         except ValueError as e:
             error_handler.add(
@@ -204,6 +255,17 @@ class DelDevice(BaseModel):
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            ) from None
+
+        except KeyError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg=f"{e}",
+                input={"accelbrain_device": self.accelbrain_device},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=error_handler.errors
             ) from None
 
         except Exception as e:

@@ -10,7 +10,27 @@ import httpx
 import orjson
 from fastapi import status
 
+from src.config.params import MAINSERVICE_CONFIG, STATUS_CONFIG, TASK_CONFIG
 from src.thirdparty.redis.handler import redis_async
+
+
+async def call_internal_quantize_api(quantize_name: str) -> None:
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        response = await aclient.post(
+            f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/quantize/start/",
+            json={"quantize_name": quantize_name},
+        )
+
+        if response.status_code == status.HTTP_200_OK:
+            return
+        elif response.status_code == status.HTTP_404_NOT_FOUND:
+            raise KeyError(f"{response.json()['detail'][0]['msg']}")
+        elif response.status_code == status.HTTP_409_CONFLICT:
+            raise ValueError(f"{response.json()['detail'][0]['msg']}")
+        elif response.status_code == 499:
+            raise ConnectionResetError(f"{response.json()['detail'][0]['msg']}")
+        elif response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+            raise RuntimeError(f"{response.json()['detail'][0]['msg']}")
 
 
 async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
@@ -88,13 +108,21 @@ async def async_file_generator(
             while data := await af.read(chunk_size):
                 uploaded_size += len(data)
                 upload_progress = round((uploaded_size / file_size), 2)
-                await redis_async.client.rpush(
-                    f"{model_name}-upload_progress", upload_progress
-                )
+
+                try:
+                    await redis_async.client.rpush(
+                        f"{model_name}-upload_progress", upload_progress
+                    )
+                except Exception as e:
+                    raise RuntimeError(f"Database error: {e}") from None
+
                 yield data
 
     except FileNotFoundError as e:
         raise FileNotFoundError(f"{e}") from None
+
+    except Exception as e:
+        raise RuntimeError(f"{e}") from None
 
 
 async def generate_multi_part(
@@ -135,24 +163,17 @@ async def call_accelbrain_deploy(
             {
                 "AccelTune": {
                     "status": status.HTTP_200_OK,
-                    "message": {"action": "Start compress file", "progress": 0.0},
-                    "detail": {"model_name": model_name},
+                    "message": {
+                        "action": "Start compress file",
+                        "progress": 0.0,
+                        "detail": {"model_name": model_name},
+                    },
                 }
             }
         )
     )
+    os.makedirs(os.path.dirname(deploy_path), exist_ok=True)
     zip_folder_and_get_hash(path=file_path, zip_path=deploy_path)
-    yield (
-        orjson.dumps(
-            {
-                "AccelTune": {
-                    "status": status.HTTP_200_OK,
-                    "message": {"action": "Finish compress file", "progress": 0.0},
-                    "detail": {"model_name": model_name},
-                }
-            }
-        )
-    )
 
     async with httpx.AsyncClient(timeout=None) as aclient:
         async with aclient.stream(
@@ -232,16 +253,63 @@ async def merge_async_generators(
                 tasks[asyncio.create_task(gen.__anext__())] = gen
 
 
+async def update_deploy_status(name: str, key: str, value: str, model_name: str) -> str:
+    try:
+        await redis_async.client.hset(name, key, value)
+        return orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": status.HTTP_200_OK,
+                    "message": {
+                        "action": "Update database successfully",
+                        "progress": 1.0,
+                        "detail": {"model_name": model_name},
+                    },
+                }
+            }
+        )
+    except Exception as e:
+        return orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": {
+                        "action": "Database error",
+                        "progress": -1,
+                        "detail": {"error": f"{e}"},
+                    },
+                }
+            }
+        )
+
+
 async def deploy_to_accelbrain_service(
-    file_path: str, model_name: str, deploy_path: str, accelbrain_url: str
+    file_path: str,
+    model_name: str,
+    deploy_path: str,
+    accelbrain_device_info: dict,
 ) -> AsyncGenerator[str, None]:
     try:
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": status.HTTP_200_OK,
+                    "message": {
+                        "action": "Start quantize",
+                        "progress": 0.0,
+                        "detail": {"model_name": model_name},
+                    },
+                }
+            }
+        )
+        await call_internal_quantize_api(quantize_name=model_name)
+
         monitor_progress_generator = monitor_progress(model_name=model_name)
         accelbrain_deploy_generator = call_accelbrain_deploy(
             file_path=file_path,
             model_name=model_name,
             deploy_path=deploy_path,
-            accelbrain_url=accelbrain_url,
+            accelbrain_url=accelbrain_device_info["url"],
             boundary=os.urandom(16).hex().encode("ascii"),
         )
 
@@ -250,7 +318,55 @@ async def deploy_to_accelbrain_service(
         ):
             yield item
 
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.finish
+
+    except KeyError as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": status.HTTP_404_NOT_FOUND,
+                    "message": {
+                        "action": "deploy_name not found",
+                        "progress": -1,
+                        "detail": {"error": f"{e}"},
+                    },
+                }
+            }
+        )
+
+    except ValueError as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": status.HTTP_409_CONFLICT,
+                    "message": {
+                        "action": "process in launch",
+                        "progress": -1,
+                        "detail": {"error": f"{e}"},
+                    },
+                }
+            }
+        )
+
+    except ConnectionResetError as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.stopped
+        yield orjson.dumps(
+            {
+                "AccelTune": {
+                    "status": 499,
+                    "message": {
+                        "action": "Client close the request",
+                        "progress": -1,
+                        "detail": {"error": f"{e}"},
+                    },
+                }
+            }
+        )
+
     except httpx.ConnectError as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -265,6 +381,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except httpx.TimeoutException as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -279,6 +396,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except Exception as e:
+        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -291,3 +409,12 @@ async def deploy_to_accelbrain_service(
                 }
             }
         )
+
+    finally:
+        result = await update_deploy_status(
+            name=TASK_CONFIG.accelbrain_device,
+            key=accelbrain_device_info["name"],
+            value=orjson.dumps(accelbrain_device_info),
+            model_name=model_name,
+        )
+        yield result
