@@ -1,7 +1,9 @@
 import asyncio
 import hashlib
 import os
+import threading
 import zipfile
+from collections import defaultdict
 from collections.abc import AsyncGenerator
 from typing import Any, Tuple
 
@@ -12,6 +14,8 @@ from fastapi import status
 
 from src.config.params import MAINSERVICE_CONFIG, STATUS_CONFIG, TASK_CONFIG
 from src.thirdparty.redis.handler import redis_async
+
+zip_locks = defaultdict(threading.Lock)
 
 
 async def call_internal_quantize_api(quantize_name: str) -> None:
@@ -71,28 +75,29 @@ def calc_sha256(file_path: str, chunk_size: int = 65536) -> str:
 def zip_folder_and_get_hash(path: str, zip_path: str) -> dict:
     file_hashes = dict()
 
-    try:
-        with zipfile.ZipFile(
-            file=zip_path, mode="w", compression=zipfile.ZIP_DEFLATED
-        ) as zipf:
-            for file in os.listdir(path):
-                file_path = os.path.join(path, file)
+    with zip_locks[zip_path]:
+        try:
+            with zipfile.ZipFile(
+                file=zip_path, mode="w", compression=zipfile.ZIP_DEFLATED
+            ) as zipf:
+                for file in os.listdir(path):
+                    file_path = os.path.join(path, file)
 
-                file_hash = calc_sha256(file_path=file_path)
-                file_hashes[file] = file_hash
+                    file_hash = calc_sha256(file_path=file_path)
+                    file_hashes[file] = file_hash
 
-                zipf.write(file_path, arcname=os.path.relpath(file_path, path))
+                    zipf.write(file_path, arcname=os.path.relpath(file_path, path))
 
-        zip_hash = calc_sha256(file_path=zip_path)
-        file_hashes[os.path.basename(zip_path)] = zip_hash
+            zip_hash = calc_sha256(file_path=zip_path)
+            file_hashes[os.path.basename(zip_path)] = zip_hash
 
-        return file_hashes
+            return file_hashes
 
-    except FileNotFoundError as e:
-        raise FileNotFoundError(e) from None
+        except FileNotFoundError as e:
+            raise FileNotFoundError(e) from None
 
-    except Exception as e:
-        raise RuntimeError(e) from None
+        except Exception as e:
+            raise RuntimeError(e) from None
 
 
 async def async_file_generator(
@@ -173,7 +178,7 @@ async def call_accelbrain_deploy(
         )
     )
     os.makedirs(os.path.dirname(deploy_path), exist_ok=True)
-    zip_folder_and_get_hash(path=file_path, zip_path=deploy_path)
+    await asyncio.to_thread(zip_folder_and_get_hash, file_path, deploy_path)
 
     async with httpx.AsyncClient(timeout=None) as aclient:
         async with aclient.stream(
