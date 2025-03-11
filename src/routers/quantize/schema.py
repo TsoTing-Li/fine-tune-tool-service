@@ -16,7 +16,7 @@ class PostStartQuantize(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.quantize_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'quantize_name' contain invalid characters",
                 input={"quantize_name": self.quantize_name},
             )
@@ -40,7 +40,7 @@ class PostStopQuantize(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.quantize_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'quantize_name' contain invalid characters",
                 input={"quantize_name": self.quantize_name},
             )

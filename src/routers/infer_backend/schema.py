@@ -20,7 +20,7 @@ class PostInferBackendStart(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'model_name' contain invalid characters",
                 input={"model_name": self.model_name},
             )
@@ -47,7 +47,7 @@ class PostInferBackendStop(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'model_name' contain invalid characters",
                 input={"model_name": self.model_name},
             )
@@ -76,7 +76,7 @@ class GetInferBackend(BaseModel):
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_QUERY],
                 msg="'model_name' contain invalid characters",
                 input={"model_name": self.model_name},
             )
