@@ -70,10 +70,11 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
         )
 
     except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg="Unexpected error",
             input={"deploy_name": request_data.deploy_name},
         )
         raise HTTPException(
@@ -110,7 +111,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_QUERY],
-            msg=f"Unexpected error: {e}",
+            msg="Unexpected error",
             input={"accelbrain_url": query_data.accelbrain_url},
         )
         raise HTTPException(
@@ -153,7 +154,7 @@ async def set_device(request_data: schema.PostDevice):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -193,7 +194,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=query_data.model_dump(),
         )
         raise HTTPException(
@@ -213,7 +214,6 @@ async def modify_device(request_data: schema.PutDevice):
     modified_time = get_current_time(use_unix=True)
     validator.PutDevice(
         accelbrain_device=request_data.accelbrain_device,
-        accelbrain_url=request_data.accelbrain_url,
     )
     error_handler = ResponseErrorHandler()
 
@@ -236,7 +236,7 @@ async def modify_device(request_data: schema.PutDevice):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -271,7 +271,7 @@ async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=query_data.model_dump(),
         )
         raise HTTPException(
