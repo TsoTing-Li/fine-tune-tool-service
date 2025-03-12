@@ -121,7 +121,7 @@ class GetInferBackend(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if self.model_name and not redis_sync.client.hexists(
+            if self.model_name is not None and not redis_sync.client.hexists(
                 TASK_CONFIG.train, self.model_name
             ):
                 raise KeyError("model_name does not exists")
