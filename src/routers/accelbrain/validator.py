@@ -29,11 +29,10 @@ class PostDeploy(BaseModel):
             if not accelbrain_info:
                 raise KeyError("accelbrain_device does not exists")
 
-            if (
-                orjson.loads(accelbrain_info)["deploy_status"][self.deploy_name]
-                == STATUS_CONFIG.active
-            ):
-                raise ValueError("deploy_name is deploying to accelbrain_device ")
+            deploat_status = orjson.loads(accelbrain_info)["deploy_status"]
+            if deploat_status.get(self.deploy_name):
+                if deploat_status[self.deploy_name] == STATUS_CONFIG.active:
+                    raise ValueError("deploy_name is deploying to accelbrain_device")
 
         except KeyError as e:
             error_handler.add(

@@ -5,17 +5,38 @@ import threading
 import zipfile
 from collections import defaultdict
 from collections.abc import AsyncGenerator
-from typing import Any, Tuple
+from typing import Any, Tuple, Union
 
 import aiofiles
 import httpx
 import orjson
 from fastapi import status
 
+import redis.asyncio as async_redis
 from src.config.params import MAINSERVICE_CONFIG, STATUS_CONFIG, TASK_CONFIG
 from src.thirdparty.redis.handler import redis_async
 
 zip_locks = defaultdict(threading.Lock)
+
+
+async def update_status_safely(name: str, key: str, new_status: dict):
+    while True:
+        try:
+            await redis_async.client.watch(key)
+
+            current_value = await redis_async.client.hget(name, key)
+            current_value = orjson.loads(current_value)
+
+            current_value["deploy_status"].update(new_status)
+
+            pipe = await redis_async.client.pipeline()
+            pipe.multi()
+            await pipe.hset(name, key, orjson.dumps(current_value))
+            await pipe.execute()
+            break
+
+        except async_redis.WatchError:
+            continue
 
 
 async def call_internal_quantize_api(quantize_name: str) -> None:
@@ -54,7 +75,7 @@ async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
         raise ValueError(f"AccelBrain Url: {accelbrain_url} is not alive") from None
 
     except httpx.TimeoutException:
-        raise TimeoutError("Request timeout") from None
+        raise TimeoutError("Request timeout") from None  # default is set 5 seconds
 
 
 def calc_sha256(file_path: str, chunk_size: int = 65536) -> str:
@@ -258,21 +279,12 @@ async def merge_async_generators(
                 tasks[asyncio.create_task(gen.__anext__())] = gen
 
 
-async def update_deploy_status(name: str, key: str, value: str, model_name: str) -> str:
+async def update_deploy_status(
+    name: str, key: str, new_status: dict
+) -> Union[str, None]:
     try:
-        await redis_async.client.hset(name, key, value)
-        return orjson.dumps(
-            {
-                "AccelTune": {
-                    "status": status.HTTP_200_OK,
-                    "message": {
-                        "action": "Update database successfully",
-                        "progress": 1.0,
-                        "detail": {"model_name": model_name},
-                    },
-                }
-            }
-        )
+        await update_status_safely(name=name, key=key, new_status=new_status)
+        return
     except Exception as e:
         return orjson.dumps(
             {
@@ -292,7 +304,8 @@ async def deploy_to_accelbrain_service(
     file_path: str,
     model_name: str,
     deploy_path: str,
-    accelbrain_device_info: dict,
+    accelbrain_device: str,
+    accelbrain_url: str,
 ) -> AsyncGenerator[str, None]:
     try:
         yield orjson.dumps(
@@ -314,7 +327,7 @@ async def deploy_to_accelbrain_service(
             file_path=file_path,
             model_name=model_name,
             deploy_path=deploy_path,
-            accelbrain_url=accelbrain_device_info["url"],
+            accelbrain_url=accelbrain_url,
             boundary=os.urandom(16).hex().encode("ascii"),
         )
 
@@ -323,10 +336,10 @@ async def deploy_to_accelbrain_service(
         ):
             yield item
 
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.finish
+        target_model_status = STATUS_CONFIG.finish
 
     except KeyError as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        target_model_status = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -341,7 +354,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except ValueError as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        target_model_status = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -356,7 +369,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except ConnectionResetError as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.stopped
+        target_model_status = STATUS_CONFIG.stopped
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -371,7 +384,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except httpx.ConnectError as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        target_model_status = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -386,7 +399,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except httpx.TimeoutException as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        target_model_status = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -401,7 +414,7 @@ async def deploy_to_accelbrain_service(
         )
 
     except Exception as e:
-        accelbrain_device_info["deploy_status"][model_name] = STATUS_CONFIG.failed
+        target_model_status = STATUS_CONFIG.failed
         yield orjson.dumps(
             {
                 "AccelTune": {
@@ -418,8 +431,8 @@ async def deploy_to_accelbrain_service(
     finally:
         result = await update_deploy_status(
             name=TASK_CONFIG.accelbrain_device,
-            key=accelbrain_device_info["name"],
-            value=orjson.dumps(accelbrain_device_info),
-            model_name=model_name,
+            key=accelbrain_device,
+            new_status={model_name: target_model_status},
         )
-        yield result
+        if result:
+            yield result

@@ -30,11 +30,10 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
             TASK_CONFIG.accelbrain_device, request_data.accelbrain_device
         )
         info = orjson.loads(info)
-        info["deploy_status"][request_data.deploy_name] = STATUS_CONFIG.active
-        await redis_async.client.hset(
-            TASK_CONFIG.accelbrain_device,
-            request_data.accelbrain_device,
-            orjson.dumps(info),
+        await utils.update_status_safely(
+            name=TASK_CONFIG.accelbrain_device,
+            key=request_data.accelbrain_device,
+            new_status={request_data.deploy_name: STATUS_CONFIG.active},
         )
 
     except Exception as e:
@@ -63,7 +62,8 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
                     "deploy",
                     f"{request_data.deploy_name}.zip",
                 ),
-                accelbrain_device_info=info,
+                accelbrain_device=info["name"],
+                accelbrain_url=info["url"],
             ),
             status_code=status.HTTP_200_OK,
             media_type="text/event-stream",
