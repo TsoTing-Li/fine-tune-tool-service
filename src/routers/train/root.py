@@ -5,6 +5,7 @@ from typing import Annotated, List, Literal, Union
 import orjson
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     File,
     Form,
     HTTPException,
@@ -34,7 +35,9 @@ router = APIRouter(prefix="/train", tags=["Train"])
 
 
 @router.post("/start/")
-async def start_train(request_data: schema.PostStartTrain):
+async def start_train(
+    background_tasks: BackgroundTasks, request_data: schema.PostStartTrain
+):
     validator.PostStartTrain(train_name=request_data.train_name)
     error_handler = ResponseErrorHandler()
 
@@ -112,6 +115,10 @@ async def start_train(request_data: schema.PostStartTrain):
             detail=error_handler.errors,
         ) from None
 
+    background_tasks.add_task(
+        utils.monitor_train_status, request_data.train_name, container_name
+    )
+
     return Response(
         content=json.dumps(info),
         status_code=status.HTTP_200_OK,
@@ -127,10 +134,6 @@ async def stop_train(request_data: schema.PostStopTrain):
     try:
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
-        info["container"]["train"]["status"] = "stopped"
-        await redis_async.client.hset(
-            TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
-        )
 
     except Exception as e:
         accel_logger.error(f"Database error: {e}")
@@ -162,7 +165,7 @@ async def stop_train(request_data: schema.PostStopTrain):
         ) from None
 
     return Response(
-        content=json.dumps(info),
+        content=json.dumps({"train_name": request_data.train_name}),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

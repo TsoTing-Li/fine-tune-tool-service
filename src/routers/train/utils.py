@@ -6,15 +6,24 @@ from typing import List, Literal, Union
 import aiofiles
 import aiofiles.os
 import httpx
+import orjson
 import yaml
 from fastapi import HTTPException, UploadFile, status
 
-from src.config.params import COMMON_CONFIG
+from src.config.params import (
+    COMMON_CONFIG,
+    STATUS_CONFIG,
+    TASK_CONFIG,
+)
 from src.thirdparty.docker.api_handler import (
     create_container,
+    get_container_log,
+    remove_container,
     start_container,
     stop_container,
+    wait_for_container,
 )
+from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
 
@@ -112,6 +121,59 @@ async def async_clear_file(paths: List[str]) -> None:
             await aiofiles.os.remove(file_path)
 
     await asyncio.gather(*(delete_file(path) for path in paths))
+
+
+async def monitor_train_status(train_name: str, container_name_or_id: str):
+    try:
+        transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            async for log in get_container_log(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            ):
+                for log_split in log.splitlines():
+                    if log_split == "":
+                        break
+                    elif log_split[0] in ("\x01", "\x02"):
+                        log_split = log_split[8:]
+
+            container_info = await wait_for_container(
+                aclient=aclient, container_name=container_name_or_id
+            )
+            exit_status = container_info["StatusCode"]
+            if exit_status == 0:
+                train_status = STATUS_CONFIG.finish
+            elif exit_status in {137, 143}:
+                train_status = STATUS_CONFIG.stopped
+            elif exit_status == 1:
+                train_status = STATUS_CONFIG.failed
+
+            await remove_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            )
+
+    except ValueError as e:
+        train_status = STATUS_CONFIG.failed
+        accel_logger.error(f"Docker error: {e}")
+
+    except RuntimeError as e:
+        train_status = STATUS_CONFIG.failed
+        accel_logger.error(f"Docker error: {e}")
+
+    except Exception as e:
+        train_status = STATUS_CONFIG.failed
+        accel_logger.error(f"{e}")
+
+    finally:
+        try:
+            info = await redis_async.client.hget(TASK_CONFIG.train, train_name)
+            info = orjson.loads(info)
+            info["container"]["train"]["status"] = train_status
+            info["container"]["train"]["id"] = None
+            await redis_async.client.hset(
+                TASK_CONFIG.train, train_name, orjson.dumps(info)
+            )
+        except Exception as e:
+            accel_logger.error(f"Database error: {e}")
 
 
 async def run_train(
