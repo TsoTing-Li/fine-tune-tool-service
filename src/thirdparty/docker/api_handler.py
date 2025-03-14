@@ -74,9 +74,13 @@ async def get_container_log(
             async for chunk in response.aiter_text():
                 yield chunk
         elif response.status_code == status.HTTP_404_NOT_FOUND:
-            raise ValueError(response.json()["message"])
+            async for chunk in response.aiter_lines():
+                error_msg = json.loads(chunk)
+            raise ValueError(error_msg["message"])
         else:
-            raise RuntimeError(response.json()["message"])
+            async for chunk in response.aiter_lines():
+                error_msg = json.loads(chunk)
+            raise RuntimeError(error_msg["message"])
 
 
 async def get_container_info(aclient: httpx.AsyncClient, container_name: str) -> dict:
