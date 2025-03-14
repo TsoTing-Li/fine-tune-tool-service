@@ -233,12 +233,9 @@ async def run_train(
             container_name_or_id = await create_container(
                 aclient=aclient, name=f"train-{train_name}", data=data
             )
-            accel_logger.info(f"Fine-tune created, container: {container_name_or_id}")
-
             started_container = await start_container(
                 aclient=aclient, container_name_or_id=container_name_or_id
             )
-            accel_logger.info(f"Fine-tune started, container: {started_container}")
 
         return started_container
 
@@ -262,7 +259,6 @@ async def stop_train(
                 signal=signal,
                 wait_sec=wait_sec,
             )
-            accel_logger.info(f"Fine-tune stopped, container: {stopped_container}")
 
         return stopped_container
 
