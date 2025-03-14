@@ -7,7 +7,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.config.params import HWINFO_CONFIG
 from src.routers.ws import utils
-from src.thirdparty.docker import api_handler
+from src.thirdparty.docker.api_handler import get_container_log
 from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
@@ -34,7 +34,7 @@ async def train_log(websocket: WebSocket, id: str):
                 "eval_loss": "",
                 "ori": "",
             }
-            async for log in api_handler.get_container_log(
+            async for log in get_container_log(
                 aclient=aclient, container_name_or_id=id
             ):
                 for log_split in log.splitlines():
@@ -97,7 +97,7 @@ async def hw_info_log(websocket: WebSocket):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            async for log in api_handler.get_container_log(
+            async for log in get_container_log(
                 aclient=aclient,
                 container_name_or_id=HWINFO_CONFIG.container_name,
                 tail=1,
