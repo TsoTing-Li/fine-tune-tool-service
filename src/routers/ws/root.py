@@ -75,16 +75,19 @@ async def train_log(websocket: WebSocket, id: str):
             await websocket.send_json({"trainLog": "train finish"})
         else:
             info["container"]["train"]["status"] = "failed"
+            await websocket.send_json({"trainLog": "train failed"})
         await redis_async.client.hset("TRAIN", train_name, orjson.dumps(info))
 
     except WebSocketDisconnect:
         accel_logger.info("trainLog: Client disconnected")
 
     except ValueError as e:
-        accel_logger.info(f"trainLog: {e}")
+        accel_logger.error(f"trainLog: {e}")
+        await websocket.send_json({"trainLog": f"{e}"})
 
     except Exception as e:
         accel_logger.error(f"trainLog: Unexpected error: {e}")
+        await websocket.send_json({"trainLog": f"{e}"})
 
     finally:
         await websocket.close()
@@ -115,10 +118,12 @@ async def hw_info_log(websocket: WebSocket):
         accel_logger.info("hwInfo: Client disconnected")
 
     except ValueError as e:
-        accel_logger.info(f"hwInfo: {e}")
+        accel_logger.error(f"hwInfo: {e}")
+        await websocket.send_json({"hwInfo": f"{e}"})
 
     except Exception as e:
         accel_logger.error(f"hwInfo: Unexpected error: {e}")
+        await websocket.send_json({"hwInfo": f"{e}"})
 
     finally:
         if websocket.client_state == "CONNECTED":
