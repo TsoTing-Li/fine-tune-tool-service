@@ -1,6 +1,7 @@
 import json
 import os
-from typing import Annotated
+from typing import Annotated, Union
+from uuid import UUID
 
 import orjson
 from fastapi import APIRouter, Query, Response, status
@@ -12,27 +13,27 @@ from src.routers.accelbrain import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
-from src.utils.utils import get_current_time
+from src.utils.utils import generate_uuid, get_current_time
 
-router = APIRouter(prefix="/accelbrain", tags=["Accelbrain"])
+router = APIRouter(prefix="/accelbrain", tags=["AccelBrain"])
 
 
 @router.post("/deploy/start/")
 async def start_deploy_accelbrain(request_data: schema.PostDeploy):
     validator.PostDeploy(
         deploy_name=request_data.deploy_name,
-        accelbrain_device=request_data.accelbrain_device,
+        device_uuid=request_data.device_uuid,
     )
     error_handler = ResponseErrorHandler()
 
     try:
         info = await redis_async.client.hget(
-            TASK_CONFIG.accelbrain_device, request_data.accelbrain_device
+            TASK_CONFIG.accelbrain_device, str(request_data.device_uuid)
         )
         info = orjson.loads(info)
         await utils.update_status_safely(
             name=TASK_CONFIG.accelbrain_device,
-            key=request_data.accelbrain_device,
+            key=str(request_data.device_uuid),
             new_status={request_data.deploy_name: STATUS_CONFIG.active},
         )
 
@@ -62,7 +63,7 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
                     "deploy",
                     f"{request_data.deploy_name}.zip",
                 ),
-                accelbrain_device=info["name"],
+                device_uuid=info["uuid"],
                 accelbrain_url=info["url"],
             ),
             status_code=status.HTTP_200_OK,
@@ -75,7 +76,10 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg="Unexpected error",
-            input={"deploy_name": request_data.deploy_name},
+            input={
+                "deploy_name": request_data.deploy_name,
+                "device_uuid": str(request_data.device_uuid),
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -84,25 +88,39 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
 
 
 @router.get("/health/")
-async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
-    query_data = schema.GetHealthcheck(accelbrain_url=accelbrain_url)
+async def check_accelbrain(
+    url: Annotated[str, Query(..., min_length=9, max_length=21)],
+):
+    query_data = schema.GetHealthCheck(url=url)
     error_handler = ResponseErrorHandler()
 
     try:
         accelbrain_status, accelbrain_status_code = await utils.check_accelbrain_url(
-            accelbrain_url=query_data.accelbrain_url
+            accelbrain_url=query_data.url
         )
 
-    except ValueError as e:
+    except ConnectionError as e:
         accel_logger.error(f"{e}")
         error_handler.add(
-            type=error_handler.ERR_VALIDATE,
+            type=error_handler.ERR_CONNECTION,
             loc=[error_handler.LOC_QUERY],
             msg=f"{e}",
-            input={"accelbrain_url": query_data.accelbrain_url},
+            input={"url": query_data.url},
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_handler.errors
+        ) from None
+
+    except TimeoutError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_TIMEOUT,
+            loc=[error_handler.LOC_QUERY],
+            msg=f"{e}",
+            input={"url": query_data.url},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
             detail=error_handler.errors,
         ) from None
 
@@ -112,7 +130,7 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_QUERY],
             msg="Unexpected error",
-            input={"accelbrain_url": query_data.accelbrain_url},
+            input={"url": query_data.url},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -129,23 +147,25 @@ async def check_accelbrain(accelbrain_url: Annotated[str, Query(...)]):
 @router.post("/device/")
 async def set_device(request_data: schema.PostDevice):
     current_time = get_current_time(use_unix=True)
+    accelbrain_device_uuid = generate_uuid()
     validator.PostDevice(
-        accelbrain_device=request_data.accelbrain_device,
-        accelbrain_url=request_data.accelbrain_url,
+        name=request_data.name,
+        url=request_data.url,
     )
     error_handler = ResponseErrorHandler()
 
     try:
         device_info = {
-            "name": request_data.accelbrain_device,
-            "url": request_data.accelbrain_url,
+            "uuid": accelbrain_device_uuid,
+            "name": request_data.name,
+            "url": request_data.url,
             "deploy_status": {},
             "created_time": current_time,
             "modified_time": None,
         }
         await redis_async.client.hset(
             TASK_CONFIG.accelbrain_device,
-            request_data.accelbrain_device,
+            accelbrain_device_uuid,
             orjson.dumps(device_info),
         )
 
@@ -170,15 +190,15 @@ async def set_device(request_data: schema.PostDevice):
 
 
 @router.get("/device/")
-async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
-    query_data = schema.GetDevice(accelbrain_device=accelbrain_device)
-    validator.GetDevice(accelbrain_device=query_data.accelbrain_device)
+async def get_device(uuid: Annotated[Union[UUID, None], Query()] = None):
+    query_data = schema.GetDevice(uuid=uuid)
+    validator.GetDevice(uuid=query_data.uuid)
     error_handler = ResponseErrorHandler()
 
     try:
-        if query_data.accelbrain_device:
+        if query_data.uuid:
             accelbrain_device_info = await redis_async.client.hget(
-                TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
+                TASK_CONFIG.accelbrain_device, str(query_data.uuid)
             )
             device_info = [orjson.loads(accelbrain_device_info)]
         else:
@@ -195,7 +215,7 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg="Database error",
-            input=query_data.model_dump(),
+            input={"uuid": str(query_data.uuid)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -213,21 +233,22 @@ async def get_device(accelbrain_device: Annotated[str, Query(...)] = None):
 async def modify_device(request_data: schema.PutDevice):
     modified_time = get_current_time(use_unix=True)
     validator.PutDevice(
-        accelbrain_device=request_data.accelbrain_device,
+        uuid=request_data.uuid, name=request_data.name, url=request_data.url
     )
     error_handler = ResponseErrorHandler()
 
     try:
         device_info = await redis_async.client.hget(
             TASK_CONFIG.accelbrain_device,
-            request_data.accelbrain_device,
+            str(request_data.uuid),
         )
         device_info = orjson.loads(device_info)
-        device_info["url"] = request_data.accelbrain_url
+        device_info["name"] = request_data.name or device_info["name"]
+        device_info["url"] = request_data.url or device_info["url"]
         device_info["modified_time"] = modified_time
         await redis_async.client.hset(
             TASK_CONFIG.accelbrain_device,
-            request_data.accelbrain_device,
+            str(request_data.uuid),
             orjson.dumps(device_info),
         )
 
@@ -252,18 +273,18 @@ async def modify_device(request_data: schema.PutDevice):
 
 
 @router.delete("/device/")
-async def delete_device(accelbrain_device: Annotated[str, Query(...)]):
-    query_data = schema.DelDevice(accelbrain_device=accelbrain_device)
-    validator.DelDevice(accelbrain_device=query_data.accelbrain_device)
+async def delete_device(uuid: Annotated[UUID, Query(...)]):
+    query_data = schema.DelDevice(uuid=uuid)
+    validator.DelDevice(uuid=query_data.uuid)
     error_handler = ResponseErrorHandler()
 
     try:
         device_info = await redis_async.client.hget(
-            TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
+            TASK_CONFIG.accelbrain_device, str(query_data.uuid)
         )
         device_info = orjson.loads(device_info)
         await redis_async.client.hdel(
-            TASK_CONFIG.accelbrain_device, query_data.accelbrain_device
+            TASK_CONFIG.accelbrain_device, str(query_data.uuid)
         )
 
     except Exception as e:

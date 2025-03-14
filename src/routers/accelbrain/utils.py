@@ -68,11 +68,9 @@ async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
                 and response.json()["status"] == "alive"
             ):
                 return response.json()["status"], response.status_code
-            else:
-                raise ValueError(f"AccelBrain Url: {accelbrain_url} is not alive")
 
     except httpx.ConnectError:
-        raise ValueError(f"AccelBrain Url: {accelbrain_url} is not alive") from None
+        raise ConnectionError("AccelBrain Service is unavailable") from None
 
     except httpx.TimeoutException:
         raise TimeoutError("Request timeout") from None  # default is set 5 seconds
@@ -304,7 +302,7 @@ async def deploy_to_accelbrain_service(
     file_path: str,
     model_name: str,
     deploy_path: str,
-    accelbrain_device: str,
+    device_uuid: str,
     accelbrain_url: str,
 ) -> AsyncGenerator[str, None]:
     try:
@@ -431,7 +429,7 @@ async def deploy_to_accelbrain_service(
     finally:
         result = await update_deploy_status(
             name=TASK_CONFIG.accelbrain_device,
-            key=accelbrain_device,
+            key=device_uuid,
             new_status={model_name: target_model_status},
         )
         if result:

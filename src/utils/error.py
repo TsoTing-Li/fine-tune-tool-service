@@ -27,6 +27,8 @@ class ResponseErrorType:
     ERR_INTERNAL: Literal["internal_error"] = "internal_error"
     ERR_REDIS: Literal["redis_error"] = "redis_error"
     ERR_DOCKER: Literal["docker_error"] = "docker_error"
+    ERR_CONNECTION: Literal["connection_error"] = "connection_error"
+    ERR_TIMEOUT: Literal["timeout_error"] = "timeout_error"
 
 
 @dataclass
