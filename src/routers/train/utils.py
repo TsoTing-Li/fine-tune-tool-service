@@ -1,6 +1,9 @@
 import asyncio
 import os
+import re
 import shutil
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import List, Literal, Union
 
 import aiofiles
@@ -123,18 +126,37 @@ async def async_clear_file(paths: List[str]) -> None:
     await asyncio.gather(*(delete_file(path) for path in paths))
 
 
+@asynccontextmanager
+async def record_train_log(
+    log_path: str,
+) -> AsyncGenerator[aiofiles.threadpool.text.AsyncTextIndirectIOWrapper, None]:
+    file = await aiofiles.open(log_path, "w")
+    try:
+        yield file
+    finally:
+        await file.close()
+
+
 async def monitor_train_status(train_name: str, container_name_or_id: str):
+    ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
     try:
         transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            async for log in get_container_log(
-                aclient=aclient, container_name_or_id=container_name_or_id
-            ):
-                for log_split in log.splitlines():
-                    if log_split == "":
-                        break
-                    elif log_split[0] in ("\x01", "\x02"):
-                        log_split = log_split[8:]
+            async with record_train_log(
+                log_path=os.path.join(COMMON_CONFIG.save_path, train_name, "train.log")
+            ) as log_file:  # write all training log into file
+                async for log in get_container_log(
+                    aclient=aclient, container_name_or_id=container_name_or_id
+                ):
+                    for log_split in log.splitlines():
+                        if log_split == "":
+                            break
+                        elif log_split[0] in ("\x01", "\x02"):
+                            log_split = log_split[8:]
+
+                        log_file: aiofiles.threadpool.text.AsyncTextIndirectIOWrapper
+                        await log_file.write(f"{ANSI_ESCAPE.sub('', log_split)}\n")
 
             container_info = await wait_for_container(
                 aclient=aclient, container_name=container_name_or_id
