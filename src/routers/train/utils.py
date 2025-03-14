@@ -15,6 +15,7 @@ from fastapi import HTTPException, UploadFile, status
 
 from src.config.params import (
     COMMON_CONFIG,
+    MAINSERVICE_CONFIG,
     STATUS_CONFIG,
     TASK_CONFIG,
 )
@@ -51,7 +52,7 @@ def add_train_path(path: str) -> str:
 async def call_ds_api(
     name: str, ds_args: dict, ds_file: Union[UploadFile, None] = None
 ) -> str:
-    base_url = f"http://127.0.0.1:{os.getenv('MAIN_SERVICE_PORT')}/acceltune/deepspeed"
+    base_url = f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/deepspeed"
     async with httpx.AsyncClient(timeout=None) as aclient:
         if ds_args["src"] == "default":
             payload = {
