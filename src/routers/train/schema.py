@@ -75,7 +75,7 @@ class Params(BaseModel):
         "warmup_stable_decay",
     ]
     warmup_ratio: float
-    bf16: bool
+    compute_type: Literal["bf16", "fp16"]
     ddp_timeout: int
 
     @model_validator(mode="after")

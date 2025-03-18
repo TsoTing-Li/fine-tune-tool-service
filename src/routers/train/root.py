@@ -200,7 +200,7 @@ async def add_train(
         "warmup_stable_decay",
     ] = Form("cosine"),
     warmup_ratio: float = Form(0.1),
-    bf16: bool = Form(True),
+    compute_type: Literal["bf16", "fp16"] = Form(...),
     ddp_timeout: int = Form(180000000),
     val_size: float = Form(0.1),
     per_device_eval_batch_size: int = Form(1),
@@ -244,7 +244,7 @@ async def add_train(
             "num_train_epochs": num_train_epochs,
             "lr_scheduler_type": lr_scheduler_type,
             "warmup_ratio": warmup_ratio,
-            "bf16": bf16,
+            "compute_type": compute_type,
             "ddp_timeout": ddp_timeout,
         },
         "val": {
@@ -286,6 +286,7 @@ async def add_train(
 
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
+        train_args[train_args.pop("compute_type")] = True
         train_args["output_dir"] = os.path.join(
             COMMON_CONFIG.save_path,
             request_data.train_name,
@@ -472,7 +473,7 @@ async def modify_train(
         "warmup_stable_decay",
     ] = Form(...),
     warmup_ratio: float = Form(...),
-    bf16: bool = Form(...),
+    compute_type: Literal["bf16", "fp16"] = Form(...),
     ddp_timeout: int = Form(...),
     val_size: float = Form(...),
     per_device_eval_batch_size: int = Form(...),
@@ -516,7 +517,7 @@ async def modify_train(
             "num_train_epochs": num_train_epochs,
             "lr_scheduler_type": lr_scheduler_type,
             "warmup_ratio": warmup_ratio,
-            "bf16": bf16,
+            "compute_type": compute_type,
             "ddp_timeout": ddp_timeout,
         },
         "val": {
@@ -556,6 +557,7 @@ async def modify_train(
 
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
+        train_args[train_args.pop("compute_type")] = True
         train_args["output_dir"] = os.path.join(
             COMMON_CONFIG.save_path,
             request_data.train_name,
