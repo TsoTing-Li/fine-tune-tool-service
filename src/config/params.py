@@ -36,6 +36,7 @@ ACCELTUNE_SETTING = {
         "chat": "CHAT",
         "quantize": "QUANTIZE",
         "accelbrain_device": "ACCELBRAIN_DEVICE",
+        "deploy": "DEPLOY",
     },
     "status": {
         "setup": "setup",
