@@ -2,7 +2,7 @@ import re
 from typing import List, Literal, Union
 
 from fastapi import HTTPException, UploadFile, status
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, model_validator
 
 from src.utils.error import ResponseErrorHandler
 
@@ -141,10 +141,7 @@ class Lora(BaseModel):
 
 
 class TrainArgs(BaseModel):
-    model_config = ConfigDict(
-        protected_namespaces=()
-    )  # solve can not start with "model_"
-    model_name_or_path: str
+    base_model: str
     method: Method
     dataset: Dataset
     output: Output
@@ -156,12 +153,12 @@ class TrainArgs(BaseModel):
     def check(self: "TrainArgs") -> "TrainArgs":
         error_handler = ResponseErrorHandler()
 
-        if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.model_name_or_path)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.base_model)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'model_name_or_path' contain invalid characters",
-                input={"model_name_or_path": self.model_name_or_path},
+                msg="'base_model' contain invalid characters",
+                input={"base_model": self.base_model},
             )
 
         if error_handler.errors != []:

@@ -33,7 +33,7 @@ from src.utils.logger import accel_logger
 
 def basemodel2dict(data) -> dict:
     train_args = {
-        "model_name_or_path": data.model_name_or_path,
+        "model_name_or_path": data.base_model,
         **data.method.model_dump(),
         **data.dataset.model_dump(),
         **data.output.model_dump(),

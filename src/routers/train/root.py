@@ -174,7 +174,7 @@ async def stop_train(request_data: schema.PostStopTrain):
 @router.post("/")
 async def add_train(
     train_name: str = Form(None),
-    model_name_or_path: str = Form(...),
+    base_model: str = Form(...),
     finetuning_type: Literal["full", "lora"] = Form(...),
     dataset: List[str] = Form(...),
     template: str = Form(...),
@@ -216,7 +216,7 @@ async def add_train(
 ):
     created_time = get_current_time(use_unix=True)
     train_args = {
-        "model_name_or_path": model_name_or_path,
+        "model_name_or_path": base_model,
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
@@ -447,7 +447,7 @@ async def get_train(train_name: Annotated[Union[str, None], Query()] = None):
 @router.put("/")
 async def modify_train(
     train_name: str = Form(...),
-    model_name_or_path: str = Form(...),
+    base_model: str = Form(...),
     finetuning_type: Literal["full", "lora"] = Form(...),
     dataset: List[str] = Form(...),
     template: str = Form(...),
@@ -489,7 +489,7 @@ async def modify_train(
 ):
     modified_time = get_current_time(use_unix=True)
     train_args = {
-        "model_name_or_path": model_name_or_path,
+        "model_name_or_path": base_model,
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
