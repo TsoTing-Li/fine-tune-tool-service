@@ -27,14 +27,23 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
     error_handler = ResponseErrorHandler()
 
     try:
-        info = await redis_async.client.hget(
+        accelbrain_device_info = await redis_async.client.hget(
             TASK_CONFIG.accelbrain_device, str(request_data.device_uuid)
         )
-        info = orjson.loads(info)
-        await utils.update_status_safely(
-            name=TASK_CONFIG.accelbrain_device,
-            key=str(request_data.device_uuid),
-            new_status={request_data.deploy_name: STATUS_CONFIG.active},
+        accelbrain_device_info = orjson.loads(accelbrain_device_info)
+
+        deploy_unique_key = f"{request_data.deploy_name}-{request_data.device_uuid}"
+        await redis_async.client.hset(
+            TASK_CONFIG.deploy,
+            deploy_unique_key,
+            orjson.dumps(
+                {
+                    "deploy_model": request_data.deploy_name,
+                    "deploy_device": accelbrain_device_info["name"],
+                    "deploy_url": accelbrain_device_info["url"],
+                    "status": STATUS_CONFIG.active,
+                }
+            ),
         )
 
     except Exception as e:
@@ -61,10 +70,10 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
                     COMMON_CONFIG.save_path,
                     request_data.deploy_name,
                     "deploy",
-                    f"{request_data.deploy_name}.zip",
+                    f"{deploy_unique_key}.zip",
                 ),
-                device_uuid=info["uuid"],
-                accelbrain_url=info["url"],
+                deploy_unique_key=deploy_unique_key,
+                accelbrain_url=accelbrain_device_info["url"],
             ),
             status_code=status.HTTP_200_OK,
             media_type="text/event-stream",
@@ -159,7 +168,6 @@ async def set_device(request_data: schema.PostDevice):
             "uuid": accelbrain_device_uuid,
             "name": request_data.name,
             "url": request_data.url,
-            "deploy_status": {},
             "created_time": current_time,
             "modified_time": None,
         }

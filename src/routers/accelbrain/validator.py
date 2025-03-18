@@ -1,4 +1,4 @@
-from typing import Annotated, Union
+from typing import Annotated, Dict, Union
 from uuid import UUID
 
 import orjson
@@ -21,8 +21,7 @@ class PostDeploy(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            train_info = redis_sync.client.hget(TASK_CONFIG.train, self.deploy_name)
-            if not train_info:
+            if not redis_sync.client.hexists(TASK_CONFIG.train, self.deploy_name):
                 raise KeyError("deploy_name does not exists")
 
             accelbrain_info = redis_sync.client.hget(
@@ -31,9 +30,11 @@ class PostDeploy(BaseModel):
             if not accelbrain_info:
                 raise KeyError("device_uuid does not exists")
 
-            deploy_status = orjson.loads(accelbrain_info)["deploy_status"]
-            if deploy_status.get(self.deploy_name):
-                if deploy_status[self.deploy_name] == STATUS_CONFIG.active:
+            deploy_status = redis_sync.client.hget(
+                TASK_CONFIG.deploy, f"{self.deploy_name}-{self.device_uuid}"
+            )
+            if deploy_status:
+                if orjson.loads(deploy_status)["status"] == STATUS_CONFIG.active:
                     raise ValueError("deploy_name is deploying to accelbrain_device")
 
         except KeyError as e:
@@ -201,9 +202,13 @@ class PutDevice(BaseModel):
                 if self.url and value["url"] == self.url:
                     raise KeyError("url already exists")
 
+            deploy_status: Dict[str, str] = redis_sync.client.hgetall(
+                TASK_CONFIG.deploy
+            )
             if any(
-                status == STATUS_CONFIG.active
-                for status in orjson.loads(accelbrain_info)["deploy_status"].values()
+                orjson.loads(v)["status"] == STATUS_CONFIG.active
+                for k, v in deploy_status.items()
+                if k.endswith(str(self.uuid))
             ):
                 raise KeyError("accelbrain_device is executing deploy")
 
@@ -252,16 +257,18 @@ class DelDevice(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            accelbrain_info = redis_sync.client.hget(
+            if not redis_sync.client.hexists(
                 TASK_CONFIG.accelbrain_device, str(self.uuid)
-            )
-
-            if not accelbrain_info:
+            ):
                 raise ValueError("uuid does not exists")
 
+            deploy_status: Dict[str, str] = redis_sync.client.hgetall(
+                TASK_CONFIG.deploy
+            )
             if any(
-                status == STATUS_CONFIG.active
-                for status in orjson.loads(accelbrain_info)["deploy_status"].values()
+                orjson.loads(v)["status"] == STATUS_CONFIG.active
+                for k, v in deploy_status.items()
+                if k.endswith(str(self.uuid))
             ):
                 raise KeyError("accelbrain_device is executing deploy")
 
