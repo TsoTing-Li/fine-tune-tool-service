@@ -84,6 +84,71 @@ class PostDeploy(BaseModel):
         return self
 
 
+class GetDeploy(BaseModel):
+    deploy_name: Union[str, None]
+    device_uuid: Union[UUID, None]
+
+    @model_validator(mode="after")
+    def check(self: "GetDeploy") -> "GetDeploy":
+        error_handler = ResponseErrorHandler()
+
+        if (self.deploy_name is None) != (self.device_uuid is None):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg="Both deploy_name and device_uuid must be either None or non-None",
+                input={
+                    "deploy_name": self.deploy_name,
+                    "device_uuid": str(self.device_uuid),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=error_handler.errors
+            ) from None
+
+        try:
+            if self.deploy_name is not None and not redis_sync.client.hexists(
+                TASK_CONFIG.train, self.deploy_name
+            ):
+                raise KeyError("deploy_name does not exists")
+
+            if self.device_uuid is not None and not redis_sync.client.hexists(
+                TASK_CONFIG.accelbrain_device, str(self.device_uuid)
+            ):
+                raise KeyError("device_uuid does not exists")
+
+        except KeyError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg=f"{e}",
+                input={
+                    "deploy_name": self.deploy_name,
+                    "device_uuid": str(self.device_uuid),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            ) from None
+
+        except Exception as e:
+            error_handler.add(
+                type=error_handler.ERR_REDIS,
+                loc=[error_handler.LOC_DATABASE],
+                msg=f"{e}",
+                input={
+                    "deploy_name": self.deploy_name,
+                    "device_uuid": str(self.device_uuid),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_handler.errors,
+            ) from None
+
+        return self
+
+
 class PostDevice(BaseModel):
     name: str
     url: str

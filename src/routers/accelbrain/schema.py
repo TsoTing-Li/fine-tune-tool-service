@@ -42,6 +42,41 @@ class PostDeploy(BaseModel):
         return self
 
 
+class GetDeploy(BaseModel):
+    deploy_name: Union[str, None]
+    device_uuid: Union[UUID, None]
+
+    @model_validator(mode="after")
+    def check(self: "GetDeploy") -> "GetDeploy":
+        error_handler = ResponseErrorHandler()
+
+        if self.device_uuid and self.device_uuid.version != 4:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg="UUID version 4 expected",
+                input={"device_uuid": str(self.device_uuid)},
+            )
+
+        if self.deploy_name and not re.fullmatch(
+            r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.deploy_name
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'deploy_name' contain invalid characters",
+                input={"deploy_name": self.deploy_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
+
+
 class GetHealthCheck(BaseModel):
     url: str
 

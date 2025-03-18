@@ -96,6 +96,50 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
         ) from None
 
 
+@router.get("/deploy/")
+async def get_deploy_status(
+    deploy_name: Annotated[Union[str, None], Query()] = None,
+    device_uuid: Annotated[Union[UUID, None], Query()] = None,
+):
+    query_data = schema.GetDeploy(deploy_name=deploy_name, device_uuid=device_uuid)
+    validator.GetDeploy(
+        deploy_name=query_data.deploy_name, device_uuid=query_data.device_uuid
+    )
+    error_handler = ResponseErrorHandler()
+
+    try:
+        if query_data.deploy_name is not None and query_data.device_uuid is not None:
+            deploy_status = await redis_async.client.hget(
+                TASK_CONFIG.deploy, f"{query_data.deploy_name}-{query_data.device_uuid}"
+            )
+            deploy_status = [orjson.loads(deploy_status)]
+        else:
+            info = await redis_async.client.hgetall(TASK_CONFIG.deploy)
+            deploy_status = (
+                [orjson.loads(value) for value in info.values()]
+                if len(info) != 0
+                else list()
+            )
+
+    except Exception:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps(deploy_status),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
 @router.get("/health/")
 async def check_accelbrain(
     url: Annotated[str, Query(..., min_length=9, max_length=21)],
