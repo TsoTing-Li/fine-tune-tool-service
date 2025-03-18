@@ -25,32 +25,18 @@ async def start_infer_backend(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.model_name)
         info = orjson.loads(info)
 
-        if info["container"]["quantize"]["status"] == "finish":
-            service_type = "ollama"
-            model_service_info = await utils.startup_ollama_service(
-                local_gguf_path=os.path.join(
-                    COMMON_CONFIG.root_path,
-                    "saves",
-                    request_data.model_name,
-                    "quantize",
-                ),
-                model_name=request_data.model_name,
-            )
-        else:
-            service_type = "vllm"
-            model_service_info = await utils.startup_vllm_service(
-                model_name=request_data.model_name,
-                local_safetensors_path=os.path.join(
-                    COMMON_CONFIG.root_path,
-                    "saves",
-                    request_data.model_name,
-                    "merge"
-                    if info["train_args"]["finetuning_type"] == "lora"
-                    else "full",
-                ),
-                base_model=info["train_args"]["model_name_or_path"],
-                hf_home=COMMON_CONFIG.hf_home,
-            )
+        service_type = "vllm"
+        model_service_info = await utils.startup_vllm_service(
+            model_name=request_data.model_name,
+            local_safetensors_path=os.path.join(
+                COMMON_CONFIG.root_path,
+                "saves",
+                request_data.model_name,
+                "merge" if info["train_args"]["finetuning_type"] == "lora" else "full",
+            ),
+            base_model=info["train_args"]["model_name_or_path"],
+            hf_home=COMMON_CONFIG.hf_home,
+        )
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
