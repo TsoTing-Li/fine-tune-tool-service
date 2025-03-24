@@ -57,5 +57,5 @@ class AccelTuneError(Exception):
         }
         super().__init__(orjson.dumps(self.error_data))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return orjson.dumps(self.error_data).decode()
