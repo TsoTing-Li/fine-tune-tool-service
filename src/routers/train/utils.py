@@ -205,6 +205,7 @@ async def run_train(
     docker_network_name: str,
     train_name: str,
     is_deepspeed: bool,
+    use_nvme: bool,
 ) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     env_var = [f"HF_HOME={COMMON_CONFIG.hf_home}"]
@@ -228,6 +229,11 @@ async def run_train(
         "Cmd": cmd,
         "Env": env_var,
     }
+
+    if use_nvme:
+        data["HostConfig"]["Binds"].append(
+            f"{COMMON_CONFIG.nvme_path}:{COMMON_CONFIG.nvme_path}:rw"
+        )
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
