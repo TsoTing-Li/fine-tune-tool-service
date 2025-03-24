@@ -224,7 +224,7 @@ async def call_accelbrain_deploy(
     deploy_unique_key: str,
     accelbrain_url: str,
     boundary: bytes,
-):
+) -> AsyncGenerator[bytes, None, None]:
     yield (
         orjson.dumps(
             {
@@ -259,7 +259,7 @@ async def call_accelbrain_deploy(
             if response.status_code == status.HTTP_200_OK:
                 async for chunk in response.aiter_lines():
                     if chunk:
-                        receive_content = orjson.loads(chunk)
+                        receive_content = orjson.loads(chunk.strip())
 
                         if receive_content["status"] != status.HTTP_200_OK:
                             raise AccelBrainError(
@@ -281,24 +281,28 @@ async def call_accelbrain_deploy(
                 )
 
 
-async def monitor_progress(deploy_unique_key: str, model_name: str):
+async def monitor_progress(
+    deploy_unique_key: str, model_name: str
+) -> AsyncGenerator[bytes, None, None]:
     try:
         while True:
             (
                 _,
                 upload_progress,
             ) = await redis_async.client.blpop(f"{deploy_unique_key}-upload_progress")
-            yield orjson.dumps(
-                {
-                    "AccelTune": {
-                        "status": status.HTTP_200_OK,
-                        "message": {
-                            "action": "Upload file",
-                            "progress": float(upload_progress),
-                            "detail": {"model_name": model_name},
-                        },
+            yield (
+                orjson.dumps(
+                    {
+                        "AccelTune": {
+                            "status": status.HTTP_200_OK,
+                            "message": {
+                                "action": "Upload file",
+                                "progress": float(upload_progress),
+                                "detail": {"model_name": model_name},
+                            },
+                        }
                     }
-                }
+                )
             )
 
             if upload_progress == "1.0":
@@ -316,7 +320,7 @@ async def monitor_progress(deploy_unique_key: str, model_name: str):
 
 async def merge_async_generators(
     *gens: AsyncGenerator[Any, None],
-) -> AsyncGenerator[Any, None]:
+) -> AsyncGenerator[Any, None, None]:
     tasks = {asyncio.create_task(gen.__anext__()): gen for gen in gens}
 
     while tasks:
@@ -332,7 +336,7 @@ async def merge_async_generators(
                 tasks[asyncio.create_task(gen.__anext__())] = gen
 
 
-async def update_deploy_status(key: str, new_status: str) -> Union[str, None]:
+async def update_deploy_status(key: str, new_status: str) -> Union[bytes, None]:
     try:
         info = await redis_async.client.hget(TASK_CONFIG.deploy, key)
         info = orjson.loads(info)
@@ -355,20 +359,22 @@ async def deploy_to_accelbrain_service(
     deploy_path: str,
     deploy_unique_key: str,
     accelbrain_url: str,
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[str, None, None]:
     try:
-        yield orjson.dumps(
-            {
-                "AccelTune": {
-                    "status": status.HTTP_200_OK,
-                    "message": {
-                        "action": "Start quantize",
-                        "progress": 0.0,
-                        "detail": {"model_name": model_name},
-                    },
+        yield (
+            orjson.dumps(
+                {
+                    "AccelTune": {
+                        "status": status.HTTP_200_OK,
+                        "message": {
+                            "action": "Start quantize",
+                            "progress": 0.0,
+                            "detail": {"model_name": model_name},
+                        },
+                    }
                 }
-            }
-        )
+            )
+        ) + b"\n"
         await check_quantize_status(quantize_name=model_name)
 
         monitor_progress_generator = monitor_progress(
@@ -386,17 +392,20 @@ async def deploy_to_accelbrain_service(
         async for item in merge_async_generators(
             monitor_progress_generator, accelbrain_deploy_generator
         ):
-            yield item
+            if isinstance(item, bytes):
+                yield item + b"\n"
+            elif isinstance(item, str):
+                yield item + "\n"
 
         target_model_status = STATUS_CONFIG.finish
 
     except AccelTuneError as e:
         target_model_status = STATUS_CONFIG.failed
-        yield str(e)
+        yield str(e) + "\n"
 
     except AccelBrainError as e:
         target_model_status = STATUS_CONFIG.failed
-        yield str(e)
+        yield str(e) + "\n"
 
     except httpx.ConnectError as e:
         target_model_status = STATUS_CONFIG.failed
@@ -406,7 +415,7 @@ async def deploy_to_accelbrain_service(
             progress=-1,
             detail={"error": f"{e}"},
         )
-        yield orjson.dumps(acceltune_error.error_data)
+        yield orjson.dumps(acceltune_error.error_data) + b"\n"
 
     except httpx.TimeoutException as e:
         target_model_status = STATUS_CONFIG.failed
@@ -416,7 +425,7 @@ async def deploy_to_accelbrain_service(
             progress=-1,
             detail={"error": f"{e}"},
         )
-        yield orjson.dumps(acceltune_error.error_data)
+        yield orjson.dumps(acceltune_error.error_data) + b"\n"
 
     except (KeyboardInterrupt, SystemExit) as e:
         target_model_status = STATUS_CONFIG.failed
@@ -426,7 +435,7 @@ async def deploy_to_accelbrain_service(
             progress=-1,
             detail={"error": f"{e}"},
         )
-        yield orjson.dumps(acceltune_error.error_data)
+        yield orjson.dumps(acceltune_error.error_data) + b"\n"
 
     except Exception as e:
         target_model_status = STATUS_CONFIG.failed
@@ -436,7 +445,7 @@ async def deploy_to_accelbrain_service(
             progress=-1,
             detail={"error": f"{e}"},
         )
-        yield orjson.dumps(acceltune_error.error_data)
+        yield orjson.dumps(acceltune_error.error_data) + b"\n"
 
     finally:
         await aiofiles.os.remove(deploy_path)
@@ -444,5 +453,5 @@ async def deploy_to_accelbrain_service(
             key=deploy_unique_key,
             new_status=target_model_status,
         )
-        if result:
-            yield result
+        if result and isinstance(result, bytes):
+            yield result + b"\n"
