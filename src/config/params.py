@@ -37,6 +37,8 @@ ACCELTUNE_SETTING = {
         "quantize": "QUANTIZE",
         "accelbrain_device": "ACCELBRAIN_DEVICE",
         "deploy": "DEPLOY",
+        "support_model": "SUPPORT_MODEL",
+        "eval_tasks": "EVAL_TASKS",
     },
     "status": {
         "setup": "setup",

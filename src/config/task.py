@@ -10,3 +10,5 @@ class TaskConfig(BaseModel):
     quantize: str
     accelbrain_device: str
     deploy: str
+    support_model: str
+    eval_tasks: str

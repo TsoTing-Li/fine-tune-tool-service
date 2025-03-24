@@ -1,0 +1,8 @@
+[
+    {
+        "task_name": "gsm8k"
+    },
+    {
+        "task_name": "xwinograd_en"
+    }
+]

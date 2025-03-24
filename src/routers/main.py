@@ -7,6 +7,7 @@ import src.routers.deepspeed.root
 import src.routers.evaluate.root
 import src.routers.hf.root
 import src.routers.infer_backend.root
+import src.routers.info.root
 import src.routers.ollama.root
 import src.routers.quantize.root
 import src.routers.train.root
@@ -27,6 +28,7 @@ acceltune_api.include_router(src.routers.accelbrain.root.router)
 acceltune_api.include_router(src.routers.ollama.root.router)
 acceltune_api.include_router(src.routers.infer_backend.root.router)
 acceltune_api.include_router(src.routers.hf.root.router)
+acceltune_api.include_router(src.routers.info.root.router)
 
 
 @acceltune_api.get("/health/", tags=["Health"])
