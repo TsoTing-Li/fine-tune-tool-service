@@ -93,9 +93,10 @@ def check_sharegpt_format(
     ]
 
     for column in dataset_content:
-        if not columns_keys.issubset(column.keys()):
+        missing_column_keys = columns_keys - column.keys()
+        if missing_column_keys:
             raise KeyError(
-                f"Invalid column key in required dataset: {list(column.keys())[0]}"
+                f"Missing column key in required dataset: {', '.join(missing_column_keys)}"
             )
 
         if not isinstance(column[dataset_columns.messages], list):
@@ -104,14 +105,17 @@ def check_sharegpt_format(
             )
 
         for index, tag in enumerate(column[dataset_columns.messages]):
-            if not tags_keys.issubset(tag.keys()):
+            missing_tag_keys = tags_keys - tag.keys()
+            if missing_tag_keys:
                 raise KeyError(
-                    f"Invalid tag key in required dataset: {list(tag.keys())[0]}"
+                    f"Missing tag key in required dataset: {', '.join(missing_tag_keys)}"
                 )
 
-            if not isinstance(tag[dataset_tags.content_tag], str):
+            content = tag[dataset_tags["content_tag"]]
+            role = tag[dataset_tags["role_tag"]]
+            if not (isinstance(content, str) and isinstance(role, str)):
                 raise TypeError(
-                    f"Value format in '{dataset_tags.content_tag}' must be string"
+                    f"Value format in '{dataset_tags['role_tag']}'/'{dataset_tags['content_tag']}' must be string"
                 )
 
             if tag[dataset_tags.role_tag] != messages_order[index]:
@@ -137,8 +141,11 @@ def check_alpaca_format(
     }
 
     for column in dataset_content:
-        if not columns_keys.issubset(column.keys()):
-            raise KeyError("Invalid column key in required dataset")
+        missing_column_keys = columns_keys - column.keys()
+        if missing_column_keys:
+            raise KeyError(
+                f"Missing column key in required dataset: {', '.join(missing_column_keys)}"
+            )
 
 
 def check_dataset_key_value(
