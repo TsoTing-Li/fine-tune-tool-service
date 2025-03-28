@@ -209,10 +209,10 @@ async def add_train(
     lora_dropout: float = Form(0.0),
     lora_rank: int = Form(8),
     lora_target: List[str] = Form(["all"]),
-    deepspeed_src: str = Form(None),
-    deepspeed_stage: str = Form(None),
+    deepspeed_src: Literal["default", "file", None] = Form(None),
+    deepspeed_stage: Literal[2, 3, None] = Form(None),
     deepspeed_enable_offload: bool = Form(False),
-    deepspeed_offload_device: str = Form(None),
+    deepspeed_offload_device: Literal["cpu", "nvme", None] = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
     created_time = get_current_time(use_unix=True)
