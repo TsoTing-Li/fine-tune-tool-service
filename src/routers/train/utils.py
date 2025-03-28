@@ -144,6 +144,7 @@ async def monitor_train_status(train_name: str, container_name_or_id: str):
     try:
         transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            # 2025.02.26 by Manny
             async with record_train_log(
                 log_path=os.path.join(COMMON_CONFIG.save_path, train_name, "train.log")
             ) as log_file:  # write all training log into file
