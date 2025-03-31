@@ -210,14 +210,14 @@ async def add_train(
     lora_rank: int = Form(8),
     lora_target: List[str] = Form(["all"]),
     deepspeed_src: Literal["default", "file", None] = Form(None),
-    deepspeed_stage: Literal[2, 3, None] = Form(None),
+    deepspeed_stage: Literal["2", "3", None] = Form(None),
     deepspeed_enable_offload: bool = Form(False),
     deepspeed_offload_device: Literal["cpu", "nvme", None] = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
     created_time = get_current_time(use_unix=True)
     train_args = {
-        "model_name_or_path": base_model,
+        "base_model": base_model,
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
@@ -368,7 +368,8 @@ async def add_train(
             "name": request_data.train_name,
             "train_args": train_args,
             "use_nvme": True
-            if request_data.deepspeed_args.offload_device == "nvme"
+            if request_data.deepspeed_args is not None
+            and request_data.deepspeed_args.offload_device == "nvme"
             else False,
             "container": {
                 "train": {"status": "setup", "id": None},
