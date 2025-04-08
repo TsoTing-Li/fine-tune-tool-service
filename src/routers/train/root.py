@@ -204,7 +204,6 @@ async def add_train(
     compute_type: Literal["bf16", "fp16"] = Form(...),
     ddp_timeout: int = Form(180000000),
     val_size: float = Form(0.1),
-    per_device_eval_batch_size: int = Form(1),
     lora_alpha: int = Form(None),
     lora_dropout: float = Form(0.0),
     lora_rank: int = Form(8),
@@ -250,7 +249,7 @@ async def add_train(
         },
         "val": {
             "val_size": val_size,
-            "per_device_eval_batch_size": per_device_eval_batch_size,
+            "per_device_eval_batch_size": per_device_train_batch_size,
             "eval_strategy": "steps",
         },
         "lora": {
