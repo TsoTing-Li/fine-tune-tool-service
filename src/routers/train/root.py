@@ -214,7 +214,7 @@ async def add_train(
     deepspeed_offload_device: Literal["cpu", "nvme", None] = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
-    created_time = get_current_time(use_unix=True)
+    unix_time, date_time = get_current_time()
     train_args = {
         "base_model": base_model,
         "method": {
@@ -274,9 +274,7 @@ async def add_train(
     )
 
     request_data = schema.PostTrain(
-        train_name=train_name
-        if train_name
-        else f"{get_current_time()}-{generate_uuid()}",
+        train_name=train_name if train_name else f"{date_time}-{generate_uuid()}",
         train_args=train_args,
         deepspeed_args=deepspeed_args,
         deepspeed_file=deepspeed_file,
@@ -381,7 +379,7 @@ async def add_train(
                     "type": None,
                 },
             },
-            "created_time": created_time,
+            "created_time": unix_time,
             "modified_time": None,
         }
         await redis_async.client.hset(
@@ -491,7 +489,7 @@ async def modify_train(
     deepspeed_offload_device: str = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
-    modified_time = get_current_time(use_unix=True)
+    unix_time, _ = get_current_time()
     train_args = {
         "model_name_or_path": base_model,
         "method": {
@@ -672,7 +670,7 @@ async def modify_train(
                 "type": None,
             },
         }
-        info["modified_time"] = modified_time
+        info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
         )

@@ -44,7 +44,7 @@ async def add_dataset(
     system_tag: str = Form("system"),
     dataset_file: Union[UploadFile, None] = File(None),
 ):
-    created_time = get_current_time(use_unix=True)
+    unix_time, _ = get_current_time()
     dataset_info = {
         "dataset_name": dataset_name,
         "load_from": load_from,
@@ -149,7 +149,7 @@ async def add_dataset(
             "name": request_body.dataset_info.dataset_name,
             "data_args": add_content[request_body.dataset_info.dataset_name],
             "is_used": False,
-            "created_time": created_time,
+            "created_time": unix_time,
             "modified_time": None,
         }
         await redis_async.client.hset(
@@ -220,7 +220,7 @@ async def get_dataset(dataset_name: Annotated[Union[str, None], Query()] = None)
 
 @router.put("/")
 async def modify_dataset(request_data: schema.PutData):
-    modified_time = get_current_time(use_unix=True)
+    unix_time, _ = get_current_time()
     validator.PutData(
         dataset_name=request_data.dataset_name, new_name=request_data.new_name
     )
@@ -252,7 +252,7 @@ async def modify_dataset(request_data: schema.PutData):
         )
         dataset_info = orjson.loads(info)
         dataset_info["name"] = request_data.new_name
-        dataset_info["modified_time"] = modified_time
+        dataset_info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.data, request_data.new_name, orjson.dumps(dataset_info)
         )

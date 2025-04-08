@@ -199,7 +199,7 @@ async def check_accelbrain(
 
 @router.post("/device/")
 async def set_device(request_data: schema.PostDevice):
-    current_time = get_current_time(use_unix=True)
+    unix_time, _ = get_current_time()
     accelbrain_device_uuid = generate_uuid()
     validator.PostDevice(
         name=request_data.name,
@@ -212,7 +212,7 @@ async def set_device(request_data: schema.PostDevice):
             "uuid": accelbrain_device_uuid,
             "name": request_data.name,
             "url": request_data.url,
-            "created_time": current_time,
+            "created_time": unix_time,
             "modified_time": None,
         }
         await redis_async.client.hset(
@@ -283,7 +283,7 @@ async def get_device(uuid: Annotated[Union[UUID, None], Query()] = None):
 
 @router.put("/device/")
 async def modify_device(request_data: schema.PutDevice):
-    modified_time = get_current_time(use_unix=True)
+    unix_time, _ = get_current_time()
     validator.PutDevice(
         uuid=request_data.uuid, name=request_data.name, url=request_data.url
     )
@@ -297,7 +297,7 @@ async def modify_device(request_data: schema.PutDevice):
         device_info = orjson.loads(device_info)
         device_info["name"] = request_data.name or device_info["name"]
         device_info["url"] = request_data.url or device_info["url"]
-        device_info["modified_time"] = modified_time
+        device_info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.accelbrain_device,
             str(request_data.uuid),
