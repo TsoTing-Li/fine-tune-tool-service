@@ -25,6 +25,17 @@ class DeepSpeedArgs(BaseModel):
                 input={"src": self.src, "stage": self.stage},
             )
 
+        if self.enable_offload and not self.offload_device:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="must select offload_device, when enable_offload",
+                input={
+                    "enable_offload": self.enable_offload,
+                    "offload_device": self.offload_device,
+                },
+            )
+
         if error_handler.errors != []:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
