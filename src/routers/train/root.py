@@ -496,7 +496,6 @@ async def modify_train(
     compute_type: Literal["bf16", "fp16"] = Form(...),
     ddp_timeout: int = Form(...),
     val_size: float = Form(...),
-    per_device_eval_batch_size: int = Form(...),
     lora_alpha: int = Form(None),
     lora_dropout: float = Form(None),
     lora_rank: int = Form(None),
@@ -542,7 +541,7 @@ async def modify_train(
         },
         "val": {
             "val_size": val_size,
-            "per_device_eval_batch_size": per_device_eval_batch_size,
+            "per_device_eval_batch_size": per_device_train_batch_size,
             "eval_strategy": "steps",
         },
         "lora": {
@@ -558,7 +557,7 @@ async def modify_train(
     deepspeed_args = (
         {
             "src": deepspeed_src,
-            "stage": int(deepspeed_stage),
+            "stage": int(deepspeed_stage) if deepspeed_stage else None,
             "enable_offload": deepspeed_enable_offload,
             "offload_device": deepspeed_offload_device,
         }
@@ -577,16 +576,18 @@ async def modify_train(
 
     try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
-        train_args[train_args.pop("compute_type")] = True
-        train_args["output_dir"] = os.path.join(
-            COMMON_CONFIG.save_path,
-            request_data.train_name,
-            train_args["finetuning_type"],
+        redis_train_args = utils.redis_train_args_process(
+            train_name=request_data.train_name,
+            train_args=train_args,
+            save_path=COMMON_CONFIG.save_path,
+            dataset_path=COMMON_CONFIG.data_path,
         )
-        train_args["dataset"] = ", ".join(train_args["dataset"])
-        train_args["dataset_dir"] = os.getenv("DATA_PATH", "/app/data")
-        train_args["eval_steps"] = train_args["save_steps"]
-        train_args["do_train"] = True
+        file_train_args = utils.file_train_args_process(
+            train_name=request_data.train_name,
+            train_args=train_args,
+            save_path=COMMON_CONFIG.save_path,
+            dataset_path=COMMON_CONFIG.data_path,
+        )
 
         await utils.async_clear_file(
             paths=[
@@ -604,17 +605,29 @@ async def modify_train(
         )
 
         if train_args["finetuning_type"] == "lora":
-            train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
-            train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
-            train_args["lora_rank"] = request_data.train_args.lora.lora_rank
-            train_args["lora_target"] = (
+            file_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
+            file_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
+            file_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
+            file_train_args["lora_target"] = (
                 ", ".join(request_data.train_args.lora.lora_target)
                 if request_data.train_args.lora.lora_target
                 else None
             )
 
+            redis_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
+            redis_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
+            redis_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
+            redis_train_args["lora_target"] = (
+                ", ".join(request_data.train_args.lora.lora_target)
+                if request_data.train_args.lora.lora_target
+                else None
+            )
             export_data = {
-                "adapter_name_or_path": train_args["output_dir"],
+                "adapter_name_or_path": os.path.join(
+                    COMMON_CONFIG.save_path,
+                    request_data.train_name,
+                    train_args["finetuning_type"],
+                ),
                 "export_dir": os.path.join(
                     COMMON_CONFIG.save_path, request_data.train_name, "merge"
                 ),
@@ -639,7 +652,15 @@ async def modify_train(
                 ds_args=ds_args,
                 ds_file=request_data.deepspeed_file,
             )
-            train_args["deepspeed"] = ds_api_response["ds_path"]
+            file_train_args["deepspeed"] = ds_api_response["ds_path"]
+
+            if ds_args["src"] == "default":
+                redis_train_args["deepspeed_src"] = ds_args["src"]
+                redis_train_args["deepspeed_stage"] = ds_args["stage"]
+                redis_train_args["deepspeed_enable_offload"] = ds_args["enable_offload"]
+                redis_train_args["deepspeed_offload_device"] = ds_args["offload_device"]
+            elif ds_args["src"] == "file":
+                redis_train_args["deepspeed_src"] = ds_args["src"]
 
         await utils.write_yaml(
             path=os.path.join(
@@ -647,7 +668,7 @@ async def modify_train(
                 request_data.train_name,
                 f"{request_data.train_name}.yaml",
             ),
-            data=train_args,
+            data=file_train_args,
         )
 
     except HTTPException as e:
@@ -673,7 +694,7 @@ async def modify_train(
     try:
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
-        info["train_args"] = train_args
+        info["train_args"] = redis_train_args
         info["use_nvme"] = (
             True if request_data.deepspeed_args.offload_device == "nvme" else False
         )
