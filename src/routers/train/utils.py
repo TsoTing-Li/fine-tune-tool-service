@@ -44,6 +44,32 @@ def basemodel2dict(data) -> dict:
     return train_args
 
 
+def file_train_args_process(
+    train_name: str, train_args: dict, save_path: str, dataset_path: str
+) -> dict:
+    args = train_args.copy()
+    args[args.pop("compute_type")] = True
+    args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
+    args["dataset"] = ", ".join(args["dataset"])
+    args["dateset_dir"] = dataset_path
+    args["eval_steps"] = args["save_steps"]
+    args["do_train"] = True
+
+    return args
+
+
+def redis_train_args_process(
+    train_name: str, train_args: dict, save_path: str, dataset_path: str
+) -> dict:
+    args = train_args.copy()
+    args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
+    args["dateset_dir"] = dataset_path
+    args["eval_steps"] = args["save_steps"]
+    args["do_train"] = True
+
+    return args
+
+
 def add_train_path(path: str) -> str:
     os.makedirs(path, exist_ok=False)
     return path
