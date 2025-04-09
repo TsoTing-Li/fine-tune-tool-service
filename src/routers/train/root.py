@@ -265,7 +265,7 @@ async def add_train(
     deepspeed_args = (
         {
             "src": deepspeed_src,
-            "stage": int(deepspeed_stage),
+            "stage": int(deepspeed_stage) if deepspeed_stage else None,
             "enable_offload": deepspeed_enable_offload,
             "offload_device": deepspeed_offload_device,
         }
