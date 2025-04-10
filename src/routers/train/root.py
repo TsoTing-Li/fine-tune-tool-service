@@ -287,12 +287,14 @@ async def add_train(
         redis_train_args = utils.redis_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
+            lora_args=request_data.train_args.lora.model_dump(),
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
         file_train_args = utils.file_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
+            lora_args=request_data.train_args.lora.model_dump(),
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
@@ -302,33 +304,11 @@ async def add_train(
         )
 
         if redis_train_args["finetuning_type"] == "lora":
-            file_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
-            file_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
-            file_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
-            file_train_args["lora_target"] = ", ".join(
-                request_data.train_args.lora.lora_target
+            export_data = utils.export_data_process(
+                train_name=request_data.train_name,
+                train_args=train_args,
+                save_path=COMMON_CONFIG.save_path,
             )
-
-            redis_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
-            redis_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
-            redis_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
-            redis_train_args["lora_target"] = request_data.train_args.lora.lora_target
-            export_data = {
-                "adapter_name_or_path": os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.train_name,
-                    train_args["finetuning_type"],
-                ),
-                "export_dir": os.path.join(
-                    COMMON_CONFIG.save_path, request_data.train_name, "merge"
-                ),
-                "export_size": 5,
-                "export_device": "auto",
-                "export_legacy_format": False,
-                "model_name_or_path": train_args["model_name_or_path"],
-                "template": train_args["template"],
-                "finetuning_type": train_args["finetuning_type"],
-            }
             await utils.write_yaml(
                 path=os.path.join(
                     COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
@@ -500,15 +480,15 @@ async def modify_train(
     lora_dropout: float = Form(None),
     lora_rank: int = Form(None),
     lora_target: List[str] = Form(None),
-    deepspeed_src: str = Form(None),
-    deepspeed_stage: str = Form(None),
+    deepspeed_src: Literal["default", "file", None] = Form(None),
+    deepspeed_stage: Literal["2", "3", None] = Form(None),
     deepspeed_enable_offload: bool = Form(False),
-    deepspeed_offload_device: str = Form(None),
+    deepspeed_offload_device: Literal["cpu", "nvme", None] = Form(None),
     deepspeed_file: UploadFile = File(None),
 ):
     unix_time, _ = get_current_time()
     train_args = {
-        "model_name_or_path": base_model,
+        "base_model": base_model,
         "method": {
             "stage": "sft",
             "finetuning_type": finetuning_type,
@@ -579,12 +559,14 @@ async def modify_train(
         redis_train_args = utils.redis_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
+            lora_args=request_data.train_args.lora.model_dump(),
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
         file_train_args = utils.file_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
+            lora_args=request_data.train_args.lora.model_dump(),
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
@@ -605,39 +587,11 @@ async def modify_train(
         )
 
         if train_args["finetuning_type"] == "lora":
-            file_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
-            file_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
-            file_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
-            file_train_args["lora_target"] = (
-                ", ".join(request_data.train_args.lora.lora_target)
-                if request_data.train_args.lora.lora_target
-                else None
+            export_data = utils.export_data_process(
+                train_name=request_data.train_name,
+                train_args=train_args,
+                save_path=COMMON_CONFIG.save_path,
             )
-
-            redis_train_args["lora_alpha"] = request_data.train_args.lora.lora_alpha
-            redis_train_args["lora_dropout"] = request_data.train_args.lora.lora_dropout
-            redis_train_args["lora_rank"] = request_data.train_args.lora.lora_rank
-            redis_train_args["lora_target"] = (
-                ", ".join(request_data.train_args.lora.lora_target)
-                if request_data.train_args.lora.lora_target
-                else None
-            )
-            export_data = {
-                "adapter_name_or_path": os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.train_name,
-                    train_args["finetuning_type"],
-                ),
-                "export_dir": os.path.join(
-                    COMMON_CONFIG.save_path, request_data.train_name, "merge"
-                ),
-                "export_size": 5,
-                "export_device": "auto",
-                "export_legacy_format": False,
-                "model_name_or_path": train_args["model_name_or_path"],
-                "template": train_args["template"],
-                "finetuning_type": train_args["finetuning_type"],
-            }
             await utils.write_yaml(
                 path=os.path.join(
                     COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
@@ -696,7 +650,10 @@ async def modify_train(
         info = orjson.loads(info)
         info["train_args"] = redis_train_args
         info["use_nvme"] = (
-            True if request_data.deepspeed_args.offload_device == "nvme" else False
+            True
+            if request_data.deepspeed_args is not None
+            and request_data.deepspeed_args.offload_device == "nvme"
+            else False
         )
         info["container"] = {
             "train": {"status": "setup", "id": None},

@@ -33,7 +33,7 @@ from src.utils.logger import accel_logger
 
 def basemodel2dict(data) -> dict:
     train_args = {
-        "model_name_or_path": data.base_model,
+        "base_model": data.base_model,
         **data.method.model_dump(),
         **data.dataset.model_dump(),
         **data.output.model_dump(),
@@ -45,9 +45,14 @@ def basemodel2dict(data) -> dict:
 
 
 def file_train_args_process(
-    train_name: str, train_args: dict, save_path: str, dataset_path: str
+    train_name: str,
+    train_args: dict,
+    lora_args: dict,
+    save_path: str,
+    dataset_path: str,
 ) -> dict:
     args = train_args.copy()
+    args["model_name_or_path"] = args.pop("base_model")
     args[args.pop("compute_type")] = True
     args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
     args["dataset"] = ", ".join(args["dataset"])
@@ -55,11 +60,21 @@ def file_train_args_process(
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
+    if args["finetuning_type"] == "lora":
+        args["lora_alpha"] = lora_args["lora_alpha"]
+        args["lora_dropout"] = lora_args["lora_dropout"]
+        args["lora_rank"] = lora_args["lora_rank"]
+        args["lora_target"] = ", ".join(lora_args["lora_target"])
+
     return args
 
 
 def redis_train_args_process(
-    train_name: str, train_args: dict, save_path: str, dataset_path: str
+    train_name: str,
+    train_args: dict,
+    lora_args: dict,
+    save_path: str,
+    dataset_path: str,
 ) -> dict:
     args = train_args.copy()
     args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
@@ -67,7 +82,49 @@ def redis_train_args_process(
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
+    if args["finetuning_type"] == "lora":
+        args["lora_alpha"] = lora_args["lora_alpha"]
+        args["lora_dropout"] = lora_args["lora_dropout"]
+        args["lora_rank"] = lora_args["lora_rank"]
+        args["lora_target"] = lora_args["lora_target"]
+
     return args
+
+
+def lora_data_process(
+    train_args: dict,
+    lora_alpha: Union[None, int],
+    lora_dropout: Union[None, float],
+    lora_rank: Union[None, int],
+    lora_target: Union[None, List[str]],
+) -> dict:
+    train_args["lora_alpha"] = lora_alpha
+    train_args["lora_dropout"] = lora_dropout if lora_dropout is not None else 0.0
+    train_args["lora_rank"] = lora_rank if lora_rank is not None else 8
+    train_args["lora_target"] = [
+        ", ".join(lora_target) if lora_target is not None else "all"
+    ]
+
+    return train_args
+
+
+def export_data_process(train_name: str, train_args: dict, save_path: str) -> dict:
+    export_data = {
+        "adapter_name_or_path": os.path.join(
+            save_path,
+            train_name,
+            train_args["finetuning_type"],
+        ),
+        "export_dir": os.path.join(save_path, train_name, "merge"),
+        "export_size": 5,
+        "export_device": "auto",
+        "export_legacy_format": False,
+        "model_name_or_path": train_args["base_model"],
+        "template": train_args["template"],
+        "finetuning_type": train_args["finetuning_type"],
+    }
+
+    return export_data
 
 
 def add_train_path(path: str) -> str:
