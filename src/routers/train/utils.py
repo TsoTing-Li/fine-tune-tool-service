@@ -91,23 +91,6 @@ def redis_train_args_process(
     return args
 
 
-def lora_data_process(
-    train_args: dict,
-    lora_alpha: Union[None, int],
-    lora_dropout: Union[None, float],
-    lora_rank: Union[None, int],
-    lora_target: Union[None, List[str]],
-) -> dict:
-    train_args["lora_alpha"] = lora_alpha
-    train_args["lora_dropout"] = lora_dropout if lora_dropout is not None else 0.0
-    train_args["lora_rank"] = lora_rank if lora_rank is not None else 8
-    train_args["lora_target"] = [
-        ", ".join(lora_target) if lora_target is not None else "all"
-    ]
-
-    return train_args
-
-
 def export_data_process(train_name: str, train_args: dict, save_path: str) -> dict:
     export_data = {
         "adapter_name_or_path": os.path.join(
