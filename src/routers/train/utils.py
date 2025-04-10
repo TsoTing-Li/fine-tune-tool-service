@@ -47,7 +47,7 @@ def basemodel2dict(data) -> dict:
 def file_train_args_process(
     train_name: str,
     train_args: dict,
-    lora_args: dict,
+    lora_args: Union[dict, None],
     save_path: str,
     dataset_path: str,
 ) -> dict:
@@ -60,7 +60,7 @@ def file_train_args_process(
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
-    if args["finetuning_type"] == "lora":
+    if args["finetuning_type"] == "lora" and isinstance(lora_args, dict):
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]
@@ -72,7 +72,7 @@ def file_train_args_process(
 def redis_train_args_process(
     train_name: str,
     train_args: dict,
-    lora_args: dict,
+    lora_args: Union[dict, None],
     save_path: str,
     dataset_path: str,
 ) -> dict:
@@ -82,7 +82,7 @@ def redis_train_args_process(
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
-    if args["finetuning_type"] == "lora":
+    if args["finetuning_type"] == "lora" and isinstance(lora_args, dict):
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]

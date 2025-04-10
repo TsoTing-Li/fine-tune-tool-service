@@ -287,14 +287,18 @@ async def add_train(
         redis_train_args = utils.redis_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
-            lora_args=request_data.train_args.lora.model_dump(),
+            lora_args=request_data.train_args.lora.model_dump()
+            if request_data.train_args.lora is not None
+            else None,
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
         file_train_args = utils.file_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
-            lora_args=request_data.train_args.lora.model_dump(),
+            lora_args=request_data.train_args.lora.model_dump()
+            if request_data.train_args.lora is not None
+            else None,
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
@@ -559,14 +563,18 @@ async def modify_train(
         redis_train_args = utils.redis_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
-            lora_args=request_data.train_args.lora.model_dump(),
+            lora_args=request_data.train_args.lora.model_dump()
+            if request_data.train_args.lora is not None
+            else None,
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
         file_train_args = utils.file_train_args_process(
             train_name=request_data.train_name,
             train_args=train_args,
-            lora_args=request_data.train_args.lora.model_dump(),
+            lora_args=request_data.train_args.lora.model_dump()
+            if request_data.train_args.lora is not None
+            else None,
             save_path=COMMON_CONFIG.save_path,
             dataset_path=COMMON_CONFIG.data_path,
         )
