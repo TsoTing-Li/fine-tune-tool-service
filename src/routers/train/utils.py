@@ -56,7 +56,7 @@ def file_train_args_process(
     args[args.pop("compute_type")] = True
     args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
     args["dataset"] = ", ".join(args["dataset"])
-    args["dateset_dir"] = dataset_path
+    args["dataset_dir"] = dataset_path
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
@@ -78,7 +78,7 @@ def redis_train_args_process(
 ) -> dict:
     args = train_args.copy()
     args["output_dir"] = os.path.join(save_path, train_name, args["finetuning_type"])
-    args["dateset_dir"] = dataset_path
+    args["dataset_dir"] = dataset_path
     args["eval_steps"] = args["save_steps"]
     args["do_train"] = True
 
