@@ -80,8 +80,8 @@ async def start_train(
             cmd=["sh", "-c", " && ".join(commands)],
             docker_network_name=DOCKERNETWORK_CONFIG.network_name,
             train_name=request_data.train_name,
-            is_deepspeed=True if info["train_args"].get("deepspeed", None) else False,
-            use_nvme=info["use_nvme"],
+            is_deepspeed=info["accelerator"]["deepspeed"]["use"],
+            use_nvme=info["accelerator"]["nvme"]["use"],
         )
 
     except Exception as e:
@@ -460,10 +460,22 @@ async def add_train(
         train_info = {
             "name": request_data.train_name,
             "train_args": redis_train_args,
-            "use_nvme": True
-            if request_data.deepspeed_args is not None
-            and request_data.deepspeed_args.offload_device == "nvme"
-            else False,
+            "accelerator": {
+                "deepspeed": {
+                    "use": True if request_data.deepspeed_args else False,
+                    "path": file_train_args.get("deepspeed", None),
+                },
+                "nvme": {
+                    "use": True
+                    if request_data.deepspeed_args is not None
+                    and request_data.deepspeed_args.offload_device == "nvme"
+                    else False,
+                    "path": COMMON_CONFIG.nvme_path
+                    if request_data.deepspeed_args is not None
+                    and request_data.deepspeed_args.offload_device == "nvme"
+                    else None,
+                },
+            },
             "container": {
                 "train": {"status": "setup", "id": None},
                 "eval": {"status": "setup", "id": None},
@@ -751,12 +763,20 @@ async def modify_train(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["train_args"] = redis_train_args
-        info["use_nvme"] = (
-            True
+        info["accelerator"]["deepspeed"] = {
+            "use": True if request_data.deepspeed_args else False,
+            "path": file_train_args.get("deepspeed", None),
+        }
+        info["accelerator"]["nvme"] = {
+            "use": True
             if request_data.deepspeed_args is not None
             and request_data.deepspeed_args.offload_device == "nvme"
-            else False
-        )
+            else False,
+            "path": COMMON_CONFIG.nvme_path
+            if request_data.deepspeed_args is not None
+            and request_data.deepspeed_args.offload_device == "nvme"
+            else None,
+        }
         info["container"] = {
             "train": {"status": "setup", "id": None},
             "eval": {"status": "setup", "id": None},
