@@ -14,6 +14,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import FileResponse
 
 from src.config.params import (
     COMMON_CONFIG,
@@ -167,6 +168,99 @@ async def stop_train(request_data: schema.PostStopTrain):
 
     return Response(
         content=json.dumps({"train_name": request_data.train_name}),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.get("/log/")
+async def get_log(train_name: Annotated[str, Query(...)]):
+    query_data = schema.GetTrainLog(train_name=train_name)
+    validator.GetTrainLog(train_name=query_data.train_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        info = await redis_async.client.hget(TASK_CONFIG.train, query_data.train_name)
+        info = orjson.loads(info)
+
+        log_path = os.path.join(
+            os.path.dirname(info["train_args"]["output_dir"]), "train.log"
+        )
+        if not os.path.exists(log_path):
+            raise FileNotFoundError("log file not found")
+
+    except FileNotFoundError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_QUERY],
+            msg=f"{e}",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+        ) from None
+
+    except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg="Unexpected error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return FileResponse(
+        path=log_path,
+        status_code=status.HTTP_200_OK,
+        media_type="text/plain",
+        filename=f"{query_data.train_name}.log",
+    )
+
+
+@router.get("/result/")
+async def get_result(train_name: Annotated[str, Query(...)]):
+    query_data = schema.GetTrainResult(train_name=train_name)
+    validator.GetTrainResult(train_name=query_data.train_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        info = await redis_async.client.hget(TASK_CONFIG.train, query_data.train_name)
+        info = orjson.loads(info)
+
+        train_result = await utils.get_train_result(info=info)
+
+    except FileNotFoundError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg=f"{e}",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+        ) from None
+
+    except Exception as e:
+        accel_logger.error(f"Unexpected error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg="Unexpected error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps(train_result),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

@@ -398,3 +398,51 @@ class PostStopTrain(BaseModel):
             )
 
         return self
+
+
+class GetTrainLog(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "GetTrainLog") -> "GetTrainLog":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
+
+
+class GetTrainResult(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "GetTrainResult") -> "GetTrainResult":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self

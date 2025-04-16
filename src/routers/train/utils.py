@@ -19,6 +19,7 @@ from src.config.params import (
     STATUS_CONFIG,
     TASK_CONFIG,
 )
+from src.routers.train import validator
 from src.thirdparty.docker.api_handler import (
     create_container,
     get_container_log,
@@ -339,3 +340,115 @@ async def stop_train(
     except Exception as e:
         accel_logger.error(f"{e}")
         raise RuntimeError(f"{e}") from None
+
+
+async def train_finish_event(path: str) -> validator.TrainResult:
+    output = validator.TrainResult()
+
+    if os.path.exists(path):
+        async with aiofiles.open(path) as f:
+            content = await f.read()
+        train_results: List[dict] = orjson.loads(content)["log_history"]
+
+        epoch_idx = dict()
+        last_eval_info = None
+
+        for log in train_results:
+            epoch = log.get("epoch")
+            step = log.get("step")
+
+            if "train_loss" in log:
+                output.final_report.epoch = epoch
+                output.final_report.step = step
+                output.final_report.total_flos = log["total_flos"]
+                output.final_report.train_runtime = log["train_runtime"]
+                output.final_report.train_loss = log["train_loss"]
+                output.final_report.train_samples_per_second = log[
+                    "train_samples_per_second"
+                ]
+                output.final_report.train_steps_per_second = log[
+                    "train_steps_per_second"
+                ]
+            elif "loss" in log:
+                log_history_info = validator.LogHistory(
+                    epoch=epoch, step=step, loss=log["loss"], eval_loss=0.0
+                )
+                epoch_idx[epoch] = len(output.log_history)
+                output.log_history.append(log_history_info)
+            elif "eval_loss" in log:
+                if epoch in epoch_idx:
+                    idx = epoch_idx[epoch]
+                    output.log_history[idx].eval_loss = log["eval_loss"]
+                    output.log_history[idx].step = step
+
+                last_eval_info = {
+                    "eval_loss": log["eval_loss"],
+                    "eval_runtime": log.get("eval_runtime"),
+                    "eval_samples_per_second": log.get("eval_samples_per_second"),
+                    "eval_steps_per_second": log.get("eval_steps_per_second"),
+                }
+
+        if last_eval_info:
+            output.final_report.eval_loss = last_eval_info["eval_loss"]
+            output.final_report.eval_runtime = last_eval_info["eval_runtime"]
+            output.final_report.eval_samples_per_second = last_eval_info[
+                "eval_samples_per_second"
+            ]
+            output.final_report.eval_steps_per_second = last_eval_info[
+                "eval_steps_per_second"
+            ]
+
+    validator.TrainResult.model_validate(output)
+
+    return output
+
+
+async def train_stop_failed_event(path: str) -> validator.TrainResult:
+    output = validator.TrainResult()
+
+    if os.path.exists(path):
+        train_log: List[dict] = list()
+        async with aiofiles.open(path) as f:
+            async for line in f:
+                if line.strip():
+                    content = orjson.loads(line)
+                    train_log.append(content)
+
+        epoch_idx = dict()
+
+        for log in train_log:
+            epoch = log.get("epoch")
+            step = log.get("current_steps")
+
+            if "loss" in log:
+                log_history_info = validator.LogHistory(
+                    epoch=epoch,
+                    step=step,
+                    loss=log["loss"],
+                    eval_loss=0.0,
+                )
+                epoch_idx[epoch] = len(output.log_history)
+                output.log_history.append(log_history_info)
+            elif "eval_loss" in log:
+                if epoch in epoch_idx:
+                    idx = epoch_idx[epoch]
+                    output.log_history[idx].eval_loss = log["eval_loss"]
+                    output.log_history[idx].step = log["current_steps"]
+
+    validator.TrainResult.model_validate(output)
+
+    return output
+
+
+async def get_train_result(info: dict) -> dict:
+    status = info["container"]["train"]["status"]
+    if status == STATUS_CONFIG.finish:
+        train_result = await train_finish_event(
+            path=os.path.join(info["train_args"]["output_dir"], "trainer_state.json")
+        )
+    elif status in {STATUS_CONFIG.stopped, STATUS_CONFIG.failed}:
+        train_result = await train_stop_failed_event(
+            path=os.path.join(info["train_args"]["output_dir"], "trainer_log.jsonl")
+        )
+
+    return train_result.model_dump()
