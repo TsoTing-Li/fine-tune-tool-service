@@ -145,15 +145,28 @@ async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
 
     try:
         ds_config = await utils.async_preview_ds_config(
-            path=os.path.join(COMMON_CONFIG.save_path, query_data.ds_file_name)
+            path=os.path.join(query_data.ds_file_name)
         )
 
-    except (FileNotFoundError, TypeError) as e:
+    except FileNotFoundError as e:
         accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
+            msg="ds_file not found",
+            input={"ds_file_name": query_data.ds_file_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_handler.errors,
+        ) from None
+
+    except TypeError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_QUERY],
+            msg="ds_file is not JSON format",
             input={"ds_file_name": query_data.ds_file_name},
         )
         raise HTTPException(
