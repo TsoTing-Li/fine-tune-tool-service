@@ -20,6 +20,7 @@ from src.config.params import (
     COMMON_CONFIG,
     DOCKERNETWORK_CONFIG,
     FINETUNETOOL_CONFIG,
+    STATUS_CONFIG,
     TASK_CONFIG,
 )
 from src.routers.train import schema, utils, validator
@@ -63,10 +64,6 @@ async def start_train(
         commands = [
             f"llamafactory-cli train {os.path.join(COMMON_CONFIG.save_path, request_data.train_name, f'{request_data.train_name}.yaml')}"
         ]
-        if info["train_args"]["finetuning_type"] == "lora":
-            commands.append(
-                f"llamafactory-cli export {os.path.join(COMMON_CONFIG.save_path, request_data.train_name, 'export.yaml')}"
-            )
 
         await utils.async_clear_last_checkpoint(
             train_path=os.path.dirname(info["train_args"]["output_dir"])
@@ -89,7 +86,7 @@ async def start_train(
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg="Unexpected error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -109,7 +106,7 @@ async def start_train(
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -118,7 +115,7 @@ async def start_train(
         ) from None
 
     background_tasks.add_task(
-        utils.monitor_train_status, request_data.train_name, container_name
+        utils.start_train_background_task, request_data.train_name, container_name
     )
 
     return Response(
@@ -142,7 +139,7 @@ async def stop_train(request_data: schema.PostStopTrain):
         error_handler.add(
             type=error_handler.ERR_REDIS,
             loc=[error_handler.LOC_DATABASE],
-            msg=f"Database error: {e}",
+            msg="Database error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
@@ -153,18 +150,66 @@ async def stop_train(request_data: schema.PostStopTrain):
     try:
         await utils.stop_train(container_name_or_id=info["container"]["train"]["id"])
 
+        output_dir = info["train_args"]["output_dir"]
+        root_output_dir = os.path.dirname(output_dir)
+        finetuning_type: Literal["full", "lora"] = info["train_args"]["finetuning_type"]
+        last_model_path = utils.get_last_checkpoint(output_dir)
+        train_status = STATUS_CONFIG.stopped
+
+        info["last_model_path"] = last_model_path
+        info["container"]["train"]["status"] = train_status
+        info["container"]["train"]["id"] = None
+
+        if finetuning_type == "lora" and last_model_path is not None:
+            merge_path = os.path.join(root_output_dir, "merge")
+            merge_status = await utils.merge_event(
+                name=request_data.train_name,
+                yaml_path=os.path.join(root_output_dir, "export.yaml"),
+                adapter_name_or_path=last_model_path,
+                export_dir=merge_path,
+                model_name_or_path=info["train_args"]["base_model"],
+                template=info["train_args"]["template"],
+                finetuning_type=finetuning_type,
+            )
+
+            if merge_status == STATUS_CONFIG.finish:
+                info["last_model_path"] = merge_path
+            else:
+                info["last_model_path"] = None
+                info["container"]["train"]["status"] = STATUS_CONFIG.failed
+
     except Exception as e:
+        train_status = STATUS_CONFIG.failed
         accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg="Unexpected error",
             input=request_data.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_handler.errors,
         ) from None
+
+    finally:
+        try:
+            await redis_async.client.hset(
+                TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
+            )
+
+        except Exception as e:
+            accel_logger.error(f"Database error: {e}")
+            error_handler.add(
+                type=error_handler.ERR_REDIS,
+                loc=[error_handler.LOC_DATABASE],
+                msg="Database error",
+                input=request_data.model_dump(),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_handler.errors,
+            ) from None
 
     return Response(
         content=json.dumps({"train_name": request_data.train_name}),
@@ -401,19 +446,6 @@ async def add_train(
             path=os.path.join(COMMON_CONFIG.save_path, request_data.train_name)
         )
 
-        if redis_train_args["finetuning_type"] == "lora":
-            export_data = utils.export_data_process(
-                train_name=request_data.train_name,
-                train_args=train_args,
-                save_path=COMMON_CONFIG.save_path,
-            )
-            await utils.write_yaml(
-                path=os.path.join(
-                    COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
-                ),
-                data=export_data,
-            )
-
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args.model_dump()
             ds_api_response = await utils.call_ds_api(
@@ -487,6 +519,7 @@ async def add_train(
                     "type": None,
                 },
             },
+            "last_model_path": None,
             "created_time": unix_time,
             "modified_time": None,
         }
@@ -700,19 +733,6 @@ async def modify_train(
             ]
         )
 
-        if train_args["finetuning_type"] == "lora":
-            export_data = utils.export_data_process(
-                train_name=request_data.train_name,
-                train_args=train_args,
-                save_path=COMMON_CONFIG.save_path,
-            )
-            await utils.write_yaml(
-                path=os.path.join(
-                    COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
-                ),
-                data=export_data,
-            )
-
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args.model_dump()
             ds_api_response = await utils.call_ds_api(
@@ -788,6 +808,7 @@ async def modify_train(
                 "type": None,
             },
         }
+        info["last_model_path"] = None
         info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)

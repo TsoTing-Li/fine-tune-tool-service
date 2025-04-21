@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, Response, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import StreamingResponse
 
-from src.config.params import COMMON_CONFIG, STATUS_CONFIG, TASK_CONFIG
+from src.config.params import STATUS_CONFIG, TASK_CONFIG
 from src.routers.accelbrain import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
@@ -31,6 +31,11 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
             TASK_CONFIG.accelbrain_device, str(request_data.device_uuid)
         )
         accelbrain_device_info = orjson.loads(accelbrain_device_info)
+
+        info = await redis_async.client.hget(
+            TASK_CONFIG.train, request_data.deploy_name
+        )
+        info = orjson.loads(info)
 
         deploy_unique_key = f"{request_data.deploy_name}-{request_data.device_uuid}"
         await redis_async.client.hset(
@@ -63,12 +68,13 @@ async def start_deploy_accelbrain(request_data: schema.PostDeploy):
         return StreamingResponse(
             content=utils.deploy_to_accelbrain_service(
                 file_path=os.path.join(
-                    COMMON_CONFIG.save_path, request_data.deploy_name, "quantize"
+                    os.path.dirname(info["train_args"]["output_dir"]), "quantize"
                 ),
                 model_name=request_data.deploy_name,
+                train_args=info["train_args"],
+                last_model_path=info["last_model_path"],
                 deploy_path=os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.deploy_name,
+                    os.path.dirname(info["train_args"]["output_dir"]),
                     "deploy",
                     f"{deploy_unique_key}.zip",
                 ),

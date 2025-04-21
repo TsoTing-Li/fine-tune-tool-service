@@ -1,19 +1,181 @@
 import asyncio
 import hashlib
 import os
+import re
 import zipfile
 from collections.abc import AsyncGenerator
-from typing import Any, Tuple, Union
+from typing import Any, Literal, Tuple, Union
 
 import aiofiles
 import aiofiles.os
 import httpx
 import orjson
-from fastapi import status
+from fastapi import HTTPException, status
 
-from src.config.params import MAINSERVICE_CONFIG, STATUS_CONFIG, TASK_CONFIG
+from src.config.params import (
+    MAINSERVICE_CONFIG,
+    STATUS_CONFIG,
+    TASK_CONFIG,
+)
 from src.routers.accelbrain.error import AccelBrainError, AccelTuneError
+from src.routers.train.utils import export_data_process, write_yaml
+from src.thirdparty.docker.api_handler import remove_container, wait_for_container
 from src.thirdparty.redis.handler import redis_async
+
+
+async def call_internal_merge_api(merge_name: str) -> str:
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        response = await aclient.post(
+            f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/merge/start/",
+            json={"merge_name": merge_name},
+        )
+        container_name = response.json()["container_name"]
+
+    if response.status_code == status.HTTP_200_OK:
+        transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            container_info = await wait_for_container(
+                aclient=aclient, container_name=container_name
+            )
+            exit_status = container_info["StatusCode"]
+            if exit_status == 0:
+                merge_status = STATUS_CONFIG.finish
+            elif exit_status in {137, 143}:
+                merge_status = STATUS_CONFIG.stopped
+            elif exit_status == 1:
+                merge_status = STATUS_CONFIG.failed
+            else:
+                merge_status = STATUS_CONFIG.failed
+
+            await remove_container(aclient=aclient, container_name_or_id=container_name)
+
+        return merge_status
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+
+def check_file_complete(path: str) -> bool:
+    shard_pattern = re.compile(r"model-(\d{5})-of-(\d{5})\.safetensors")
+    found_shards = {}
+    required_files = {
+        "config.json",
+        "generation_config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json",
+        "tokenizer.json",
+    }
+    found_files = set()
+    is_shard_model = False
+
+    with os.scandir(path) as entries:
+        for entry in entries:
+            if not entry.is_file():
+                continue
+            name = entry.name
+
+            if name in required_files:
+                found_files.add(name)
+
+            if name == "model.safetensors":
+                is_shard_model = True
+
+            match = shard_pattern.fullmatch(name)
+            if match:
+                idx = int(match.group(1))
+                total = int(match.group(2))
+                found_shards[idx] = total
+
+            if name == "model.safetensors.index.json":
+                found_files.add(name)
+
+    if not required_files.issubset(found_files):
+        return False
+
+    if is_shard_model:
+        return True
+
+    if found_shards:
+        shard_total = next(iter(found_shards.values()))
+        if (
+            len(found_shards) == shard_total
+            and "model.safetensors.index.json" in found_files
+        ):
+            return True
+
+    return False
+
+
+async def update_last_model_path(name: str, last_model_path: str):
+    try:
+        info = await redis_async.client.hget(TASK_CONFIG.train, name)
+        info = orjson.loads(info)
+        info["last_model_path"] = last_model_path
+
+        await redis_async.client.hset(TASK_CONFIG.train, name, orjson.dumps(info))
+
+    except Exception:
+        raise RuntimeError("Database error") from None
+
+
+async def check_merge_status(
+    name: str, train_args: dict, last_model_path: Union[str, None]
+) -> None:
+    finetuning_type: Literal["full", "lora"] = train_args["finetuning_type"]
+    template = train_args["template"]
+    base_model = train_args["base_model"]
+    root_output_dir = os.path.dirname(train_args["output_dir"])
+
+    if finetuning_type == "lora":
+        if last_model_path is not None:
+            if not os.path.exists(last_model_path) or not check_file_complete(
+                path=last_model_path
+            ):
+                merge_path = os.path.join(root_output_dir, "merge")
+                export_data = export_data_process(
+                    adapter_name_or_path=last_model_path,
+                    export_dir=merge_path,
+                    model_name_or_path=base_model,
+                    template=template,
+                    finetuning_type=finetuning_type,
+                )
+                await write_yaml(
+                    path=os.path.join(root_output_dir, "export.yaml"), data=export_data
+                )
+                try:
+                    merge_status = await call_internal_merge_api(merge_name=name)
+                    if merge_status != STATUS_CONFIG.finish:
+                        raise RuntimeError(f"merge {merge_status}")
+                    await update_last_model_path(name=name, last_model_path=merge_path)
+                except HTTPException as e:
+                    raise AccelTuneError(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        action="Check file",
+                        progress=-1,
+                        detail={"error": e.detail[0]["msg"]},
+                    ) from None
+                except Exception as e:
+                    raise AccelTuneError(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        action="Check file",
+                        progress=-1,
+                        detail={"error": f"{e}"},
+                    ) from None
+        else:
+            raise AccelTuneError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                action="Check file",
+                progress=-1,
+                detail={"error": "can not found model file"},
+            ) from None
+
+    elif finetuning_type == "full":
+        if not os.path.exists(last_model_path) or last_model_path is None:
+            raise AccelTuneError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                action="Check file",
+                progress=-1,
+                detail={"error": "can not found model file"},
+            ) from None
 
 
 async def call_internal_quantize_api(quantize_name: str) -> None:
@@ -25,28 +187,7 @@ async def call_internal_quantize_api(quantize_name: str) -> None:
 
         if response.status_code == status.HTTP_200_OK:
             return
-        elif response.status_code == status.HTTP_404_NOT_FOUND:
-            raise AccelTuneError(
-                status_code=response.status_code,
-                action="Internal quantize",
-                progress=-1,
-                detail={"error": response.json()["detail"][0]["msg"]},
-            )
-        elif response.status_code == status.HTTP_409_CONFLICT:
-            raise AccelTuneError(
-                status_code=response.status_code,
-                action="Internal quantize",
-                progress=-1,
-                detail={"error": response.json()["detail"][0]["msg"]},
-            )
-        elif response.status_code == 499:
-            raise AccelTuneError(
-                status_code=response.status_code,
-                action="Internal quantize",
-                progress=-1,
-                detail={"error": response.json()["detail"][0]["msg"]},
-            )
-        elif response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+        else:
             raise AccelTuneError(
                 status_code=response.status_code,
                 action="Internal quantize",
@@ -63,10 +204,13 @@ async def check_quantize_status(quantize_name: str):
 
             if info["container"]["quantize"]["status"] == STATUS_CONFIG.finish:
                 break
-            elif info["container"]["quantize"]["status"] == STATUS_CONFIG.failed:
-                await call_internal_quantize_api(quantize_name=quantize_name)
             elif info["container"]["quantize"]["status"] == STATUS_CONFIG.active:
                 await asyncio.sleep(3)
+            elif info["container"]["quantize"]["status"] in {
+                STATUS_CONFIG.setup,
+                STATUS_CONFIG.failed,
+            }:
+                await call_internal_quantize_api(quantize_name=quantize_name)
     except AccelTuneError:
         raise
     except Exception as e:
@@ -353,14 +497,40 @@ async def update_deploy_status(key: str, new_status: str) -> Union[bytes, None]:
         return orjson.dumps(acceltune_error.error_data)
 
 
+async def remove_zip_file(file_path: str) -> None:
+    is_exists = await aiofiles.os.path.exists(file_path)
+    if is_exists:
+        await aiofiles.os.remove(file_path)
+
+
 async def deploy_to_accelbrain_service(
     file_path: str,
     model_name: str,
+    train_args: dict,
+    last_model_path: str,
     deploy_path: str,
     deploy_unique_key: str,
     accelbrain_url: str,
 ) -> AsyncGenerator[str, None, None]:
     try:
+        yield (
+            orjson.dumps(
+                {
+                    "AccelTune": {
+                        "status": status.HTTP_200_OK,
+                        "message": {
+                            "action": "Check file",
+                            "progress": 0.0,
+                            "detail": {"model_name": model_name},
+                        },
+                    }
+                }
+            )
+        ) + b"\n"
+        await check_merge_status(
+            name=model_name, train_args=train_args, last_model_path=last_model_path
+        )
+
         yield (
             orjson.dumps(
                 {
@@ -448,7 +618,7 @@ async def deploy_to_accelbrain_service(
         yield orjson.dumps(acceltune_error.error_data) + b"\n"
 
     finally:
-        await aiofiles.os.remove(deploy_path)
+        await remove_zip_file(file_path=deploy_path)
         result = await update_deploy_status(
             key=deploy_unique_key,
             new_status=target_model_status,

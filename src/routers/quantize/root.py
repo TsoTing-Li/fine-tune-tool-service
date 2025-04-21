@@ -33,13 +33,7 @@ async def start_quantize(request_data: schema.PostStartQuantize):
         container_name = await utils.quantize_as_gguf(
             quantize_service_url=f"http://{QUANTIZESERVICE_CONFIG.container_name}:{QUANTIZESERVICE_CONFIG.port}/gguf/full/",
             quantize_name=request_data.quantize_name,
-            checkpoint_path=os.path.join(
-                COMMON_CONFIG.save_path,
-                request_data.quantize_name,
-                "merge"
-                if info["train_args"]["finetuning_type"] == "lora"
-                else info["train_args"]["finetuning_type"],
-            ),
+            checkpoint_path=info["last_model_path"],
             output_path=os.path.join(
                 COMMON_CONFIG.save_path, request_data.quantize_name, "quantize"
             ),

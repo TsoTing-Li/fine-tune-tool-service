@@ -25,18 +25,36 @@ async def start_infer_backend(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.model_name)
         info = orjson.loads(info)
 
+        reload_info = await utils.check_merge_status_and_reload(
+            name=request_data.model_name,
+            train_args=info["train_args"],
+            last_model_path=info["last_model_path"],
+        )
+
         service_type = "vllm"
         model_service_info = await utils.startup_vllm_service(
             model_name=request_data.model_name,
             local_safetensors_path=os.path.join(
                 COMMON_CONFIG.root_path,
-                "saves",
-                request_data.model_name,
-                "merge" if info["train_args"]["finetuning_type"] == "lora" else "full",
+                os.path.relpath(
+                    reload_info["last_model_path"], COMMON_CONFIG.workspace_path
+                ),
             ),
-            base_model=info["train_args"]["model_name_or_path"],
+            base_model=reload_info["train_args"]["base_model"],
             hf_home=COMMON_CONFIG.hf_home,
         )
+
+    except FileNotFoundError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg="file not found",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+        ) from None
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
@@ -52,14 +70,16 @@ async def start_infer_backend(
         ) from None
 
     try:
-        info["container"]["infer_backend"]["status"] = STATUS_CONFIG.active
-        info["container"]["infer_backend"]["id"] = model_service_info["container_name"]
-        info["container"]["infer_backend"]["url"] = model_service_info[
+        reload_info["container"]["infer_backend"]["status"] = STATUS_CONFIG.active
+        reload_info["container"]["infer_backend"]["id"] = model_service_info[
+            "container_name"
+        ]
+        reload_info["container"]["infer_backend"]["url"] = model_service_info[
             f"{service_type}_service"
         ]
-        info["container"]["infer_backend"]["type"] = service_type
+        reload_info["container"]["infer_backend"]["type"] = service_type
         await redis_async.client.hset(
-            TASK_CONFIG.train, request_data.model_name, orjson.dumps(info)
+            TASK_CONFIG.train, request_data.model_name, orjson.dumps(reload_info)
         )
 
     except Exception as e:

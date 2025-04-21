@@ -92,20 +92,22 @@ def redis_train_args_process(
     return args
 
 
-def export_data_process(train_name: str, train_args: dict, save_path: str) -> dict:
+def export_data_process(
+    adapter_name_or_path: str,
+    export_dir: str,
+    model_name_or_path: str,
+    template: str,
+    finetuning_type: str,
+) -> dict:
     export_data = {
-        "adapter_name_or_path": os.path.join(
-            save_path,
-            train_name,
-            train_args["finetuning_type"],
-        ),
-        "export_dir": os.path.join(save_path, train_name, "merge"),
+        "adapter_name_or_path": adapter_name_or_path,
+        "export_dir": export_dir,
         "export_size": 5,
         "export_device": "auto",
         "export_legacy_format": False,
-        "model_name_or_path": train_args["base_model"],
-        "template": train_args["template"],
-        "finetuning_type": train_args["finetuning_type"],
+        "model_name_or_path": model_name_or_path,
+        "template": template,
+        "finetuning_type": finetuning_type,
     }
 
     return export_data
@@ -206,7 +208,84 @@ async def record_train_log(
         await file.close()
 
 
-async def monitor_train_status(train_name: str, container_name_or_id: str):
+async def call_internal_merge_api(merge_name: str) -> str:
+    async with httpx.AsyncClient(timeout=None) as aclient:
+        response = await aclient.post(
+            f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/merge/start/",
+            json={"merge_name": merge_name},
+        )
+        container_name = response.json()["container_name"]
+
+    if response.status_code == status.HTTP_200_OK:
+        transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            container_info = await wait_for_container(
+                aclient=aclient, container_name=container_name
+            )
+            exit_status = container_info["StatusCode"]
+            if exit_status == 0:
+                merge_status = STATUS_CONFIG.finish
+            elif exit_status in {137, 143}:
+                merge_status = STATUS_CONFIG.stopped
+            elif exit_status == 1:
+                merge_status = STATUS_CONFIG.failed
+            else:
+                merge_status = STATUS_CONFIG.failed
+
+            await remove_container(aclient=aclient, container_name_or_id=container_name)
+
+    return merge_status
+
+
+async def merge_event(
+    name: str,
+    yaml_path: str,
+    adapter_name_or_path: str,
+    export_dir: str,
+    model_name_or_path: str,
+    template: str,
+    finetuning_type: str,
+) -> str:
+    try:
+        export_data = export_data_process(
+            adapter_name_or_path=adapter_name_or_path,
+            export_dir=export_dir,
+            model_name_or_path=model_name_or_path,
+            template=template,
+            finetuning_type=finetuning_type,
+        )
+        await write_yaml(path=yaml_path, data=export_data)
+        merge_status = await call_internal_merge_api(merge_name=name)
+        return merge_status
+
+    except Exception as e:
+        accel_logger.error(f"Merge event error: {e}")
+        raise RuntimeError("Merge event error") from None
+
+
+def get_last_checkpoint(path: str) -> Union[str, None]:
+    checkpoint_pattern = re.compile(r"checkpoint-(\d+)")
+    checkpoint_dict = dict()
+
+    if os.path.exists(path):
+        with os.scandir(path) as entries:
+            for entry in entries:
+                if entry.is_dir():
+                    match = checkpoint_pattern.fullmatch(entry.name)
+
+                    if match:
+                        checkpoint_dict.update({entry.name: int(match.group(1))})
+
+        return (
+            os.path.join(path, max(checkpoint_dict, key=checkpoint_dict.get))
+            if checkpoint_dict
+            else None
+        )
+    else:
+        return None
+
+
+async def start_train_background_task(train_name: str, container_name_or_id: str):
     ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
     try:
@@ -234,10 +313,10 @@ async def monitor_train_status(train_name: str, container_name_or_id: str):
             exit_status = container_info["StatusCode"]
             if exit_status == 0:
                 train_status = STATUS_CONFIG.finish
-            elif exit_status in {137, 143}:
-                train_status = STATUS_CONFIG.stopped
             elif exit_status == 1:
                 train_status = STATUS_CONFIG.failed
+            else:
+                train_status = None
 
             await remove_container(
                 aclient=aclient, container_name_or_id=container_name_or_id
@@ -257,13 +336,45 @@ async def monitor_train_status(train_name: str, container_name_or_id: str):
 
     finally:
         try:
-            info = await redis_async.client.hget(TASK_CONFIG.train, train_name)
-            info = orjson.loads(info)
-            info["container"]["train"]["status"] = train_status
-            info["container"]["train"]["id"] = None
-            await redis_async.client.hset(
-                TASK_CONFIG.train, train_name, orjson.dumps(info)
-            )
+            if train_status in {STATUS_CONFIG.finish, STATUS_CONFIG.failed}:
+                info = await redis_async.client.hget(TASK_CONFIG.train, train_name)
+                info = orjson.loads(info)
+                output_dir = info["train_args"]["output_dir"]
+                root_output_dir = os.path.dirname(output_dir)
+                finetuning_type: Literal["full", "lora"] = info["train_args"][
+                    "finetuning_type"
+                ]
+                last_model_path = get_last_checkpoint(output_dir)
+
+                info["last_model_path"] = last_model_path
+                info["container"]["train"]["status"] = train_status
+                info["container"]["train"]["id"] = None
+
+                if finetuning_type == "lora" and last_model_path is not None:
+                    merge_path = os.path.join(root_output_dir, "merge")
+                    try:
+                        merge_status = await merge_event(
+                            name=train_name,
+                            yaml_path=os.path.join(root_output_dir, "export.yaml"),
+                            adapter_name_or_path=last_model_path,
+                            export_dir=merge_path,
+                            model_name_or_path=info["train_args"]["base_model"],
+                            template=info["train_args"]["template"],
+                            finetuning_type=finetuning_type,
+                        )
+
+                        if merge_status == STATUS_CONFIG.finish:
+                            info["last_model_path"] = merge_path
+                        else:
+                            info["last_model_path"] = None
+                            info["container"]["train"]["status"] = STATUS_CONFIG.failed
+                    except Exception as e:
+                        info["container"]["train"]["status"] = STATUS_CONFIG.failed
+                        accel_logger.error(f"Unexpected error: {e}")
+
+                await redis_async.client.hset(
+                    TASK_CONFIG.train, train_name, orjson.dumps(info)
+                )
         except Exception as e:
             accel_logger.error(f"Database error: {e}")
 
