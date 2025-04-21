@@ -168,20 +168,21 @@ async def del_train(path: str) -> None:
 
 
 async def async_clear_last_checkpoint(train_path: str) -> None:
-    for method in {"full", "lora"}:
+    for method in {"full", "lora", "merge", "quantize", "deploy"}:
         checkpoint_path = os.path.join(train_path, method)
-        is_exists = await aiofiles.os.path.exists(checkpoint_path)
+        checkpoint_exists = await aiofiles.os.path.exists(checkpoint_path)
 
-        if is_exists:
+        if checkpoint_exists:
             if not await aiofiles.os.path.isdir(checkpoint_path):
                 return
 
-            for item in await asyncio.to_thread(os.listdir, checkpoint_path):
-                item_path = os.path.join(checkpoint_path, item)
+            entries = await asyncio.to_thread(lambda: list(os.scandir(checkpoint_path)))  # noqa: B023
+            for entry in entries:
+                item_path = entry.path
 
-                if await aiofiles.os.path.isfile(item_path):
+                if entry.is_file():
                     await aiofiles.os.remove(item_path)
-                elif await aiofiles.os.path.isdir(item_path):
+                elif entry.is_dir():
                     await asyncio.to_thread(shutil.rmtree, item_path)
 
 
