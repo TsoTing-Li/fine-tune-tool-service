@@ -20,10 +20,10 @@ from src.utils.logger import accel_logger
 
 MAX_FILE_SIZE = 1024 * 1024 * 5
 
-router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"], include_in_schema=False)
+router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
 
-@router.post("/default/")
+@router.post("/default/", include_in_schema=False)
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     error_handler = ResponseErrorHandler()
 
@@ -78,7 +78,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     )
 
 
-@router.post("/file/")
+@router.post("/file/", include_in_schema=False)
 async def add_deepspeed_file(
     ds_file: UploadFile = File(...), train_name: str = Form(...)
 ):
