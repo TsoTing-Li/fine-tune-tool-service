@@ -5,7 +5,12 @@ import os
 import orjson
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.config.params import COMMON_CONFIG, QUANTIZESERVICE_CONFIG, TASK_CONFIG
+from src.config.params import (
+    COMMON_CONFIG,
+    QUANTIZESERVICE_CONFIG,
+    STATUS_CONFIG,
+    TASK_CONFIG,
+)
 from src.routers.quantize import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
@@ -43,20 +48,19 @@ async def start_quantize(request_data: schema.PostStartQuantize):
         await utils.merge_async_tasks(
             quantize_name=request_data.quantize_name, container_name=container_name
         )
-        quantize_status = "finish"
+        quantize_status = STATUS_CONFIG.finish
 
     except asyncio.CancelledError:
         accel_logger.info("asyncio cancelled")
-        quantize_status = "stopped"
+        quantize_status = STATUS_CONFIG.stopped
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
-        quantize_status = "failed"
+        quantize_status = STATUS_CONFIG.failed
 
     finally:
-        accel_logger.info(f"quantize status: {quantize_status}")
         try:
-            if quantize_status != "finish":
+            if quantize_status != STATUS_CONFIG.finish:
                 accel_logger.info("quantize is not finish, delete exist folder")
                 await utils.del_quantize_folder(
                     qunatize_folder=os.path.join(
@@ -101,13 +105,13 @@ async def start_quantize(request_data: schema.PostStartQuantize):
                 )
             )
 
-    if quantize_status == "finish":
+    if quantize_status == STATUS_CONFIG.finish:
         return Response(
             content=json.dumps({"quantize_name": request_data.quantize_name}),
             status_code=status.HTTP_200_OK,
             media_type="application/json",
         )
-    elif quantize_status == "stopped":
+    elif quantize_status == STATUS_CONFIG.stopped:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
@@ -115,7 +119,7 @@ async def start_quantize(request_data: schema.PostStartQuantize):
             input=request_data.model_dump(),
         )
         raise HTTPException(status_code=499, detail=error_handler.errors)
-    elif quantize_status == "failed":
+    elif quantize_status == STATUS_CONFIG.failed:
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
