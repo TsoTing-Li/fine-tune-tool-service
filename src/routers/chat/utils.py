@@ -56,11 +56,16 @@ async def post_openai_chat(
                         if data_chunk["choices"][0]["finish_reason"] == "stop":
                             break
 
-                        yield json.dumps(
-                            {
-                                "id": request_id,
-                                "content": data_chunk["choices"][0]["delta"]["content"],
-                            }
+                        yield (
+                            json.dumps(
+                                {
+                                    "id": request_id,
+                                    "content": data_chunk["choices"][0]["delta"][
+                                        "content"
+                                    ],
+                                }
+                            )
+                            + "\n"
                         )
 
     finally:
