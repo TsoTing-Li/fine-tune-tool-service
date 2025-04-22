@@ -77,8 +77,8 @@ async def start_train(
             cmd=["sh", "-c", " && ".join(commands)],
             docker_network_name=DOCKERNETWORK_CONFIG.network_name,
             train_name=request_data.train_name,
-            is_deepspeed=info["accelerator"]["deepspeed"]["use"],
-            use_nvme=info["accelerator"]["nvme"]["use"],
+            is_deepspeed=info["offloading"]["deepspeed"]["use"],
+            use_nvme=info["offloading"]["nvme"]["use"],
         )
 
     except Exception as e:
@@ -492,7 +492,7 @@ async def add_train(
         train_info = {
             "name": request_data.train_name,
             "train_args": redis_train_args,
-            "accelerator": {
+            "offloading": {
                 "deepspeed": {
                     "use": True if request_data.deepspeed_args else False,
                     "path": file_train_args.get("deepspeed", None),
@@ -783,11 +783,11 @@ async def modify_train(
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
         info = orjson.loads(info)
         info["train_args"] = redis_train_args
-        info["accelerator"]["deepspeed"] = {
+        info["offloading"]["deepspeed"] = {
             "use": True if request_data.deepspeed_args else False,
             "path": file_train_args.get("deepspeed", None),
         }
-        info["accelerator"]["nvme"] = {
+        info["offloading"]["nvme"] = {
             "use": True
             if request_data.deepspeed_args is not None
             and request_data.deepspeed_args.offload_device == "nvme"
