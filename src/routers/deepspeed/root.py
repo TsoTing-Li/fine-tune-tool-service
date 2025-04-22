@@ -92,7 +92,7 @@ async def add_deepspeed_file(
         ds_file_path = os.path.join(
             COMMON_CONFIG.save_path,
             request_data.train_name,
-            f"ds_config_{request_data.train_name}.json",
+            f"ds_config_{request_data.ds_file.filename}",
         )
 
         await utils.async_write_file_chunk(
