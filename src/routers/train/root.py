@@ -698,6 +698,22 @@ async def modify_train(
     error_handler = ResponseErrorHandler()
 
     try:
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
+        info = orjson.loads(info)
+
+    except Exception:
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
+            input=request_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
         train_args = utils.basemodel2dict(data=request_data.train_args)
         redis_train_args = utils.redis_train_args_process(
             train_name=request_data.train_name,
@@ -718,29 +734,36 @@ async def modify_train(
             dataset_path=COMMON_CONFIG.data_path,
         )
 
-        await utils.async_clear_file(
-            paths=[
-                os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.train_name,
-                    "export.yaml",
-                ),
-                os.path.join(
-                    COMMON_CONFIG.save_path,
-                    request_data.train_name,
-                    f"ds_config_{request_data.train_name}.json",
-                ),
-            ]
-        )
+        clear_up_list = [
+            os.path.join(
+                COMMON_CONFIG.save_path, request_data.train_name, "export.yaml"
+            )
+        ]
 
         if request_data.deepspeed_args:
             ds_args = request_data.deepspeed_args
-            ds_api_response = await utils.call_ds_api(
-                name=request_data.train_name,
-                ds_args=ds_args,
-                ds_file=request_data.deepspeed_file,
-            )
-            file_train_args["deepspeed"] = ds_api_response["ds_path"]
+            if (
+                ds_args.src == "file" and request_data.deepspeed_file is not None
+            ) or ds_args.src == "default":
+                ds_api_response = await utils.call_ds_api(
+                    name=request_data.train_name,
+                    ds_args=ds_args,
+                    ds_file=request_data.deepspeed_file,
+                )
+                file_train_args["deepspeed"] = ds_api_response["ds_path"]
+
+                if info["offloading"]["deepspeed"]["path"] is not None:
+                    clear_up_list.append(info["offloading"]["deepspeed"]["path"])
+            else:
+                if info["offloading"]["deepspeed"]["path"] is not None:
+                    if not os.path.exists(info["offloading"]["deepspeed"]["path"]):
+                        raise ValueError("no ds_file exists")
+
+                    file_train_args["deepspeed"] = info["offloading"]["deepspeed"][
+                        "path"
+                    ]
+                else:
+                    raise ValueError("pls provide 'ds_file'")
 
             if ds_args.src == "default":
                 redis_train_args["deepspeed_src"] = ds_args.src
@@ -749,6 +772,11 @@ async def modify_train(
                 redis_train_args["deepspeed_offload_device"] = ds_args.offload_device
             elif ds_args.src == "file":
                 redis_train_args["deepspeed_src"] = ds_args.src
+        else:
+            if info["offloading"]["deepspeed"]["path"] is not None:
+                clear_up_list.append(info["offloading"]["deepspeed"]["path"])
+
+        await utils.async_clear_file(paths=clear_up_list)
 
         await utils.write_yaml(
             path=os.path.join(
@@ -760,10 +788,26 @@ async def modify_train(
         )
 
     except HTTPException as e:
-        accel_logger.error(f"DeepSpeed default error: {e.detail['detail']}")
+        accel_logger.error(f"deepspeed api error: {e.detail['detail']}")
         raise HTTPException(
             status_code=e.status_code,
             detail=e.detail["detail"],
+        ) from None
+
+    except ValueError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_FORM],
+            msg=f"{e}",
+            input={
+                "deepspeed_args.src": ds_args.src,
+                "deepspeed_file": request_data.deepspeed_file,
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_handler.errors,
         ) from None
 
     except Exception as e:
@@ -780,8 +824,6 @@ async def modify_train(
         ) from None
 
     try:
-        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.train_name)
-        info = orjson.loads(info)
         info["train_args"] = redis_train_args
         info["offloading"]["deepspeed"] = {
             "use": True if request_data.deepspeed_args else False,

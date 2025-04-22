@@ -286,17 +286,6 @@ class PutTrain(BaseModel):
             )
 
         if self.deepspeed_args:
-            if self.deepspeed_args.src == "file" and not self.deepspeed_file:
-                error_handler.add(
-                    type=error_handler.ERR_VALIDATE,
-                    loc=[error_handler.LOC_FORM],
-                    msg="must provide 'ds_file' when 'src' is 'file'",
-                    input={
-                        "deepspeed_args.src": self.deepspeed_args.src,
-                        "deepspeed_file": self.deepspeed_file,
-                    },
-                )
-
             if (
                 self.deepspeed_file
                 and self.deepspeed_file.content_type != "application/json"
