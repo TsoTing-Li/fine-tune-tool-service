@@ -447,7 +447,7 @@ async def add_train(
         )
 
         if request_data.deepspeed_args:
-            ds_args = request_data.deepspeed_args.model_dump()
+            ds_args = request_data.deepspeed_args
             ds_api_response = await utils.call_ds_api(
                 name=request_data.train_name,
                 ds_args=ds_args,
@@ -455,13 +455,13 @@ async def add_train(
             )
             file_train_args["deepspeed"] = ds_api_response["ds_path"]
 
-            if ds_args["src"] == "default":
-                redis_train_args["deepspeed_src"] = ds_args["src"]
-                redis_train_args["deepspeed_stage"] = ds_args["stage"]
-                redis_train_args["deepspeed_enable_offload"] = ds_args["enable_offload"]
-                redis_train_args["deepspeed_offload_device"] = ds_args["offload_device"]
-            elif ds_args["src"] == "file":
-                redis_train_args["deepspeed_src"] = ds_args["src"]
+            if ds_args.src == "default":
+                redis_train_args["deepspeed_src"] = ds_args.src
+                redis_train_args["deepspeed_stage"] = ds_args.stage
+                redis_train_args["deepspeed_enable_offload"] = ds_args.enable_offload
+                redis_train_args["deepspeed_offload_device"] = ds_args.offload_device
+            elif ds_args.src == "file":
+                redis_train_args["deepspeed_src"] = ds_args.src
 
         await utils.write_yaml(
             path=os.path.join(train_path, f"{request_data.train_name}.yaml"),
@@ -734,7 +734,7 @@ async def modify_train(
         )
 
         if request_data.deepspeed_args:
-            ds_args = request_data.deepspeed_args.model_dump()
+            ds_args = request_data.deepspeed_args
             ds_api_response = await utils.call_ds_api(
                 name=request_data.train_name,
                 ds_args=ds_args,
@@ -742,13 +742,13 @@ async def modify_train(
             )
             file_train_args["deepspeed"] = ds_api_response["ds_path"]
 
-            if ds_args["src"] == "default":
-                redis_train_args["deepspeed_src"] = ds_args["src"]
-                redis_train_args["deepspeed_stage"] = ds_args["stage"]
-                redis_train_args["deepspeed_enable_offload"] = ds_args["enable_offload"]
-                redis_train_args["deepspeed_offload_device"] = ds_args["offload_device"]
-            elif ds_args["src"] == "file":
-                redis_train_args["deepspeed_src"] = ds_args["src"]
+            if ds_args.src == "default":
+                redis_train_args["deepspeed_src"] = ds_args.src
+                redis_train_args["deepspeed_stage"] = ds_args.stage
+                redis_train_args["deepspeed_enable_offload"] = ds_args.enable_offload
+                redis_train_args["deepspeed_offload_device"] = ds_args.offload_device
+            elif ds_args.src == "file":
+                redis_train_args["deepspeed_src"] = ds_args.src
 
         await utils.write_yaml(
             path=os.path.join(

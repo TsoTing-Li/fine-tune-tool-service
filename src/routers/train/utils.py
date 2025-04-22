@@ -19,7 +19,7 @@ from src.config.params import (
     STATUS_CONFIG,
     TASK_CONFIG,
 )
-from src.routers.train import validator
+from src.routers.train import schema, validator
 from src.thirdparty.docker.api_handler import (
     create_container,
     get_container_log,
@@ -119,20 +119,20 @@ def add_train_path(path: str) -> str:
 
 
 async def call_ds_api(
-    name: str, ds_args: dict, ds_file: Union[UploadFile, None] = None
+    name: str, ds_args: schema.DeepSpeedArgs, ds_file: Union[UploadFile, None] = None
 ) -> str:
     base_url = f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/deepspeed"
     async with httpx.AsyncClient(timeout=None) as aclient:
-        if ds_args["src"] == "default":
+        if ds_args.src == "default":
             payload = {
                 "json": {
                     "train_name": name,
-                    "stage": ds_args["stage"],
-                    "enable_offload": ds_args["enable_offload"],
-                    "offload_device": ds_args["offload_device"],
+                    "stage": ds_args.stage,
+                    "enable_offload": ds_args.enable_offload,
+                    "offload_device": ds_args.offload_device,
                 }
             }
-        elif ds_args["src"] == "file":
+        elif ds_args.src == "file":
             payload = {
                 "files": {
                     "ds_file": (
@@ -144,7 +144,7 @@ async def call_ds_api(
                 }
             }
 
-        response = await aclient.post(f"{base_url}/{ds_args['src']}/", **payload)
+        response = await aclient.post(f"{base_url}/{ds_args.src}/", **payload)
 
         if response.status_code != status.HTTP_200_OK:
             raise HTTPException(
