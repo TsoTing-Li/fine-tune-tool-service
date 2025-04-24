@@ -1,0 +1,65 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release_version'
+        required: false
+        type: string
+jobs:
+  validate_input:
+    runs-on: ubuntu-22.04
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+
+      -
+        name: Get version from input or pyproject.toml
+        id: get_version
+        run: |
+          if [ -n "${{ github.event.inputs.release_version }}" ]; then
+            INPUT_VERSION="${{ github.event.inputs.release_version }}"
+            echo "Get version from input: $INPUT_VERSION"
+          else
+            INPUT_VERSION=$(grep '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+            echo "Get version from pyproject.toml: $INPUT_VERSION"
+          fi
+          echo "INPUT_VERSION=$INPUT_VERSION" >> $GITHUB_ENV
+          echo "input_version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+
+      - 
+        name: Validate input with regex
+        id: filter
+        run: |
+          version="${{ steps.get_version.outputs.input_version }}"
+          echo "Release version: $version"
+
+          regex="^v[0-9]+\.[0-9]+\.[0-9]+$"
+
+          if [[ $version =~= $regex ]]; then
+            echo "Version matches the regex."
+            echo "MAIN_INPUT_VERSION=$version" >> $GITHUB_ENV
+          else
+            echo "Version does not match the regex."
+            exit 1
+          fi
+
+  create_release:
+    runs-on: ubuntu22.04
+    needs: validate_input
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+
+      -
+        name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GIT_ACTION }}
+          tag_name: ${{ env.INPUT_VERSION }}
+          name: ${{ env.INPUT_VERSION }}
+          draft: false
+          prerelease: false
