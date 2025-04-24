@@ -4,8 +4,8 @@ import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
 
-from src import thirdparty
-from src.config import params
+from src.config.params import TASK_CONFIG
+from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
 
 
@@ -17,9 +17,7 @@ class PostData(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if thirdparty.redis.handler.redis_sync.client.hexists(
-                params.TASK_CONFIG.data, self.dataset_name
-            ):
+            if redis_sync.client.hexists(TASK_CONFIG.data, self.dataset_name):
                 raise ValueError("dataset_name already exists")
 
         except ValueError as e:
@@ -56,11 +54,8 @@ class GetData(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if (
-                self.dataset_name
-                and not thirdparty.redis.handler.redis_sync.client.hexists(
-                    params.TASK_CONFIG.data, self.dataset_name
-                )
+            if self.dataset_name and not redis_sync.client.hexists(
+                TASK_CONFIG.data, self.dataset_name
             ):
                 raise KeyError("dataset_name does not exists")
 
@@ -99,9 +94,7 @@ class PutData(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            dataset_info = thirdparty.redis.handler.redis_sync.client.hget(
-                params.TASK_CONFIG.data, self.dataset_name
-            )
+            dataset_info = redis_sync.client.hget(TASK_CONFIG.data, self.dataset_name)
 
             if not dataset_info:
                 raise KeyError("dataset_name does not exists")
@@ -109,9 +102,7 @@ class PutData(BaseModel):
             if orjson.loads(dataset_info)["is_used"] is True:
                 raise ValueError("dataset is being used")
 
-            if thirdparty.redis.handler.redis_sync.client.hexists(
-                params.TASK_CONFIG.data, self.new_name
-            ):
+            if redis_sync.client.hexists(TASK_CONFIG.data, self.new_name):
                 raise ValueError("new_name already in used")
 
         except KeyError as e:
@@ -159,9 +150,7 @@ class DelData(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            dataset_info = thirdparty.redis.handler.redis_sync.client.hget(
-                params.TASK_CONFIG.data, self.dataset_name
-            )
+            dataset_info = redis_sync.client.hget(TASK_CONFIG.data, self.dataset_name)
 
             if not dataset_info:
                 raise KeyError("dataset_name does not exists")

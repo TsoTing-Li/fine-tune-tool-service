@@ -1,65 +1,21 @@
+import asyncio
 import os
-from typing import Dict, Literal, Tuple, Union
+import shutil
+from typing import Literal
 
 import aiofiles
+import aiofiles.os
 import httpx
 import orjson
-import yaml
+from fastapi import status
 
-from src.config.params import COMMON_CONFIG
-from src.thirdparty.docker.api_handler import get_container_log
-
-
-async def get_quantize_args(yaml_path: str) -> Tuple[str, str]:
-    try:
-        async with aiofiles.open(yaml_path) as af:
-            content = await af.read()
-
-        yaml_content = yaml.safe_load(content)
-
-        return (
-            yaml_content["output_dir"],
-            yaml_content["finetuning_type"],
-        )
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{yaml_path} does not exists") from None
-
-
-async def get_lora_base_model(train_name: str) -> str:
-    file_path = f"/app/saves/{train_name}/lora/adapter_config.json"
-
-    try:
-        async with aiofiles.open(file_path, "rb") as af:
-            adapter_config_content = await af.read()
-            return orjson.loads(adapter_config_content)["base_model_name_or_path"]
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{file_path} does not exists") from None
-
-    except orjson.JSONDecodeError:
-        raise TypeError("Invalid JSON format") from None
-
-
-def get_model_snapshot(model_name: Union[str, None] = None) -> Dict[str, str]:
-    from huggingface_hub import scan_cache_dir
-
-    model_snapshot_path = dict()
-
-    for cache_info in scan_cache_dir().repos:
-        if model_name:
-            if model_name == cache_info.repo_id:
-                model_snapshot_path[model_name] = next(
-                    (str(rev.snapshot_path) for rev in cache_info.revisions), ""
-                )
-                break
-        else:
-            if cache_info.repo_id not in model_snapshot_path:
-                model_snapshot_path[cache_info.repo_id] = next(
-                    (str(rev.snapshot_path) for rev in cache_info.revisions), ""
-                )
-
-    return model_snapshot_path
+from src.config.params import COMMON_CONFIG, TASK_CONFIG
+from src.thirdparty.docker.api_handler import (
+    remove_container,
+    stop_container,
+    wait_for_container,
+)
+from src.thirdparty.redis.handler import redis_async
 
 
 async def quantize_as_gguf(
@@ -67,7 +23,7 @@ async def quantize_as_gguf(
     quantize_name: str,
     checkpoint_path: str,
     output_path: str,
-) -> None:
+) -> str:
     data = {
         "quantize_name": quantize_name,
         "checkpoint_path": f"{os.path.join(COMMON_CONFIG.root_path, os.path.relpath(checkpoint_path, COMMON_CONFIG.workspace_path))}",
@@ -77,22 +33,69 @@ async def quantize_as_gguf(
     async with httpx.AsyncClient(timeout=None) as aclient:
         response = await aclient.post(quantize_service_url, json=data)
 
-        if response.status_code == 200:
-            print(f"Full Container: {quantize_name} success")
-        else:
-            print(f"Full Container: {quantize_name} failed")
-            print(f"Error: {response.status_code}, {response.text}")
+        if response.status_code != status.HTTP_200_OK:
             raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
+                f"Error: {response.status_code}, {response.json()['detail'][0]['msg']}"
             ) from None
 
+    return response.json()["container_name"]
+
+
+async def update_quantize_info(quantize_name: str, container_name: str) -> None:
+    info = await redis_async.client.hget(TASK_CONFIG.train, quantize_name)
+    info = orjson.loads(info)
+    info["container"]["quantize"]["status"] = "active"
+    info["container"]["quantize"]["id"] = container_name
+    await redis_async.client.hset(TASK_CONFIG.train, quantize_name, orjson.dumps(info))
+
+
+async def check_quantize_status(container_name_or_id: str) -> None:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        async for log in get_container_log(
-            aclient=aclient, container_name_or_id=response.json()["container_name"]
-        ):
-            if not log:
-                return
+        container_info = await wait_for_container(
+            aclient=aclient, container_name=container_name_or_id
+        )
+        exit_status = container_info["StatusCode"]
+        if exit_status == 0:
+            return
+        elif exit_status in {137, 143}:
+            raise asyncio.CancelledError("received stop signal")
+        elif exit_status == 1:
+            raise RuntimeError("quantize")
+
+
+async def remove_finish_container(container_name: str) -> None:
+    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+        await remove_container(aclient=aclient, container_name_or_id=container_name)
+
+
+async def merge_async_tasks(quantize_name: str, container_name: str):
+    tasks = [
+        asyncio.create_task(
+            update_quantize_info(
+                quantize_name=quantize_name, container_name=container_name
+            )
+        ),
+        asyncio.create_task(check_quantize_status(container_name_or_id=container_name)),
+    ]
+
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+
+    for task in pending:
+        task.cancel()
+
+    await asyncio.gather(*pending, return_exceptions=True)
+
+    for task in done:
+        try:
+            task.result()
+        except asyncio.CancelledError as e:
+            raise asyncio.CancelledError(f"{e}") from None
+        except RuntimeError as e:
+            raise RuntimeError(f"{e}") from None
+        except Exception as e:
+            raise Exception(f"{e}") from None
 
 
 async def stop_quantize(
@@ -100,20 +103,22 @@ async def stop_quantize(
     signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
     wait_sec: int = 10,
 ) -> str:
-    params = {"signal": signal, "t": wait_sec}
-
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
     async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        response = await aclient.post(
-            f"http://docker/containers/{container_name_or_id}/stop", params=params
+        stopped_container = await stop_container(
+            aclient=aclient,
+            container_name_or_id=container_name_or_id,
+            signal=signal,
+            wait_sec=wait_sec,
         )
+        return stopped_container
 
-        if response.status_code == 204:
-            print(f"Fine-tune stopped, container: {container_name_or_id}")
-            return container_name_or_id
-        else:
-            print(f"Fine-tune stop failed, container: {container_name_or_id}")
-            print(f"Error: {response.status_code}, {response.text}")
-            raise RuntimeError(
-                f"Error: {response.status_code}, {response.text}"
-            ) from None
+
+async def del_quantize_folder(qunatize_folder: str) -> None:
+    is_exists = await aiofiles.os.path.exists(qunatize_folder)
+
+    if is_exists:
+        if not await aiofiles.os.path.isdir(qunatize_folder):
+            return
+
+        await asyncio.to_thread(shutil.rmtree, qunatize_folder)

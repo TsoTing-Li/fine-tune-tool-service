@@ -9,3 +9,6 @@ class TaskConfig(BaseModel):
     chat: str
     quantize: str
     accelbrain_device: str
+    deploy: str
+    support_model: str
+    eval_tasks: str

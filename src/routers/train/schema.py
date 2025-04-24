@@ -2,7 +2,7 @@ import re
 from typing import List, Literal, Union
 
 from fastapi import HTTPException, UploadFile, status
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 from src.utils.error import ResponseErrorHandler
 
@@ -25,6 +25,17 @@ class DeepSpeedArgs(BaseModel):
                 input={"src": self.src, "stage": self.stage},
             )
 
+        if self.enable_offload and not self.offload_device:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="must select offload_device, when enable_offload",
+                input={
+                    "enable_offload": self.enable_offload,
+                    "offload_device": self.offload_device,
+                },
+            )
+
         if error_handler.errors != []:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -35,34 +46,13 @@ class DeepSpeedArgs(BaseModel):
 
 
 class Method(BaseModel):
-    stage: Literal["sft"] = "sft"
+    stage: Literal["sft"]
     finetuning_type: Literal["full", "lora"]
-    lora_target: Union[str, None] = None
-
-    @model_validator(mode="after")
-    def check(self: "Method") -> "Method":
-        error_handler = ResponseErrorHandler()
-
-        if self.finetuning_type == "lora" and not self.lora_target:
-            error_handler.add(
-                type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
-                msg="'lora_target' can not be empty when 'finetuning_type' is 'lora'",
-                input={"lora_target": self.lora_target},
-            )
-
-        if error_handler.errors != []:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=error_handler.errors,
-            )
-
-        return self
 
 
 class Dataset(BaseModel):
     dataset: List[str]
-    template: Literal["llama3", "gemma", "qwen", "mistral"]
+    template: str
     cutoff_len: int
     max_samples: int
     overwrite_cache: bool
@@ -70,12 +60,12 @@ class Dataset(BaseModel):
 
 
 class Output(BaseModel):
-    logging_steps: int = 5
-    save_steps: int = 5
-    plot_loss: bool = False
-    overwrite_output_dir: bool = False
-    log_level: str = "info"
-    logging_first_step: bool = True
+    logging_steps: int
+    save_steps: int
+    plot_loss: bool
+    overwrite_output_dir: bool
+    log_level: str
+    logging_first_step: bool
 
 
 class Params(BaseModel):
@@ -96,7 +86,7 @@ class Params(BaseModel):
         "warmup_stable_decay",
     ]
     warmup_ratio: float
-    bf16: bool = True
+    compute_type: Literal["bf16", "fp16"]
     ddp_timeout: int
 
     @model_validator(mode="after")
@@ -121,13 +111,21 @@ class Params(BaseModel):
 
 
 class Val(BaseModel):
-    val_size: float = 0.1
-    per_device_eval_batch_size: int = 1
-    eval_strategy: Literal["steps"] = "steps"
+    val_size: float
+    per_device_eval_batch_size: int
+    eval_strategy: Literal["steps"]
 
     @model_validator(mode="after")
     def check(self: "Val") -> "Val":
         error_handler = ResponseErrorHandler()
+
+        if self.val_size > 1.0 or self.val_size < 0.1:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="val_size must be between 0.1 and 1.0",
+                input={"val_size": self.val_size},
+            )
 
         if self.per_device_eval_batch_size <= 0:
             error_handler.add(
@@ -146,27 +144,32 @@ class Val(BaseModel):
         return self
 
 
+class Lora(BaseModel):
+    lora_alpha: Union[int, None]
+    lora_dropout: Union[float, None]
+    lora_rank: Union[int, None]
+    lora_target: Union[List[str], None]
+
+
 class TrainArgs(BaseModel):
-    model_config = ConfigDict(
-        protected_namespaces=()
-    )  # solve can not start with "model_"
-    model_name_or_path: str
-    method: Method = Field(default_factory=Method)
-    dataset: Dataset = Field(default_factory=Dataset)
-    output: Output = Field(default_factory=Output)
-    params: Params = Field(default_factory=Params)
-    val: Val = Field(default_factory=Val)
+    base_model: str
+    method: Method
+    dataset: Dataset
+    output: Output
+    params: Params
+    val: Val
+    lora: Union[Lora, None]
 
     @model_validator(mode="after")
     def check(self: "TrainArgs") -> "TrainArgs":
         error_handler = ResponseErrorHandler()
 
-        if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.model_name_or_path)) is True:
+        if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.base_model)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'model_name_or_path' contain invalid characters",
-                input={"model_name_or_path": self.model_name_or_path},
+                msg="'base_model' contain invalid characters",
+                input={"base_model": self.base_model},
             )
 
         if error_handler.errors != []:
@@ -218,6 +221,17 @@ class PostTrain(BaseModel):
                     msg="'content_type' must be 'application/json'",
                     input={"deepspeed_file": self.deepspeed_file.content_type},
                 )
+
+        if (
+            self.train_args.method.finetuning_type == "lora"
+            and not self.train_args.lora
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="lora params can not be empty when 'finetuning_type' is 'lora'",
+                input={"lora": self.train_args.lora},
+            )
 
         if error_handler.errors != []:
             raise HTTPException(
@@ -272,17 +286,6 @@ class PutTrain(BaseModel):
             )
 
         if self.deepspeed_args:
-            if self.deepspeed_args.src == "file" and not self.deepspeed_file:
-                error_handler.add(
-                    type=error_handler.ERR_VALIDATE,
-                    loc=[error_handler.LOC_FORM],
-                    msg="must provide 'ds_file' when 'src' is 'file'",
-                    input={
-                        "deepspeed_args.src": self.deepspeed_args.src,
-                        "deepspeed_file": self.deepspeed_file,
-                    },
-                )
-
             if (
                 self.deepspeed_file
                 and self.deepspeed_file.content_type != "application/json"
@@ -293,6 +296,17 @@ class PutTrain(BaseModel):
                     msg="'content_type' must be 'application/json'",
                     input={"deepspeed_file": self.deepspeed_file.content_type},
                 )
+
+        if (
+            self.train_args.method.finetuning_type == "lora"
+            and not self.train_args.lora
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="lora params can not be empty when 'finetuning_type' is 'lora'",
+                input={"lora": self.train_args.lora},
+            )
 
         if error_handler.errors != []:
             raise HTTPException(
@@ -356,6 +370,54 @@ class PostStopTrain(BaseModel):
 
     @model_validator(mode="after")
     def check(self: "PostStopTrain") -> "PostStopTrain":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
+
+
+class GetTrainLog(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "GetTrainLog") -> "GetTrainLog":
+        error_handler = ResponseErrorHandler()
+
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_BODY],
+                msg="'train_name' contain invalid characters",
+                input={"train_name": self.train_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
+
+
+class GetTrainResult(BaseModel):
+    train_name: str
+
+    @model_validator(mode="after")
+    def check(self: "GetTrainResult") -> "GetTrainResult":
         error_handler = ResponseErrorHandler()
 
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):

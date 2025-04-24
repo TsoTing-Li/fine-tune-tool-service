@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from src.config import params
+from src.config.params import COMMON_CONFIG
 from src.routers.deepspeed import adapter, schema, utils, validator
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
@@ -23,7 +23,7 @@ MAX_FILE_SIZE = 1024 * 1024 * 5
 router = APIRouter(prefix="/deepspeed", tags=["DeepSpeed"])
 
 
-@router.post("/default/")
+@router.post("/default/", include_in_schema=False)
 async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     error_handler = ResponseErrorHandler()
 
@@ -31,7 +31,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
         stage=request_data.stage,
         enable_offload=request_data.enable_offload,
         offload_device=request_data.offload_device,
-        nvme_path=params.COMMON_CONFIG.nvme_path
+        nvme_path=COMMON_CONFIG.nvme_path
         if request_data.offload_device == "nvme"
         else None,
     )
@@ -50,7 +50,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
 
     try:
         path = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
             f"ds_config_{request_data.train_name}.json",
         )
@@ -78,7 +78,7 @@ async def add_deepspeed_default(request_data: schema.PostDeepSpeedDefault):
     )
 
 
-@router.post("/file/")
+@router.post("/file/", include_in_schema=False)
 async def add_deepspeed_file(
     ds_file: UploadFile = File(...), train_name: str = Form(...)
 ):
@@ -90,9 +90,9 @@ async def add_deepspeed_file(
         await utils.async_load_bytes(content=ds_file)
 
         ds_file_path = os.path.join(
-            params.COMMON_CONFIG.save_path,
+            COMMON_CONFIG.save_path,
             request_data.train_name,
-            f"ds_config_{request_data.train_name}.json",
+            f"ds_config_{request_data.ds_file.filename}",
         )
 
         await utils.async_write_file_chunk(
@@ -145,15 +145,28 @@ async def preview_deepspeed_config(ds_file_name: Annotated[str, Query(...)]):
 
     try:
         ds_config = await utils.async_preview_ds_config(
-            path=os.path.join(params.COMMON_CONFIG.save_path, query_data.ds_file_name)
+            path=os.path.join(query_data.ds_file_name)
         )
 
-    except (FileNotFoundError, TypeError) as e:
+    except FileNotFoundError as e:
         accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_VALIDATE,
             loc=[error_handler.LOC_QUERY],
-            msg=f"{e}",
+            msg="ds_file not found",
+            input={"ds_file_name": query_data.ds_file_name},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_handler.errors,
+        ) from None
+
+    except TypeError as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_VALIDATE,
+            loc=[error_handler.LOC_QUERY],
+            msg="ds_file is not JSON format",
             input={"ds_file_name": query_data.ds_file_name},
         )
         raise HTTPException(

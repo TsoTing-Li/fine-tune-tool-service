@@ -1,37 +1,27 @@
-import os
 from typing import Literal
 
-import aiofiles
 import httpx
-import yaml
 
-from src.thirdparty.docker import api_handler
-
-
-async def get_model_args(path: str) -> dict:
-    try:
-        async with aiofiles.open(path) as af:
-            content = await af.read()
-
-        return yaml.safe_load(content)
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{path} does not exists") from None
+from src.config.params import (
+    COMMON_CONFIG,
+)
+from src.thirdparty.docker.api_handler import (
+    create_container,
+    remove_container,
+    start_container,
+    stop_container,
+)
+from src.utils.logger import accel_logger
 
 
-async def generate_merge_yaml(path: str, update_data: dict) -> None:
-    try:
-        async with aiofiles.open(path, "w") as af:
-            await af.write(yaml.dump(update_data, default_flow_style=False))
-
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{path} does not exists") from None
-
-
-async def run_merge(image_name: str, cmd: list, merge_name: str) -> str:
+async def run_merge(
+    image_name: str,
+    cmd: list,
+    docker_network_name: str,
+    merge_name: str,
+) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    hf_home = os.environ["HF_HOME"]
-    root_path = os.environ["ROOT_PATH"]
+    env_var = [f"HF_HOME={COMMON_CONFIG.hf_home}"]
     data = {
         "User": "root",
         "Image": image_name,
@@ -41,26 +31,30 @@ async def run_merge(image_name: str, cmd: list, merge_name: str) -> str:
                 {"Driver": "nvidia", "Count": -1, "Capabilities": [["gpu"]]}
             ],
             "Binds": [
-                f"{hf_home}:{hf_home}:rw",
-                f"{root_path}/saves/{merge_name}:{os.getenv('SAVE_PATH', '/app/saves')}/{merge_name}:rw",
-                f"{root_path}/merge/{merge_name}:{os.getenv('MERGE_PATH', '/app/merge')}/{merge_name}:rw",
+                f"{COMMON_CONFIG.hf_home}:{COMMON_CONFIG.hf_home}:rw",
+                f"{COMMON_CONFIG.root_path}/saves/{merge_name}:{COMMON_CONFIG.save_path}/{merge_name}:rw",
             ],
+            "NetworkMode": docker_network_name,
+            "AutoRemove": False,
         },
         "Cmd": cmd,
-        "Env": [f"HF_HOME={hf_home}"],
-        "Tty": True,
+        "Env": env_var,
     }
 
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        container_name_or_id = await api_handler.create_container(
-            aclient=aclient, name=f"merge-{merge_name}", data=data
-        )
-
-        started_container = await api_handler.start_container(
-            aclient=aclient, container_name_or_id=container_name_or_id
-        )
+    try:
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            container_name_or_id = await create_container(
+                aclient=aclient, name=f"merge-{merge_name}", data=data
+            )
+            started_container = await start_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            )
 
         return started_container
+
+    except Exception as e:
+        accel_logger.error(f"{e}")
+        raise RuntimeError(f"{e}") from None
 
 
 async def stop_merge(
@@ -69,12 +63,22 @@ async def stop_merge(
     wait_sec: int = 10,
 ) -> str:
     transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        stopped_container = await api_handler.stop_container(
-            aclient=aclient,
-            container_name_or_id=container_name_or_id,
-            signal=signal,
-            wait_sec=wait_sec,
-        )
 
-    return stopped_container
+    try:
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            stopped_container = await stop_container(
+                aclient=aclient,
+                container_name_or_id=container_name_or_id,
+                signal=signal,
+                wait_sec=wait_sec,
+            )
+
+            await remove_container(
+                aclient=aclient, container_name_or_id=stopped_container
+            )
+
+        return stopped_container
+
+    except Exception as e:
+        accel_logger.error(f"{e}")
+        raise RuntimeError(f"{e}") from None

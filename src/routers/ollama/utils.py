@@ -1,7 +1,10 @@
+import asyncio
 import json
+import time
 from typing import Literal
 
 import httpx
+from fastapi import status
 
 from src.thirdparty.docker.api_handler import (
     create_container,
@@ -46,36 +49,64 @@ async def start_ollama_container(
         return started_container
 
 
+async def health_check(
+    aclient: httpx.AsyncClient,
+    health_check_url: str,
+    timeout: int = 30,
+    interval: int = 2,
+) -> bool:
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            response = await aclient.get(health_check_url)
+            if response.status_code == 200:
+                return True
+
+        except httpx.RequestError:
+            pass
+
+        await asyncio.sleep(interval)
+
+    return False
+
+
 async def run_ollama_model(
     ollama_url: str, model_name: str, local_gguf_file: str
 ) -> None:
     async with httpx.AsyncClient() as aclient:
-        async with aclient.stream(
-            "POST",
-            f"{ollama_url}/api/create",
-            json={
-                "model": model_name,
-                "modelfile": f"FROM {local_gguf_file}",
-            },
-        ) as response:
-            if response.status_code == 200:
-                async for chunk in response.aiter_lines():
-                    if chunk:
-                        data_chunk = json.loads(chunk)
+        is_loaded = await health_check(aclient=aclient, health_check_url=ollama_url)
 
-                        if data_chunk.get("error"):
-                            raise RuntimeError(f"{data_chunk['error']}") from None
+        if is_loaded:
+            async with aclient.stream(
+                "POST",
+                f"{ollama_url}/api/create",
+                json={
+                    "model": model_name,
+                    "modelfile": f"FROM {local_gguf_file}",
+                },
+            ) as response:
+                if response.status_code == status.HTTP_200_OK:
+                    async for chunk in response.aiter_lines():
+                        if chunk:
+                            data_chunk = json.loads(chunk)
 
-                        if data_chunk["status"] == "success":
-                            break
-            else:
-                raise RuntimeError(f"{response.text}") from None
+                            if data_chunk.get("error"):
+                                raise RuntimeError(f"{data_chunk['error']}") from None
 
-        response = await aclient.post(
-            f"{ollama_url}/api/generate", json={"model": model_name, "keep_alive": -1}
-        )
-        if response.status_code != 200:
-            raise RuntimeError(f"{response.text}")
+                            if data_chunk["status"] == "success":
+                                break
+                else:
+                    raise RuntimeError(f"{response.text}") from None
+
+            response = await aclient.post(
+                f"{ollama_url}/api/generate",
+                json={"model": model_name, "keep_alive": -1},
+            )
+            if response.status_code != status.HTTP_200_OK:
+                raise RuntimeError(f"{response.text}")
+        else:
+            raise RuntimeError("model loading failed")
 
 
 async def stop_ollama_container(

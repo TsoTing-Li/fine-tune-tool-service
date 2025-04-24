@@ -1,4 +1,5 @@
 import re
+from typing import Union
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
@@ -6,19 +7,22 @@ from pydantic import BaseModel, model_validator
 from src.utils.error import ResponseErrorHandler
 
 
-class PostStartQuantize(BaseModel):
-    quantize_name: str
+class GetSupportModel(BaseModel):
+    base_model: Union[str, None]
 
     @model_validator(mode="after")
-    def check(self: "PostStartQuantize") -> "PostStartQuantize":
+    def check(self: "GetSupportModel") -> "GetSupportModel":
         error_handler = ResponseErrorHandler()
 
-        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.quantize_name):
+        if (
+            self.base_model is not None
+            and bool(re.search(r"[^a-zA-Z0-9_\-\./]+", self.base_model)) is True
+        ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'quantize_name' contain invalid characters",
-                input={"quantize_name": self.quantize_name},
+                msg="base_model contain invalid characters",
+                input={"base_model": self.base_model},
             )
 
         if error_handler.errors != []:
@@ -30,19 +34,22 @@ class PostStartQuantize(BaseModel):
         return self
 
 
-class PostStopQuantize(BaseModel):
-    quantize_name: str
+class GetEvalTask(BaseModel):
+    eval_task: Union[str, None]
 
     @model_validator(mode="after")
-    def check(self: "PostStopQuantize") -> "PostStopQuantize":
+    def check(self: "GetEvalTask") -> "GetEvalTask":
         error_handler = ResponseErrorHandler()
 
-        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.quantize_name):
+        if (
+            self.eval_task is not None
+            and bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.eval_task)) is True
+        ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'quantize_name' contain invalid characters",
-                input={"quantize_name": self.quantize_name},
+                msg="eval_task contain invalid characters",
+                input={"eval_task": self.eval_task},
             )
 
         if error_handler.errors != []:

@@ -5,7 +5,6 @@ from . import (
     deepspeed,
     evaluate,
     infer_backend,
-    merge,
     ollama,
     quantize,
     train,

@@ -4,7 +4,7 @@ import os
 import orjson
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.config import params
+from src.config.params import COMMON_CONFIG, LMEVAL_CONFIG, TASK_CONFIG
 from src.routers.evaluate import schema, utils, validator
 from src.thirdparty.redis.handler import redis_async
 from src.utils.error import ResponseErrorHandler
@@ -20,16 +20,14 @@ async def start_lm_eval(request_data: schema.PostStartEval):
     error_handler = ResponseErrorHandler()
 
     try:
-        info = await redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.eval_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.eval_name)
         model_params = orjson.loads(info)["train_args"]
 
         eval_container = await utils.run_lm_eval(
             image_name=assemble_image_name(
-                username=params.COMMON_CONFIG.username,
-                repository=params.COMMON_CONFIG.repository,
-                tag=params.LMEVAL_CONFIG.tag,
+                username=COMMON_CONFIG.username,
+                repository=COMMON_CONFIG.repository,
+                tag=LMEVAL_CONFIG.tag,
             ),
             cmd=[
                 "lm-eval",
@@ -42,9 +40,9 @@ async def start_lm_eval(request_data: schema.PostStartEval):
                 "--batch_size",
                 "auto",
                 "--output_path",
-                os.path.join(params.COMMON_CONFIG.save_path, request_data.eval_name),
+                os.path.join(COMMON_CONFIG.save_path, request_data.eval_name),
                 "--use_cache",
-                params.COMMON_CONFIG.cache_path,
+                COMMON_CONFIG.cache_path,
                 "--model_args",
                 f"model={request_data.eval_name},"
                 f"base_url=http://{request_data.model_server_url}:8000/v1/completions,"
@@ -69,14 +67,12 @@ async def start_lm_eval(request_data: schema.PostStartEval):
         ) from None
 
     try:
-        info = await redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.eval_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.eval_name)
         info = orjson.loads(info)
         info["container"]["eval"] = "active"
         info["container"]["eval"]["id"] = eval_container
         await redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.eval_name, orjson.dumps(info)
+            TASK_CONFIG.train, request_data.eval_name, orjson.dumps(info)
         )
 
     except Exception as e:
@@ -104,13 +100,11 @@ async def stop_lm_eval(request_data: schema.PostStopEval):
     error_handler = ResponseErrorHandler()
 
     try:
-        info = await redis_async.client.hget(
-            params.TASK_CONFIG.train, request_data.eval_name
-        )
+        info = await redis_async.client.hget(TASK_CONFIG.train, request_data.eval_name)
         info = orjson.loads(info)
         info["container"]["eval"]["status"] = "stopped"
         await redis_async.client.hset(
-            params.TASK_CONFIG.train, request_data.eval_name, orjson.dumps(info)
+            TASK_CONFIG.train, request_data.eval_name, orjson.dumps(info)
         )
 
     except Exception as e:

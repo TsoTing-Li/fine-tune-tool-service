@@ -1,4 +1,5 @@
 import re
+from typing import Union
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -19,7 +20,7 @@ class PostInferBackendStart(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
                 msg="'model_name' contain invalid characters",
                 input={"model_name": self.model_name},
             )
@@ -46,7 +47,36 @@ class PostInferBackendStop(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_FORM],
+                loc=[error_handler.LOC_BODY],
+                msg="'model_name' contain invalid characters",
+                input={"model_name": self.model_name},
+            )
+
+        if error_handler.errors != []:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_handler.errors,
+            )
+
+        return self
+
+
+class GetInferBackend(BaseModel):
+    model_config = ConfigDict(
+        protected_namespaces=()
+    )  # solve can not start with "model_"
+    model_name: Union[str, None]
+
+    @model_validator(mode="after")
+    def check(self: "GetInferBackend") -> "GetInferBackend":
+        error_handler = ResponseErrorHandler()
+
+        if self.model_name and not re.fullmatch(
+            r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.model_name
+        ):
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
                 msg="'model_name' contain invalid characters",
                 input={"model_name": self.model_name},
             )

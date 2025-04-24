@@ -27,6 +27,8 @@ class ResponseErrorType:
     ERR_INTERNAL: Literal["internal_error"] = "internal_error"
     ERR_REDIS: Literal["redis_error"] = "redis_error"
     ERR_DOCKER: Literal["docker_error"] = "docker_error"
+    ERR_CONNECTION: Literal["connection_error"] = "connection_error"
+    ERR_TIMEOUT: Literal["timeout_error"] = "timeout_error"
 
 
 @dataclass
@@ -34,6 +36,7 @@ class ResponseErrorLoc:
     LOC_BODY: Literal["body"] = "body"
     LOC_FORM: Literal["form"] = "form"
     LOC_QUERY: Literal["query"] = "query"
+    LOC_HEADERS: Literal["header"] = "header"
     LOC_PROCESS: Literal["process"] = "process"
     LOC_DATABASE: Literal["database"] = "database"
 

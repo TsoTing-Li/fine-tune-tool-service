@@ -1,5 +1,4 @@
 import json
-import os
 
 from fastapi import APIRouter, HTTPException, Response, status
 
@@ -8,9 +7,7 @@ from src.routers.vllm import schema, utils
 from src.utils.error import ResponseErrorHandler
 from src.utils.logger import accel_logger
 
-router = APIRouter(prefix="/vllm", tags=["VLLM"])
-
-SAVE_PATH = os.getenv("SAVE_PATH", "/app/saves")
+router = APIRouter(prefix="/vllm", tags=["VLLM"], include_in_schema=False)
 
 
 @router.post("/start/safetensors/")
@@ -44,6 +41,10 @@ async def start_vllm(request_data: schema.PostStartVLLM):
             model_name=request_data.model_name,
             local_safetensors_path=request_data.local_safetensors_path,
             hf_home=request_data.hf_home,
+        )
+
+        await utils.run_vllm_model(
+            vllm_url=f"http://{container_name}:{VLLM_CONFIG.port}"
         )
 
     except Exception as e:

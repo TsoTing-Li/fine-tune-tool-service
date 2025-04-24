@@ -1,3 +1,5 @@
+from typing import Union
+
 import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -98,6 +100,48 @@ class PostInferBackendStop(BaseModel):
                 type=error_handler.ERR_REDIS,
                 loc=[error_handler.LOC_DATABASE],
                 msg=f"Database error: {e}",
+                input={"model_name": self.model_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_handler.errors,
+            ) from None
+
+        return self
+
+
+class GetInferBackend(BaseModel):
+    model_config = ConfigDict(
+        protected_namespaces=()
+    )  # solve can not start with "model_"
+    model_name: Union[str, None]
+
+    @model_validator(mode="after")
+    def check(self: "GetInferBackend") -> "GetInferBackend":
+        error_handler = ResponseErrorHandler()
+
+        try:
+            if self.model_name is not None and not redis_sync.client.hexists(
+                TASK_CONFIG.train, self.model_name
+            ):
+                raise KeyError("model_name does not exists")
+
+        except KeyError as e:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_QUERY],
+                msg=f"{e}",
+                input={"model_name": self.model_name},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            ) from None
+
+        except Exception:
+            error_handler.add(
+                type=error_handler.ERR_REDIS,
+                loc=[error_handler.LOC_DATABASE],
+                msg="Database error",
                 input={"model_name": self.model_name},
             )
             raise HTTPException(
