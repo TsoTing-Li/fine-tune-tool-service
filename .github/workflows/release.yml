@@ -37,7 +37,7 @@ jobs:
 
           regex="^v[0-9]+\.[0-9]+\.[0-9]+$"
 
-          if [[ $version =~= $regex ]]; then
+          if [[ $version ~= $regex ]]; then
             echo "Version matches the regex."
             echo "MAIN_INPUT_VERSION=$version" >> $GITHUB_ENV
           else
