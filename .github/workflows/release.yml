@@ -9,6 +9,8 @@ on:
 jobs:
   validate_input:
     runs-on: ubuntu-22.04
+    outputs:
+      validated_version: ${{ steps.get_version.outputs.input_version }}
     steps:
       -
         name: Checkout repo
@@ -25,7 +27,6 @@ jobs:
             INPUT_VERSION=$(grep '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
             echo "Get version from pyproject.toml: $INPUT_VERSION"
           fi
-          echo "INPUT_VERSION=$INPUT_VERSION" >> $GITHUB_ENV
           echo "input_version=$INPUT_VERSION" >> $GITHUB_OUTPUT
 
       - 
@@ -48,6 +49,8 @@ jobs:
   create_release:
     runs-on: ubuntu-22.04
     needs: validate_input
+    env:
+      INPUT_VERSION: ${{ needs.validate_input.outputs.validated_version}}
     steps:
       -
         name: Checkout repo
@@ -59,7 +62,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GIT_ACTION }}
-          tag_name: ${{ steps.get_version.outputs.input_version }}
-          name: ${{ steps.get_version.outputs.input_version }}
+          tag_name: ${{ env.INPUT_VERSION }}
+          name: ${{ env.INPUT_VERSION }}
           draft: false
           prerelease: false
