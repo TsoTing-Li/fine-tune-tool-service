@@ -46,7 +46,7 @@ jobs:
           fi
 
   create_release:
-    runs-on: ubuntu22.04
+    runs-on: ubuntu-22.04
     needs: validate_input
     steps:
       -
