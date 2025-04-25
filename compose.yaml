@@ -1,30 +1,39 @@
 name: acceltune
 
+networks:
+  acceltune:
+    name: ${PROJECT_NAME}
+    driver: bridge
+
 services:
   main-service:
     image: ${USER_NAME}/${REPOSITORY}:${MAIN_SERVICE_TAG}
     container_name: ${MAIN_SERVICE_CONTAINER_NAME}
     env_file:
       - .env
+    networks:
+      - ${PROJECT_NAME}
+    ports:
+      - ${MAIN_SERVICE_PORT}:${MAIN_SERVICE_PORT}
     volumes:
       - ${ROOT_PATH}:/app
       - ${HF_HOME}:${HF_HOME}
       - /var/run/docker.sock:/var/run/docker.sock
     ipc: host
-    network_mode: host
     stdin_open: true
     tty: true
     command: uvicorn app:app --host ${MAIN_SERVICE_HOST} --port ${MAIN_SERVICE_PORT}
     restart: unless-stopped
 
-  reids:
+  redis:
     image: redis:7.2.4
     container_name: ${REDIS_CONTAINER_NAME}
     volumes:
       - ${PWD}/${REDIS_LOCAL_DB_PATH}:/data
     env_file:
       - .env
-    network_mode: host
+    networks:
+      - ${PROJECT_NAME}
     command: >
       sh -c "mkdir -p ${PWD}/${REDIS_LOCAL_DB_PATH} &&
       redis-server
@@ -34,6 +43,7 @@ services:
       --appendonly yes
       --dir /data
       --dbfilename redis_snapshot.rdb"
+    restart: unless-stopped  
 
   quantize-service:
     image: ${USER_NAME}/${REPOSITORY}:${QUANTIZE_SERVICE_TAG}
@@ -43,19 +53,11 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ipc: host
-    network_mode: host
+    networks:
+      - ${PROJECT_NAME}
     stdin_open: true
     tty: true
-    command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT}
-    restart: unless-stopped
-
-  monitor-containers:
-    image: ${USER_NAME}/${REPOSITORY}:${MONITOR_CONTAINER_TAG}
-    container_name: ${MONITOR_CONTAINER_CONTAINER_NAME}
-    env_file:
-      - .env
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+    command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT} --reload
     restart: unless-stopped
 
   hw_info:
