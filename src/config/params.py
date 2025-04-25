@@ -82,8 +82,8 @@ ACCELTUNE_SETTING = {
         "port": os.getenv("OLLAMA_SERVICE_PORT"),
     },
     "lm_eval": {
-        "name": os.getenv("LM_EVAL_NAME"),
-        "tag": os.getenv("LM_EVAL_TAG"),
+        "name": os.getenv("LM_EVAL_TOOL_NAME"),
+        "tag": os.getenv("LM_EVAL_TOOL_TAG"),
     },
     "hw_info": {
         "name": os.getenv("HWINFO_NAME"),
@@ -96,7 +96,7 @@ ACCELTUNE_SETTING = {
         "host": os.getenv("QUANTIZE_SERVICE_HOST"),
         "port": os.getenv("QUANTIZE_SERVICE_PORT"),
         "container_name": os.getenv("QUANTIZE_SERVICE_CONTAINER_NAME"),
-        "gguf_tag": os.getenv("QUANTIZE_GGUF_TAG"),
+        "gguf_tag": os.getenv("QUANTIZE_GGUF_TOOL_TAG"),
     },
     "fine_tune_tool": {
         "name": os.getenv("FINE_TUNE_TOOL_NAME"),
