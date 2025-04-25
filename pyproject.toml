@@ -1,3 +1,8 @@
+[project]
+name = "AccelTune"
+version = "v0.1.0"
+description = "A LLM tuning tool"
+
 [tool.ruff]
 select = [
     "E",  # pycodestyle errors

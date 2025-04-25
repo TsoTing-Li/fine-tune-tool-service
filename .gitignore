@@ -162,7 +162,7 @@ cython_debug/
 #.idea/
 
 # other
-web_service
+finetune_tool_env
 ./data
 *test*
 */*.json
@@ -182,3 +182,4 @@ task
 ollama/*
 **/*.yaml
 logs
+!static/*.json

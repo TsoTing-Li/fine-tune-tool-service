@@ -43,7 +43,23 @@ services:
       --appendonly yes
       --dir /data
       --dbfilename redis_snapshot.rdb"
-    restart: unless-stopped  
+    restart: unless-stopped
+
+  # nginx:
+  #   image: nginx:latest
+  #   container_name: ${PROJECT_NAME}_nginx
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #   ports:
+  #     - "2089:2089"
+  #   networks:
+  #     - ${PROJECT_NAME}
+  #   depends_on:
+  #     - main-service
+  #     - redis
+  #   extra_hosts:
+  #     - "acceltune:host-gateway"
+  #   restart: always
 
   quantize-service:
     image: ${USER_NAME}/${REPOSITORY}:${QUANTIZE_SERVICE_TAG}
