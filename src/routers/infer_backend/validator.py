@@ -4,7 +4,7 @@ import orjson
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from src.config.params import TASK_CONFIG
+from src.config.params import STATUS_CONFIG, TASK_CONFIG
 from src.thirdparty.redis.handler import redis_sync
 from src.utils.error import ResponseErrorHandler
 
@@ -25,8 +25,11 @@ class PostInferBackendStart(BaseModel):
             if not info:
                 raise KeyError("model_name does not exists")
 
-            if orjson.loads(info)["container"]["infer_backend"]["status"] == "active":
+            info = orjson.loads(info)
+            if info["container"]["infer_backend"]["status"] == STATUS_CONFIG.active:
                 raise ValueError("model_name has been loaded")
+            if info["last_model_path"] is None:
+                raise KeyError("can not found model file")
 
         except KeyError as e:
             error_handler.add(
@@ -81,7 +84,10 @@ class PostInferBackendStop(BaseModel):
             if not info:
                 raise KeyError("model_name does not exists")
 
-            if orjson.loads(info)["container"]["infer_backend"]["status"] != "active":
+            if (
+                orjson.loads(info)["container"]["infer_backend"]["status"]
+                != STATUS_CONFIG.active
+            ):
                 raise KeyError("model_name is not being executed")
 
         except KeyError as e:
