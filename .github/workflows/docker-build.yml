@@ -54,6 +54,9 @@ jobs:
       -
         name: Build and push
         run: |
+          echo "project: ${{ env.PROJECT }}"
+          echo "version: ${{ env.INPUT_VERSION }}"
+          echo "repo: ${{ env.REPO }}"
           docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/main-service .
           docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
 
@@ -76,5 +79,8 @@ jobs:
       -
         name: Build and push
         run: |
+          echo "project: ${{ env.PROJECT }}"
+          echo "version: ${{ env.INPUT_VERSION }}"
+          echo "repo: ${{ env.REPO }}"
           docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/finetune-tool .
           docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
