@@ -10,9 +10,9 @@ jobs:
   get_all_var:
     runs-on: ubuntu-latest
     outputs:
-      validated_version: ${{ steps.get_version.outputs.input_version }}
-      project_name: ${{ steps.get_project_name.outputs.project_name}}
-      repo_name: ${{ steps.get_project_name.outputs.repo_name}}
+      validated_version: ${{ steps.get_config.outputs.input_version }}
+      project_name: ${{ steps.get_config.outputs.project_name}}
+      repo_name: ${{ steps.get_config.outputs.repo_name}}
     steps:
       -
         name: Checkout repo
