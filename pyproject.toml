@@ -1,3 +1,11 @@
+[project]
+name = "acceltune"
+version = "v0.1.0"
+description = "A LLM tuning tool"
+
+[tool.docker]
+repository = "innodiskorg"
+
 [tool.ruff]
 select = [
     "E",  # pycodestyle errors
