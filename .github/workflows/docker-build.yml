@@ -37,11 +37,11 @@ jobs:
   
   main_service_docker:
     runs-on: ubuntu-22.04
-    needs: validate_input
+    needs: get_all_var
     env:
-      PROJECT: ${{ needs.validate_input.outputs.project_name}}
-      INPUT_VERSION: ${{ needs.validate_input.outputs.validated_version}}
-      REPO: ${{ needs.validate_input.outputs.repo_name}}
+      PROJECT: ${{ needs.get_all_var.outputs.project_name}}
+      INPUT_VERSION: ${{ needs.get_all_var.outputs.validated_version}}
+      REPO: ${{ needs.get_all_var.outputs.repo_name}}
     steps:
       -
         name: Checkout repo
@@ -59,11 +59,11 @@ jobs:
 
   finetune_tool_docker:
     runs-on: ubuntu-22.04
-    needs: validate_input
+    needs: get_all_var
     env:
-      PROJECT: ${{ needs.validate_input.outputs.project_name}}
-      INPUT_VERSION: ${{ needs.validate_input.outputs.validated_version}}
-      REPO: ${{ needs.validate_input.outputs.repo_name}}
+      PROJECT: ${{ needs.get_all_var.outputs.project_name}}
+      INPUT_VERSION: ${{ needs.get_all_var.outputs.validated_version}}
+      REPO: ${{ needs.get_all_var.outputs.repo_name}}
     steps:
       -
         name: Checkout repo
