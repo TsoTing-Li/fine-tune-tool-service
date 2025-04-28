@@ -10,9 +10,9 @@ jobs:
   get_all_var:
     runs-on: ubuntu-latest
     outputs:
-      validated_version: ${{ steps.get_config.outputs.input_version }}
       project_name: ${{ steps.get_config.outputs.project_name}}
-      repo_name: ${{ steps.get_config.outputs.repo_name}}
+      validated_version: ${{ steps.get_config.outputs.input_version }}
+      user_name: ${{ steps.get_config.outputs.user_name}}
     steps:
       -
         name: Checkout repo
@@ -25,23 +25,23 @@ jobs:
           python-version: '3.11'
 
       -
-        name: Get version and repo from pyproject.toml
+        name: Get config and repo from pyproject.toml
         id: get_config
         run: |
-          PROJECT=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["name"])')
-          VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
-          IMAGE=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["tool"]["docker"]["repository"])')
-          echo "project_name=$PROJECT" >> $GITHUB_OUTPUT
-          echo "input_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "repo_name=$IMAGE" >> $GITHUB_OUTPUT
+          PROJECT_NAME=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["name"])')
+          INPUT_VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          USER_NAME=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["tool"]["docker"]["user_name"])')
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          echo "input_version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+          echo "user_name=$USER_NAME" >> $GITHUB_OUTPUT
   
   main_service_docker:
     runs-on: self-hosted
     needs: get_all_var
     env:
-      PROJECT: ${{ needs.get_all_var.outputs.project_name}}
+      PROJECT_NAME: ${{ needs.get_all_var.outputs.project_name}}
       INPUT_VERSION: ${{ needs.get_all_var.outputs.validated_version}}
-      REPO: ${{ needs.get_all_var.outputs.repo_name}}
+      USER_NAME: ${{ needs.get_all_var.outputs.user_name}}
     steps:
       -
         name: Checkout repo
@@ -54,19 +54,19 @@ jobs:
       -
         name: Build and push
         run: |
-          echo "project: ${{ env.PROJECT }}"
+          echo "project_name: ${{ env.PROJECT_NAME }}"
           echo "version: ${{ env.INPUT_VERSION }}"
-          echo "repo: ${{ env.REPO }}"
-          docker build -t "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-main_service" -f docker/main-service .
-          docker push "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-main_service"
+          echo "user_name: ${{ env.USER_NAME }}"
+          docker build -t "${{ env.USER_NAME }}/${{ env.PROJECT_NAME }}:${{ env.INPUT_VERSION }}-main_service" -f docker/main-service .
+          docker push "${{ env.USER_NAME }}/${{ env.PROJECT_NAME }}:${{ env.INPUT_VERSION }}-main_service"
 
   finetune_tool_docker:
     runs-on: self-hosted
     needs: get_all_var
     env:
-      PROJECT: ${{ needs.get_all_var.outputs.project_name}}
+      PROJECT_NAME: ${{ needs.get_all_var.outputs.project_name}}
       INPUT_VERSION: ${{ needs.get_all_var.outputs.validated_version}}
-      REPO: ${{ needs.get_all_var.outputs.repo_name}}
+      USER_NAME: ${{ needs.get_all_var.outputs.user_name}}
     steps:
       -
         name: Checkout repo
@@ -79,8 +79,8 @@ jobs:
       -
         name: Build and push
         run: |
-          echo "project: ${{ env.PROJECT }}"
+          echo "project_name: ${{ env.PROJECT_NAME }}"
           echo "version: ${{ env.INPUT_VERSION }}"
-          echo "repo: ${{ env.REPO }}"
-          docker build -t "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-finetune_tool" -f docker/finetune-tool .
-          docker push "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-finetune_tool"
+          echo "user_name: ${{ env.USER_NAME }}"
+          docker build -t "${{ env.USER_NAME }}/${{ env.PROJECT_NAME }}:${{ env.INPUT_VERSION }}-finetune_tool" -f docker/finetune-tool .
+          docker push "${{ env.USER_NAME }}/${{ env.PROJECT_NAME }}:${{ env.INPUT_VERSION }}-finetune_tool"

@@ -4,7 +4,7 @@ version = "v0.1.0"
 description = "A LLM tuning tool"
 
 [tool.docker]
-repository = "innodiskorg"
+user_name = "innodiskorg"
 
 [tool.ruff]
 select = [
