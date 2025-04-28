@@ -57,8 +57,8 @@ jobs:
           echo "project: ${{ env.PROJECT }}"
           echo "version: ${{ env.INPUT_VERSION }}"
           echo "repo: ${{ env.REPO }}"
-          docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/main-service .
-          docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
+          docker build -t "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-main_service" -f docker/main-service .
+          docker push "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-main_service"
 
   finetune_tool_docker:
     runs-on: ubuntu-22.04
@@ -82,5 +82,5 @@ jobs:
           echo "project: ${{ env.PROJECT }}"
           echo "version: ${{ env.INPUT_VERSION }}"
           echo "repo: ${{ env.REPO }}"
-          docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/finetune-tool .
-          docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
+          docker build -t "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-finetune_tool" -f docker/finetune-tool .
+          docker push "${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}-finetune_tool"
