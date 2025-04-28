@@ -67,69 +67,70 @@ jobs:
       -
         name: Generate .env file
         run: |
+          set -e
           cat > .env <<EOF
-        PROJECT_NAME="${{ PROJECT_NAME }}"
-        VERSION="${{ INPUT_VERSION }}"
+PROJECT_NAME="${{ PROJECT_NAME }}"
+VERSION="${{ INPUT_VERSION }}"
 
-        # param
-        USER_NAME="${{ USER_NAME }}"
-        REPOSITORY="${{ PROJECT_NAME }}"
-        ROOT_PATH=\${PWD}
-        HF_HOME=\${HOME}/.cache/huggingface
+# param
+USER_NAME="${{ USER_NAME }}"
+REPOSITORY="${{ PROJECT_NAME }}"
+ROOT_PATH=\${PWD}
+HF_HOME=\${HOME}/.cache/huggingface
 
-        # main service
-        MAIN_SERVICE_NAME="main-service"
-        MAIN_SERVICE_TAG="${{ INPUT_VERSION }}-main_service"
-        MAIN_SERVICE_CONTAINER_NAME="\${PROJECT_NAME}_main_service"
-        MAIN_SERVICE_HOST="0.0.0.0"
-        MAIN_SERVICE_PORT=2089
+# main service
+MAIN_SERVICE_NAME="main-service"
+MAIN_SERVICE_TAG="${{ INPUT_VERSION }}-main_service"
+MAIN_SERVICE_CONTAINER_NAME="\${PROJECT_NAME}_main_service"
+MAIN_SERVICE_HOST="0.0.0.0"
+MAIN_SERVICE_PORT=2089
 
-        # redis
-        REDIS_NAME="redis"
-        REDIS_TAG="7.2.4"
-        REDIS_HOST="0.0.0.0"
-        REDIS_PORT=6379
-        REDIS_USERNAME="admin"
-        REDIS_PASSWORD="admin"
-        REDIS_DB=0
-        REDIS_CONTAINER_NAME="\${PROJECT_NAME}_redis"
-        REDIS_LOCAL_DB_PATH="redis"
+# redis
+REDIS_NAME="redis"
+REDIS_TAG="7.2.4"
+REDIS_HOST="0.0.0.0"
+REDIS_PORT=6379
+REDIS_USERNAME="admin"
+REDIS_PASSWORD="admin"
+REDIS_DB=0
+REDIS_CONTAINER_NAME="\${PROJECT_NAME}_redis"
+REDIS_LOCAL_DB_PATH="redis"
 
-        # fine tune tool
-        FINE_TUNE_TOOL_NAME="fine-tune-tool"
-        FINE_TUNE_TOOL_TAG="${{ INPUT_VERSION }}-finetune_tool"
+# fine tune tool
+FINE_TUNE_TOOL_NAME="fine-tune-tool"
+FINE_TUNE_TOOL_TAG="${{ INPUT_VERSION }}-finetune_tool"
 
-        # quantize service
-        QUANTIZE_SERVICE_NAME="quantize-service"
-        QUANTIZE_SERVICE_TAG="${{ INPUT_VERSION }}-quantize_service"
-        QUANTIZE_SERVICE_CONTAINER_NAME="\${PROJECT_NAME}_quantize_service"
-        QUANTIZE_SERVICE_HOST="0.0.0.0"
-        QUANTIZE_SERVICE_PORT=8002
+# quantize service
+QUANTIZE_SERVICE_NAME="quantize-service"
+QUANTIZE_SERVICE_TAG="${{ INPUT_VERSION }}-quantize_service"
+QUANTIZE_SERVICE_CONTAINER_NAME="\${PROJECT_NAME}_quantize_service"
+QUANTIZE_SERVICE_HOST="0.0.0.0"
+QUANTIZE_SERVICE_PORT=8002
 
-        # quantize gguf tool
-        QUANTIZE_GGUF_TOOL_NAME="quantize-gguf"
-        QUANTIZE_GGUF_TOOL_TAG="${{ INPUT_VERSION }}-quantize_gguf"
+# quantize gguf tool
+QUANTIZE_GGUF_TOOL_NAME="quantize-gguf"
+QUANTIZE_GGUF_TOOL_TAG="${{ INPUT_VERSION }}-quantize_gguf"
 
-        # HW info
-        HWINFO_NAME="hw-info"
-        HWINFO_TAG="v0.1.0-hw_info"
-        HWINFO_CONTAINER_NAME="\${PROJECT_NAME}_hw_info"
-        MOUNT_PATH=""
-        DEFAULT_VALUE="N/A"
-        HW_LISTEN_INTERVAL=1
+# HW info
+HWINFO_NAME="hw-info"
+HWINFO_TAG="v0.1.0-hw_info"
+HWINFO_CONTAINER_NAME="\${PROJECT_NAME}_hw_info"
+MOUNT_PATH=""
+DEFAULT_VALUE="N/A"
+HW_LISTEN_INTERVAL=1
 
-        # vllm
-        VLLM_SERVICE_NAME="vllm"
-        VLLM_SERVICE_TAG="v0.6.3_P1_cu-12.1.1"
-        VLLM_SERVICE_HOST="0.0.0.0"
-        VLLM_SERVICE_PORT=8003
+# vllm
+VLLM_SERVICE_NAME="vllm"
+VLLM_SERVICE_TAG="v0.6.3_P1_cu-12.1.1"
+VLLM_SERVICE_HOST="0.0.0.0"
+VLLM_SERVICE_PORT=8003
 
-        # logger
-        ACCELTUNE_LOG_FOLDER="/app/logs"
-        ACCELTUNE_LOG_NAME="acceltune-api.log"
-        ACCELTUNE_LOG_LIMIT="10485760"
-        ACCELTUNE_LOG_COUNT="5"
-        EOF
+# logger
+ACCELTUNE_LOG_FOLDER="/app/logs"
+ACCELTUNE_LOG_NAME="acceltune-api.log"
+ACCELTUNE_LOG_LIMIT="10485760"
+ACCELTUNE_LOG_COUNT="5"
+EOF
           echo ".env file generated success"
 
       -
