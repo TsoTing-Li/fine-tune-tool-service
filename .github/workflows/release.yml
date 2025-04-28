@@ -72,11 +72,15 @@ jobs:
       -
         name: Generate .env file
         run: |
-          cp .env.template .env.template.bak
-          VARS_TO_REPLACE='${PROJECT_NAME} ${INPUT_VERSION} ${USER_NAME}'
-          envsubst "$VARS_TO_REPLACE" < .env.template.bak > .env
+          ls -alh
+          echo "Show current working directory:"
+          pwd
+          echo "Show available files:"
+          ls -alh
 
-          echo ".env generated successfully ✅"export 
+          VARS_TO_REPLACE='${PROJECT_NAME} ${INPUT_VERSION} ${USER_NAME}'
+          envsubst "$VARS_TO_REPLACE" < .env.template > .env
+          echo ".env generated successfully ✅"
 
       -
         name: Create Release
