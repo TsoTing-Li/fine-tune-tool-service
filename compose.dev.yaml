@@ -94,5 +94,7 @@ services:
     volumes:
       - /dev:/dev
       - ${MOUNT_PATH}:${MOUNT_PATH}
+    networks:
+      - ${PROJECT_NAME}
     runtime: nvidia
     restart: always
