@@ -15,6 +15,9 @@ from src.utils.logger import accel_logger
 async def lifespan(app: FastAPI):
     accel_logger.info("Started Service")
 
+    await redis_async.client.delete(TASK_CONFIG.support_model)
+    await redis_async.client.delete(TASK_CONFIG.eval_tasks)
+
     async with aiofiles.open(
         f"{COMMON_CONFIG.workspace_path}/static/support_model.json"
     ) as support_model_file:
