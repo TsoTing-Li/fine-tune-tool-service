@@ -1,5 +1,6 @@
 import json
 from typing import Annotated, Union
+from uuid import UUID
 
 import orjson
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -14,15 +15,17 @@ router = APIRouter(prefix="/info", tags=["Info"])
 
 
 @router.get("/support-model/")
-async def get_support_model(base_model: Annotated[Union[str, None], Query()] = None):
-    query_data = schema.GetSupportModel(base_model=base_model)
-    validator.GetSupportModel(base_model=query_data.base_model)
+async def get_support_model(
+    support_model_uuid: Annotated[Union[UUID, None], Query()] = None,
+):
+    query_data = schema.GetSupportModel(support_model_uuid=support_model_uuid)
+    validator.GetSupportModel(support_model_uuid=query_data.support_model_uuid)
     error_handler = ResponseErrorHandler()
 
     try:
-        if query_data.base_model is not None:
+        if query_data.support_model_uuid is not None:
             info = await redis_async.client.hget(
-                TASK_CONFIG.support_model, query_data.base_model
+                TASK_CONFIG.support_model, str(query_data.support_model_uuid)
             )
             support_model_info = [orjson.loads(info)]
         else:
@@ -54,15 +57,15 @@ async def get_support_model(base_model: Annotated[Union[str, None], Query()] = N
 
 
 @router.get("/eval-task/")
-async def get_eval_task(eval_task: Annotated[Union[str, None], Query()] = None):
-    query_data = schema.GetEvalTask(eval_task=eval_task)
-    validator.GetEvalTask(eval_task=query_data.eval_task)
+async def get_eval_task(eval_task_uuid: Annotated[Union[UUID, None], Query()] = None):
+    query_data = schema.GetEvalTask(eval_task_uuid=eval_task_uuid)
+    validator.GetEvalTask(eval_task_uuid=query_data.eval_task_uuid)
     error_handler = ResponseErrorHandler()
 
     try:
-        if query_data.eval_task is not None:
+        if query_data.eval_task_uuid is not None:
             info = await redis_async.client.hget(
-                TASK_CONFIG.eval_tasks, query_data.eval_task
+                TASK_CONFIG.eval_tasks, str(query_data.eval_task_uuid)
             )
             eval_task_info = [orjson.loads(info)]
         else:
