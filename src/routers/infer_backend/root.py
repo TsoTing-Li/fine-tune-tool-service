@@ -57,11 +57,11 @@ async def start_infer_backend(
         ) from None
 
     except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
+        accel_logger.error(f"{e}")
         error_handler.add(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
+            msg=f"{e}",
             input=request_data.model_dump(),
         )
         raise HTTPException(
