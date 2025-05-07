@@ -95,7 +95,7 @@ async def start_train(
         ) from None
 
     try:
-        info["container"]["train"]["status"] = "active"
+        info["container"]["train"]["status"] = STATUS_CONFIG.active
         info["container"]["train"]["id"] = container_name
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
@@ -157,7 +157,6 @@ async def stop_train(request_data: schema.PostStopTrain):
         train_status = STATUS_CONFIG.stopped
 
         info["last_model_path"] = last_model_path
-        info["container"]["train"]["status"] = train_status
         info["container"]["train"]["id"] = None
 
         if finetuning_type == "lora" and last_model_path is not None:
@@ -194,6 +193,7 @@ async def stop_train(request_data: schema.PostStopTrain):
 
     finally:
         try:
+            info["container"]["train"]["status"] = train_status
             await redis_async.client.hset(
                 TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
             )
