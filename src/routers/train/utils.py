@@ -332,7 +332,7 @@ async def start_train_background_task(train_name: str, container_name_or_id: str
 
     except Exception as e:
         train_status = STATUS_CONFIG.failed
-        accel_logger.error(f"{e}")
+        accel_logger.error(f"Unexpected error: {e}")
 
     finally:
         try:
