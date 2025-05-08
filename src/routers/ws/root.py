@@ -2,7 +2,7 @@ import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.config.params import HWINFO_CONFIG, STATUS_CONFIG
-from src.routers.ws import utils
+from src.routers.ws import schema, utils
 from src.thirdparty.docker.api_handler import get_container_log, wait_for_container
 from src.utils.logger import accel_logger
 
@@ -16,16 +16,11 @@ async def train_log(websocket: WebSocket, id: str):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            is_eval = False
-            last_train_progress = 0.0
-            train_log = {
-                "convert_progress": "0.0",
-                "run_tokenizer_progress": "0.0",
-                "train_progress": str(last_train_progress),
-                "train_loss": "",
-                "eval_loss": "",
-                "ori": "",
-            }
+            last_train_progress = None
+            total_steps = 0
+
+            train_log = schema.TrainLogTemplate()
+
             async for log in get_container_log(
                 aclient=aclient, container_name_or_id=id
             ):
@@ -35,25 +30,18 @@ async def train_log(websocket: WebSocket, id: str):
                     elif log_split[0] in ("\x01", "\x02"):
                         log_split = log_split[8:]
 
-                    if "***** Running Evaluation *****" in log_split:
-                        is_eval = True
+                    if "Total optimization steps" in log_split:
+                        total_steps = train_log.get_total_steps(log=log_split)
 
-                    if "{'loss':" in log_split:
-                        is_eval = False
-
-                    train_log = utils.parse_train_log(
-                        log_info=train_log,
+                    train_log.parse_train_log(
                         stdout=log_split.strip(),
-                        is_eval=is_eval,
                         last_train_progress=last_train_progress,
-                    )
-                    last_train_progress = (
-                        float(train_log["train_progress"])
-                        if train_log["train_progress"]
-                        else 0.0
+                        total_steps=total_steps,
                     )
 
-                    await websocket.send_json({"trainLog": train_log})
+                    last_train_progress = train_log.train_progress
+
+                    await websocket.send_json({"trainLog": train_log.model_dump()})
 
             container_info = await wait_for_container(
                 aclient=aclient, container_name=id
@@ -76,8 +64,8 @@ async def train_log(websocket: WebSocket, id: str):
         await websocket.send_json({"trainLog": f"{e}"})
 
     except Exception as e:
-        accel_logger.error(f"trainLog: Unexpected error: {e}")
-        await websocket.send_json({"trainLog": f"{e}"})
+        accel_logger.error(f"trainLog: Unexpected error {e}")
+        await websocket.send_json({"trainLog": "Unexpected error"})
 
     finally:
         await websocket.close()
