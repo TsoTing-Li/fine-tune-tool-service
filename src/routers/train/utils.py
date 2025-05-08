@@ -65,7 +65,11 @@ def file_train_args_process(
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]
-        args["lora_target"] = ", ".join(lora_args["lora_target"])
+        args["lora_target"] = (
+            "all"
+            if "all" in (targets := lora_args.get("lora_target", []))
+            else ", ".join(targets)
+        )
 
     return args
 
@@ -87,7 +91,11 @@ def redis_train_args_process(
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]
-        args["lora_target"] = lora_args["lora_target"]
+        args["lora_target"] = (
+            ["all"]
+            if "all" in (targets := lora_args.get("lora_target", []))
+            else targets
+        )
 
     return args
 
