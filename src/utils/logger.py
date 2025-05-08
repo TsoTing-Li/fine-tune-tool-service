@@ -28,7 +28,7 @@ def setup_logger(folder: str, name: str, limit: int, count: int):
 
     # Define Formatter
     formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)-.4s] %(message)s (%(filename)s:%(lineno)s)",
+        "%(asctime)s [%(levelname)-.4s] %(message)s (%(pathname)s:%(lineno)s)",
         "%y-%m-%d %H:%M:%S",
     )
 
