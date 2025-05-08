@@ -319,7 +319,7 @@ async def add_train(
     dataset: List[str] = Form(...),
     template: str = Form(...),
     cutoff_len: int = Form(1024),
-    max_samples: int = Form(10000),
+    max_samples: int = Form(None),
     overwrite_cache: bool = Form(True),
     preprocessing_num_workers: int = Form(16),
     save_steps: int = Form(5),

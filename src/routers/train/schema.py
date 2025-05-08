@@ -54,7 +54,7 @@ class Dataset(BaseModel):
     dataset: List[str]
     template: str
     cutoff_len: int
-    max_samples: int
+    max_samples: Union[int, None]
     overwrite_cache: bool
     preprocessing_num_workers: int
 
