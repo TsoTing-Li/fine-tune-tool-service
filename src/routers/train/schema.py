@@ -101,6 +101,14 @@ class Params(BaseModel):
                 input={"per_device_train_batch_size": self.per_device_train_batch_size},
             )
 
+        if self.warmup_ratio > 0.2 or self.warmup_ratio < 0.0:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="'warmup_ratio' must between 0.0 to 0.2",
+                input={"warmup_ratio": self.warmup_ratio},
+            )
+
         if error_handler.errors != []:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
