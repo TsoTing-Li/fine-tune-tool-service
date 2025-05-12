@@ -1,5 +1,7 @@
 import httpx
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
+from starlette.websockets import WebSocketDisconnect, WebSocketState
+from uvicorn.protocols.utils import ClientDisconnected
 
 from src.config.params import HWINFO_CONFIG, STATUS_CONFIG
 from src.routers.ws import schema
@@ -92,9 +94,10 @@ async def hw_info_log(websocket: WebSocket):
                         log_split = log_split[8:]
 
                     hw_info.parse_hwinfo_log(stdout=log_split)
-                    await websocket.send_json(hw_info)
 
-    except WebSocketDisconnect:
+                    await websocket.send_json(hw_info.model_dump())
+
+    except (WebSocketDisconnect, ClientDisconnected):
         accel_logger.info("hwInfo: Client disconnected")
 
     except ValueError as e:
@@ -106,7 +109,7 @@ async def hw_info_log(websocket: WebSocket):
         await websocket.send_json({"hwInfo": f"{e}"})
 
     finally:
-        if websocket.client_state == "CONNECTED":
+        if websocket.client_state == WebSocketState.CONNECTED:
             accel_logger.info(
                 "hwInfo: WebSocket is still connected, automatically close"
             )
