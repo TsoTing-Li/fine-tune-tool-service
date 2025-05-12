@@ -277,19 +277,21 @@ async def get_result(train_name: Annotated[str, Query(...)]):
         info = await redis_async.client.hget(TASK_CONFIG.train, query_data.train_name)
         info = orjson.loads(info)
 
-        train_result = await utils.get_train_result(info=info)
-
-    except FileNotFoundError as e:
-        accel_logger.error(f"{e}")
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
             input=query_data.model_dump(),
         )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
         ) from None
+
+    try:
+        train_result = await utils.get_train_result(info=info)
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
