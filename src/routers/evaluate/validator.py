@@ -15,16 +15,16 @@ class PostStartEval(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            info = redis_sync.client.hget(TASK_CONFIG.eval, self.eval_name)
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.eval_name)
             if not info:
                 raise KeyError("eval_name does not exists")
 
             info = orjson.loads(info)
 
-            if not info["load_model"]:
+            if info["container"]["infer_backend"]["status"] != STATUS_CONFIG.active:
                 raise ValueError("model has not been loaded")
 
-            if info["container"][TASK_CONFIG.eval]["status"] == STATUS_CONFIG.active:
+            if info["container"]["eval"]["status"] == STATUS_CONFIG.active:
                 raise ValueError("eval task is being executed")
 
         except KeyError as e:

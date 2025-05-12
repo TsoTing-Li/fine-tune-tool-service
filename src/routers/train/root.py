@@ -522,6 +522,7 @@ async def add_train(
                 },
             },
             "last_model_path": None,
+            "eval_result_path": None,
             "created_time": unix_time,
             "modified_time": None,
         }
@@ -853,6 +854,7 @@ async def modify_train(
             },
         }
         info["last_model_path"] = None
+        info["eval_result_path"] = None
         info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)

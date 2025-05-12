@@ -1,5 +1,5 @@
 import re
-from typing import List, Literal
+from typing import List
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -12,11 +12,8 @@ class PostStartEval(BaseModel):
         protected_namespaces=()
     )  # solve can not start with "model_"
     eval_name: str
-    eval_type: Literal["generate", "chat"] = "generate"
-    tasks: List[Literal["gsm8k"]] = ["gsm8k"]
-    model_server_url: str
-    num_concurrent: int = 3
-    max_retries: int = 3
+    tasks: List[str]
+    model_service: str
 
     @model_validator(mode="after")
     def check(self: "PostStartEval") -> "PostStartEval":
