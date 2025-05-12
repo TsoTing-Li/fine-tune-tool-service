@@ -1,7 +1,10 @@
 import re
-from typing import Union
+from typing import List, Union
 
-from pydantic import BaseModel
+import orjson
+from pydantic import BaseModel, Field
+
+from src.routers.ws.thirdparty.hwinfo import validator
 
 
 class TrainLogTemplate(BaseModel):
@@ -77,4 +80,34 @@ class TrainLogTemplate(BaseModel):
 
                 setattr(self, key, result)
         self.ori = stdout
+        return self
+
+
+class HwInfoTemplate(BaseModel):
+    cpu: validator.CPUTemplate = Field(default_factory=validator.CPUTemplate)
+    gpus: List[validator.GPUTemplate] = list()
+    disk: validator.DiskTemplate = Field(default_factory=validator.DiskTemplate)
+    memory: validator.MemoryTemplate = Field(default_factory=validator.MemoryTemplate)
+
+    _patterns = {
+        "hw_info": {
+            "pattern": re.compile(r"INFO-(.*)"),
+            "handler": lambda match: match.group(1).strip(),
+        }
+    }
+
+    def parse_hwinfo_log(self, stdout: str):
+        match = self._patterns["hw_info"]["pattern"].search(stdout)
+        if match:
+            result = self._patterns["hw_info"]["handler"](match)
+            result = re.sub(
+                r"(?<![a-zA-Z0-9_])'([^']*?)'(?![a-zA-Z0-9_])", r'"\1"', result
+            )
+            hw_info = orjson.loads(result)
+
+            self.cpu = validator.CPUTemplate(**hw_info["cpu"])
+            self.gpus = [validator.GPUTemplate(**gpu) for gpu in hw_info["gpus"]]
+            self.disk = validator.DiskTemplate(**hw_info["disk"])
+            self.memory = validator.MemoryTemplate(**hw_info["memory"])
+
         return self

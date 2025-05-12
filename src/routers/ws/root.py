@@ -2,7 +2,7 @@ import httpx
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.config.params import HWINFO_CONFIG, STATUS_CONFIG
-from src.routers.ws import schema, utils
+from src.routers.ws import schema
 from src.thirdparty.docker.api_handler import get_container_log, wait_for_container
 from src.utils.logger import accel_logger
 
@@ -78,6 +78,8 @@ async def hw_info_log(websocket: WebSocket):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            hw_info = schema.HwInfoTemplate()
+
             async for log in get_container_log(
                 aclient=aclient,
                 container_name_or_id=HWINFO_CONFIG.container_name,
@@ -89,7 +91,7 @@ async def hw_info_log(websocket: WebSocket):
                     elif log_split[0] in ("\x01", "\x02"):
                         log_split = log_split[8:]
 
-                    hw_info = utils.parse_hw_info_log(stdout=log_split)
+                    hw_info.parse_hwinfo_log(stdout=log_split)
                     await websocket.send_json(hw_info)
 
     except WebSocketDisconnect:
