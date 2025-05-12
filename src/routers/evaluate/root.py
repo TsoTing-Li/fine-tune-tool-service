@@ -1,8 +1,9 @@
 import json
 import os
+from typing import Annotated
 
 import orjson
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
 
 from src.config.params import (
     COMMON_CONFIG,
@@ -164,6 +165,52 @@ async def stop_lm_eval(request_data: schema.PostStopEval):
 
     return Response(
         content=json.dumps({"eval_name": request_data.eval_name}),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
+
+
+@router.get("/result/")
+async def get_eval_result(eval_name: Annotated[str, Query(...)]):
+    query_data = schema.GetEvalResult(eval_name=eval_name)
+    validator.GetEvalResult(eval_name=query_data.eval_name)
+    error_handler = ResponseErrorHandler()
+
+    try:
+        info = await redis_async.client.hget(TASK_CONFIG.train, query_data.eval_name)
+        info = orjson.loads(info)
+
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    try:
+        eval_result = await utils.get_eval_result(info=info)
+
+    except Exception as e:
+        accel_logger.error(f"{e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_PROCESS],
+            msg="Unexpected error",
+            input=query_data.model_dump(),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
+    return Response(
+        content=json.dumps(eval_result),
         status_code=status.HTTP_200_OK,
         media_type="application/json",
     )

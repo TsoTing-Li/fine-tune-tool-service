@@ -1,10 +1,13 @@
+import itertools
 import os
-from typing import Literal, Union
+from typing import Dict, Literal, Union
 
+import aiofiles
 import httpx
 import orjson
 
 from src.config.params import COMMON_CONFIG, STATUS_CONFIG, TASK_CONFIG
+from src.routers.evaluate import validator
 from src.thirdparty.docker.api_handler import (
     create_container,
     start_container,
@@ -133,3 +136,44 @@ async def stop_eval(
         )
 
     return stopped_eval_container
+
+
+async def eval_finish_event(path: str) -> validator.EvalResult:
+    output = validator.EvalResult()
+
+    if os.path.exists(path):
+        async with aiofiles.open(path) as f:
+            content = await f.read()
+        data = orjson.loads(content)
+        eval_results: Dict[str, dict] = data["results"]
+        eval_configs: Dict[str, dict] = data["configs"]
+
+        for task, configs in eval_configs.items():
+            filter_list = configs.get("filter_list", [{"name": "none"}])
+            metric_list = configs.get("metric_list", [{"metric": "none"}])
+            for filter_config, metric_config in itertools.product(
+                filter_list, metric_list
+            ):
+                metric = metric_config["metric"]
+                filter = filter_config["name"]
+                task_info = validator.TaskInfo(
+                    name=configs["task"],
+                    filter=filter,
+                    n_shot=configs["num_fewshot"],
+                    metric=metric,
+                    value=eval_results[task][f"{metric},{filter}"],
+                    stderr=eval_results[task][f"{metric}_stderr,{filter}"],
+                )
+                output.task_info.append(task_info)
+
+    validator.EvalResult.model_validate(output)
+
+    return output
+
+
+async def get_eval_result(info: dict) -> dict:
+    status = info["container"]["eval"]["status"]
+    if status == STATUS_CONFIG.finish:
+        eval_result = await eval_finish_event(path=info["eval_result_path"])
+
+    return eval_result.model_dump()
