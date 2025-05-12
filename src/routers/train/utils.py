@@ -4,7 +4,7 @@ import re
 import shutil
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import List, Literal, Union
+from typing import Dict, List, Literal, Union
 
 import aiofiles
 import aiofiles.os
@@ -470,12 +470,12 @@ async def train_finish_event(path: str) -> validator.TrainResult:
             content = await f.read()
         train_results: List[dict] = orjson.loads(content)["log_history"]
 
-        epoch_idx = dict()
+        epoch_idx: Dict[int, int] = dict()
         last_eval_info = None
 
         for log in train_results:
-            epoch = log.get("epoch")
-            step = log.get("step")
+            epoch: float = log.get("epoch")
+            step: int = log.get("step")
 
             if "train_loss" in log:
                 output.final_report.epoch = epoch
@@ -490,8 +490,9 @@ async def train_finish_event(path: str) -> validator.TrainResult:
                     "train_steps_per_second"
                 ]
             elif "loss" in log:
+                loss: float = log["loss"]
                 log_history_info = validator.LogHistory(
-                    epoch=epoch, step=step, loss=log["loss"], eval_loss=0.0
+                    epoch=epoch, step=step, loss=loss, eval_loss=0.0
                 )
                 epoch_idx[epoch] = len(output.log_history)
                 output.log_history.append(log_history_info)
@@ -534,17 +535,18 @@ async def train_stop_failed_event(path: str) -> validator.TrainResult:
                     content = orjson.loads(line)
                     train_log.append(content)
 
-        epoch_idx = dict()
+        epoch_idx: Dict[int, int] = dict()
 
         for log in train_log:
-            epoch = log.get("epoch")
-            step = log.get("current_steps")
+            epoch: float = log.get("epoch")
+            step: int = log.get("current_steps")
 
             if "loss" in log:
+                loss: float = log["loss"]
                 log_history_info = validator.LogHistory(
                     epoch=epoch,
                     step=step,
-                    loss=log["loss"],
+                    loss=loss,
                     eval_loss=0.0,
                 )
                 epoch_idx[epoch] = len(output.log_history)
