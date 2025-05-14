@@ -125,14 +125,18 @@ async def start_lm_eval(
 
 
 @router.post("/stop/")
-async def stop_lm_eval(request_data: schema.PostStopEval):
+async def stop_lm_eval(
+    background_tasks: BackgroundTasks, request_data: schema.PostStopEval
+):
     validator.PostStopEval(eval_name=request_data.eval_name)
     error_handler = ResponseErrorHandler()
 
     try:
         info = await redis_async.client.hget(TASK_CONFIG.train, request_data.eval_name)
         info = orjson.loads(info)
-        info["container"]["eval"]["status"] = "stopped"
+        stop_container = info["container"]["eval"]["id"]
+        info["container"]["eval"]["status"] = STATUS_CONFIG.stopped
+        info["container"]["eval"]["id"] = None
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.eval_name, orjson.dumps(info)
         )
@@ -150,21 +154,7 @@ async def stop_lm_eval(request_data: schema.PostStopEval):
             detail=error_handler.errors,
         ) from None
 
-    try:
-        await utils.stop_eval(container_name_or_id=info["container"]["eval"]["id"])
-
-    except Exception as e:
-        accel_logger.error(f"Unexpected error: {e}")
-        error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"Unexpected error: {e}",
-            input=request_data.model_dump(),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_handler.errors,
-        ) from None
+    background_tasks.add_task(utils.stop_eval_background_task, stop_container)
 
     return Response(
         content=json.dumps({"eval_name": request_data.eval_name}),

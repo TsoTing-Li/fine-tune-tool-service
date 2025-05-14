@@ -1,6 +1,6 @@
 import itertools
 import os
-from typing import Dict, Literal, Union
+from typing import Dict, Union
 
 import aiofiles
 import httpx
@@ -86,6 +86,7 @@ async def start_eval_background_task(
                 aclient=aclient, container_name_or_id=container_name_or_id
             ):
                 if not log:
+                    print("log stopped")
                     break
 
                 if "\r" in log:
@@ -94,6 +95,7 @@ async def start_eval_background_task(
                     log_split = log.strip()
 
                 eval_log.parse_eval_attach(stdout=log_split.strip())
+                print(f"XADD: {eval_log.model_dump_json()}")
                 await redis_async.client.xadd(
                     container_name_or_id,
                     {
@@ -157,21 +159,19 @@ async def start_eval_background_task(
             accel_logger.error(f"Database error: {e}")
 
 
-async def stop_eval(
-    container_name_or_id: str,
-    signal: Literal["SIGINT", "SIGTERM", "SIGKILL"] = "SIGTERM",
-    wait_sec: int = 10,
-) -> str:
-    transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
-    async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-        stopped_eval_container = await stop_container(
-            aclient=aclient,
-            container_name_or_id=container_name_or_id,
-            signal=signal,
-            wait_sec=wait_sec,
-        )
+async def stop_eval_background_task(container_name_or_id: str) -> None:
+    try:
+        transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
+        async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            await stop_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            )
 
-    return stopped_eval_container
+    except ValueError as e:
+        accel_logger.error(f"{e}")
+
+    except Exception as e:
+        accel_logger.error(f"{e}")
 
 
 async def eval_finish_event(path: str) -> validator.EvalResult:
