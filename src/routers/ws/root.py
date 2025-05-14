@@ -60,7 +60,7 @@ async def train_log(websocket: WebSocket, id: str):
 
         await websocket.send_json({"trainLog": f"train {train_status}"})
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, ClientDisconnected):
         accel_logger.info("trainLog: Client disconnected")
 
     except ValueError as e:
@@ -72,7 +72,11 @@ async def train_log(websocket: WebSocket, id: str):
         await websocket.send_json({"trainLog": "Unexpected error"})
 
     finally:
-        await websocket.close()
+        if websocket.client_state == WebSocketState.CONNECTED:
+            accel_logger.info(
+                "hwInfo: WebSocket is still connected, automatically close"
+            )
+            await websocket.close()
 
 
 @router.websocket("/evalLogs/{id}")
