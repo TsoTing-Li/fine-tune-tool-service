@@ -83,6 +83,46 @@ class TrainLogTemplate(BaseModel):
         return self
 
 
+class EvalLogTemplate(BaseModel):
+    eval_progress: Union[float, None] = None
+    current_task: Union[str, None] = None
+    ori: Union[str, None] = None
+
+    _patterns = {
+        "eval_progress": {
+            "pattern": re.compile(r"Requesting API:\s\s\d+%\s(\d+)/(\d+)"),
+        },
+        "current_task": {
+            "pattern": re.compile(r"Building contexts for (\w+) on rank (\d+)"),
+            "handler": lambda match: match.group(1).strip(),
+        },
+    }
+
+    def get_total_requests(self, log: str) -> int:
+        match = re.search(r"Cached requests: (\d+), Requests remaining: (\d+)", log)
+        if match:
+            return int(match.group(2))
+
+    def get_eval_progress(self, parse_current_request: int, total_requests: int):
+        return round(parse_current_request / total_requests, 3)
+
+    def parse_eval_log(self, stdout: str, return_flag: bool, total_requests: int):
+        for key, value in self._patterns.items():
+            match = value["pattern"].search(stdout)
+            if match:
+                if key == "eval_progress":
+                    result = self.get_eval_progress(
+                        parse_current_request=int(match.group(1)),
+                        total_requests=total_requests,
+                    )
+                else:
+                    result = value["handler"](match)
+
+                setattr(self, key, result)
+        self.ori = stdout
+        return self
+
+
 class HwInfoTemplate(BaseModel):
     cpu: validator.CPUTemplate = Field(default_factory=validator.CPUTemplate)
     gpus: List[validator.GPUTemplate] = list()

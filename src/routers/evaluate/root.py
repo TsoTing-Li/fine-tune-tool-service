@@ -111,7 +111,10 @@ async def start_lm_eval(
         ) from None
 
     background_tasks.add_task(
-        utils.start_eval_background_task, request_data.eval_name, eval_container
+        utils.start_eval_background_task,
+        request_data.eval_name,
+        eval_container,
+        request_data.tasks,
     )
 
     return Response(

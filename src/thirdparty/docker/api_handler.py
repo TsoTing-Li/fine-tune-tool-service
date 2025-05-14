@@ -129,3 +129,32 @@ async def remove_container(
         raise ValueError(response.json()["message"])
     else:
         raise RuntimeError(response.json()["message"])
+
+
+async def attach_container(
+    aclient: httpx.AsyncClient,
+    container_name_or_id: str,
+    stream: bool = True,
+    stdout: bool = True,
+    stderr: bool = True,
+    logs: bool = True,
+) -> AsyncGenerator[str, None]:
+    params = {"stream": stream, "stdout": stdout, "stderr": stderr, "logs": logs}
+    async with aclient.stream(
+        "POST", f"http://docker/containers/{container_name_or_id}/attach", params=params
+    ) as response:
+        if response.status_code == status.HTTP_200_OK:
+            async for chunk in response.aiter_text():
+                yield chunk
+        elif response.status_code == status.HTTP_400_BAD_REQUEST:
+            async for chunk in response.aiter_lines():
+                error_msg = json.loads(chunk)
+            raise ValueError(error_msg["message"])
+        elif response.status_code == status.HTTP_404_NOT_FOUND:
+            async for chunk in response.aiter_lines():
+                error_msg = json.loads(chunk)
+            raise ValueError(error_msg["message"])
+        else:
+            async for chunk in response.aiter_lines():
+                error_msg = json.loads(chunk)
+            raise RuntimeError(error_msg["message"])

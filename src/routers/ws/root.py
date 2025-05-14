@@ -1,4 +1,5 @@
 import httpx
+import orjson
 from fastapi import APIRouter, WebSocket
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
@@ -6,6 +7,7 @@ from uvicorn.protocols.utils import ClientDisconnected
 from src.config.params import HWINFO_CONFIG, STATUS_CONFIG
 from src.routers.ws import schema
 from src.thirdparty.docker.api_handler import get_container_log, wait_for_container
+from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ws")
@@ -71,6 +73,47 @@ async def train_log(websocket: WebSocket, id: str):
 
     finally:
         await websocket.close()
+
+
+@router.websocket("/evalLogs/{id}")
+async def eval_info_log(websocket: WebSocket, id: str):
+    await websocket.accept()
+
+    try:
+        last_id = "0-0"
+        while True:
+            redis_response = await redis_async.client.xread(
+                streams={id: last_id}, count=10, block=5000
+            )
+
+            for _, messages in redis_response:
+                for msg_id, data in messages:
+                    eval_log = data["data"]
+                    eval_status = data["status"]
+                    if eval_status == STATUS_CONFIG.active:
+                        await websocket.send_json({"evalLog": orjson.loads(eval_log)})
+                    else:
+                        await websocket.send_json({"evalLog": eval_status})
+                        return
+                    last_id = msg_id
+
+    except (WebSocketDisconnect, ClientDisconnected):
+        accel_logger.info("evalLog: Client disconnected")
+
+    except ValueError as e:
+        accel_logger.error(f"evalLog: {e}")
+        await websocket.send_json({"evalLog": f"{e}"})
+
+    except Exception as e:
+        accel_logger.error(f"evalLog: Unexpected error {e}")
+        await websocket.send_json({"evalLog": "Unexpected error"})
+
+    finally:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            accel_logger.info(
+                "hwInfo: WebSocket is still connected, automatically close"
+            )
+            await websocket.close()
 
 
 @router.websocket("/hwInfo")

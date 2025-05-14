@@ -7,9 +7,11 @@ import httpx
 import orjson
 
 from src.config.params import COMMON_CONFIG, STATUS_CONFIG, TASK_CONFIG
-from src.routers.evaluate import validator
+from src.routers.evaluate import template, validator
 from src.thirdparty.docker.api_handler import (
+    attach_container,
     create_container,
+    remove_container,
     start_container,
     stop_container,
     wait_for_container,
@@ -30,10 +32,12 @@ async def run_lm_eval(
             "IpcMode": "host",
             "Binds": [
                 f"{COMMON_CONFIG.hf_home}:{COMMON_CONFIG.hf_home}:rw",
-                f"{COMMON_CONFIG.root_path}/saves:{COMMON_CONFIG.save_path}:rw",
+                f"{COMMON_CONFIG.root_path}/saves/{eval_name}:{COMMON_CONFIG.save_path}/{eval_name}:rw",
             ],
             "NetworkMode": docker_network_name,
         },
+        "AttachStdout": True,
+        "AttachStderr": True,
         "Tty": True,
         "Cmd": cmd,
         "Env": env_var,
@@ -69,10 +73,35 @@ def get_eval_result_path(root_path: str) -> Union[str, None]:
         return files[0]
 
 
-async def start_eval_background_task(eval_name: str, container_name_or_id: str) -> None:
+async def start_eval_background_task(
+    eval_name: str, container_name_or_id: str, eval_tasks_list: list
+) -> None:
     try:
         transport = httpx.AsyncHTTPTransport(uds="/var/run/docker.sock")
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            eval_log = template.EvalLogTemplate()
+            eval_log.set_first_task(first_task=eval_tasks_list[0])
+
+            async for log in attach_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            ):
+                if not log:
+                    break
+
+                if "\r" in log:
+                    log_split = log.split("\r")[-1].strip()
+                elif log.strip():
+                    log_split = log.strip()
+
+                eval_log.parse_eval_attach(stdout=log_split.strip())
+                await redis_async.client.xadd(
+                    container_name_or_id,
+                    {
+                        "data": eval_log.model_dump_json(),
+                        "status": STATUS_CONFIG.active,
+                    },
+                )
+
             container_info = await wait_for_container(
                 aclient=aclient, container_name=container_name_or_id
             )
@@ -82,7 +111,14 @@ async def start_eval_background_task(eval_name: str, container_name_or_id: str) 
             elif exit_status == 1:
                 eval_status = STATUS_CONFIG.failed
             else:
-                eval_status = None
+                eval_status = STATUS_CONFIG.stopped
+            await redis_async.client.xadd(
+                container_name_or_id, {"data": "", "status": eval_status}
+            )
+
+            await remove_container(
+                aclient=aclient, container_name_or_id=container_name_or_id
+            )
 
     except ValueError as e:
         eval_status = STATUS_CONFIG.failed
