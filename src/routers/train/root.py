@@ -175,7 +175,7 @@ async def stop_train(request_data: schema.PostStopTrain):
                 info["last_model_path"] = merge_path
             else:
                 info["last_model_path"] = None
-                info["container"]["train"]["status"] = STATUS_CONFIG.failed
+                train_status = STATUS_CONFIG.failed
 
     except Exception as e:
         train_status = STATUS_CONFIG.failed
