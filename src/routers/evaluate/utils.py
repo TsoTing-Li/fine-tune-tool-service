@@ -86,7 +86,6 @@ async def start_eval_background_task(
                 aclient=aclient, container_name_or_id=container_name_or_id
             ):
                 if not log:
-                    print("log stopped")
                     break
 
                 if "\r" in log:
@@ -95,7 +94,6 @@ async def start_eval_background_task(
                     log_split = log.strip()
 
                 eval_log.parse_eval_attach(stdout=log_split.strip())
-                print(f"XADD: {eval_log.model_dump_json()}")
                 await redis_async.client.xadd(
                     container_name_or_id,
                     {
