@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Response, status
+from fastapi.responses import PlainTextResponse
 
 import src.routers.accelbrain.root
 import src.routers.chat.root
@@ -33,6 +34,6 @@ acceltune_api.include_router(src.routers.info.root.router)
 acceltune_api.include_router(src.routers.merge.root.router)
 
 
-@acceltune_api.get("/health/", tags=["Health"])
+@acceltune_api.get("/health/", tags=["Health"], response_class=PlainTextResponse)
 def health_check():
     return Response(content="", status_code=status.HTTP_200_OK, media_type="text/plain")
