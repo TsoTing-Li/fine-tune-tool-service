@@ -17,7 +17,7 @@ class GetDeepSpeedPreview(BaseModel):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="'ds_file_name' does not exists",
+                msg="ds_file_name does not exists",
                 input={"ds_file_name": self.ds_file_name},
             )
 

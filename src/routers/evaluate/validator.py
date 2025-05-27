@@ -121,7 +121,7 @@ class GetEvalResult(BaseModel):
         try:
             info = redis_sync.client.hget(TASK_CONFIG.train, self.eval_name)
             if info is None:
-                raise KeyError("'eval_name' does not exists")
+                raise KeyError("eval_name does not exists")
 
             eval_status = orjson.loads(info)["container"]["eval"]["status"]
             if eval_status != STATUS_CONFIG.finish:
