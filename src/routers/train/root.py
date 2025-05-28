@@ -755,7 +755,10 @@ async def modify_train(
                 )
                 file_train_args["deepspeed"] = ds_api_response["ds_path"]
 
-                if info["offloading"]["deepspeed"]["path"] is not None:
+                if (
+                    info["offloading"]["deepspeed"]["path"]
+                    != ds_api_response["ds_path"]
+                ):
                     clear_up_list.append(info["offloading"]["deepspeed"]["path"])
             else:
                 if info["offloading"]["deepspeed"]["path"] is not None:
