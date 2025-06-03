@@ -74,7 +74,7 @@ async def train_log(websocket: WebSocket, id: str):
     finally:
         if websocket.client_state == WebSocketState.CONNECTED:
             accel_logger.info(
-                "hwInfo: WebSocket is still connected, automatically close"
+                "trainLog: WebSocket is still connected, automatically close"
             )
             await websocket.close()
 
@@ -115,7 +115,7 @@ async def eval_info_log(websocket: WebSocket, id: str):
     finally:
         if websocket.client_state == WebSocketState.CONNECTED:
             accel_logger.info(
-                "hwInfo: WebSocket is still connected, automatically close"
+                "evalLog: WebSocket is still connected, automatically close"
             )
             await websocket.close()
 
