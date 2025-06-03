@@ -68,6 +68,7 @@ services:
     env_file:
       - .env
     volumes:
+      - ${PROJECT_ROOT_PATH}/logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
     ipc: host
     networks:
