@@ -128,7 +128,7 @@ def add_train_path(path: str) -> str:
 
 async def call_ds_api(
     name: str, ds_args: schema.DeepSpeedArgs, ds_file: Union[UploadFile, None] = None
-) -> str:
+) -> dict:
     base_url = f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/deepspeed"
     async with httpx.AsyncClient(timeout=None) as aclient:
         if ds_args.src == "default":
