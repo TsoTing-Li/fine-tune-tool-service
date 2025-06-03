@@ -7,7 +7,7 @@ networks:
 
 services:
   main-service:
-    image: ${USER_NAME}/${REPOSITORY}:${MAIN_SERVICE_TAG}
+    image: ${USER_NAME}/${REPOSITORY}-${MAIN_SERVICE_NAME}:${MAIN_SERVICE_TAG}
     container_name: ${MAIN_SERVICE_CONTAINER_NAME}
     env_file:
       - .env
@@ -16,7 +16,7 @@ services:
     ports:
       - ${MAIN_SERVICE_PORT}:${MAIN_SERVICE_PORT}
     volumes:
-      - ${ROOT_PATH}:/app
+      - ${PROJECT_ROOT_PATH}:/app
       - ${HF_HOME}:${HF_HOME}
       - /var/run/docker.sock:/var/run/docker.sock
     ipc: host
@@ -26,10 +26,10 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7.2.4
+    image: ${REDIS_NAME}:${REDIS_TAG}
     container_name: ${REDIS_CONTAINER_NAME}
     volumes:
-      - ${PWD}/${REDIS_LOCAL_DB_PATH}:/data
+      - ${PROJECT_ROOT_PATH}/${REDIS_LOCAL_DB_PATH}:/data
     env_file:
       - .env
     networks:
@@ -63,7 +63,7 @@ services:
     
 
   quantize-service:
-    image: ${USER_NAME}/${REPOSITORY}:${QUANTIZE_SERVICE_TAG}
+    image: ${USER_NAME}/${REPOSITORY}-${QUANTIZE_SERVICE_NAME}:${QUANTIZE_SERVICE_TAG}
     container_name: ${QUANTIZE_SERVICE_CONTAINER_NAME}
     env_file:
       - .env
@@ -74,11 +74,11 @@ services:
       - ${PROJECT_NAME}
     stdin_open: true
     tty: true
-    command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT} --reload
+    command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT}
     restart: unless-stopped
 
   hw_info:
-    image: ${USER_NAME}/${REPOSITORY}:${HWINFO_TAG}
+    image: ${USER_NAME}/${REPOSITORY}-${HWINFO_NAME}:${HWINFO_TAG}
     container_name: ${HWINFO_CONTAINER_NAME}
     env_file:
       - .env

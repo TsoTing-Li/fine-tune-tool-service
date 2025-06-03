@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
 
-class LmEvalConfig(BaseModel):
+class EvalConfig(BaseModel):
     name: str
     tag: str

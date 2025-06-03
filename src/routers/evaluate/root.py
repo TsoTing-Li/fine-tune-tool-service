@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, 
 from src.config.params import (
     COMMON_CONFIG,
     DOCKERNETWORK_CONFIG,
-    LMEVAL_CONFIG,
+    EVAL_CONFIG,
     STATUS_CONFIG,
     TASK_CONFIG,
 )
@@ -49,8 +49,8 @@ async def start_lm_eval(
         eval_container = await utils.run_lm_eval(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
-                repository=COMMON_CONFIG.repository,
-                tag=LMEVAL_CONFIG.tag,
+                repository=f"{COMMON_CONFIG.repository}-{EVAL_CONFIG.name}",
+                tag=EVAL_CONFIG.tag,
             ),
             cmd=[
                 "lm-eval",
