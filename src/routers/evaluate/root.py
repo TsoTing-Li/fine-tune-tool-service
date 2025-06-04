@@ -46,33 +46,39 @@ async def start_lm_eval(
         ) from None
 
     try:
+        cmd = [
+            "lm-eval",
+            "--model",
+            "local-completions",
+            "--task",
+            ",".join(request_data.tasks),
+            "--batch_size",
+            "auto",
+            "--output_path",
+            os.path.join(COMMON_CONFIG.save_path, request_data.eval_name, "evaluate"),
+            "--use_cache",
+            COMMON_CONFIG.cache_path,
+        ]
+
+        if any("humaneval" in task or "mbpp" in task for task in request_data.tasks):
+            cmd.append("--confirm_run_unsafe_code")
+
+        model_args = (
+            f"model={request_data.eval_name},"
+            + f"base_url={request_data.model_service}/v1/completions,"
+            + "num_concurrent=1,"
+            + "max_retries=3,"
+            + f"tokenizer={info['train_args']['base_model']}"
+        )
+        cmd.append("--model_args", model_args)
+
         eval_container = await utils.run_lm_eval(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
                 repository=f"{COMMON_CONFIG.repository}-{EVAL_CONFIG.name}",
                 tag=EVAL_CONFIG.tag,
             ),
-            cmd=[
-                "lm-eval",
-                "--model",
-                "local-completions",
-                "--task",
-                ",".join(request_data.tasks),
-                "--batch_size",
-                "auto",
-                "--output_path",
-                os.path.join(
-                    COMMON_CONFIG.save_path, request_data.eval_name, "evaluate"
-                ),
-                "--use_cache",
-                COMMON_CONFIG.cache_path,
-                "--model_args",
-                f"model={request_data.eval_name},"
-                f"base_url={request_data.model_service}/v1/completions,"
-                f"num_concurrent=1,"
-                f"max_retires=3,"
-                f"tokenizer={info['train_args']['base_model']}",
-            ],
+            cmd=cmd,
             docker_network_name=DOCKERNETWORK_CONFIG.network_name,
             eval_name=request_data.eval_name,
         )
