@@ -120,6 +120,8 @@ async def start_eval_background_task(
                 aclient=aclient, container_name_or_id=container_name_or_id
             )
 
+            await redis_async.client.delete(container_name_or_id)
+
     except ValueError as e:
         eval_status = STATUS_CONFIG.failed
         accel_logger.error(f"Docker error: {e}")
