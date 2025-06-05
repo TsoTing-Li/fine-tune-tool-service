@@ -61,7 +61,7 @@ async def start_lm_eval(
         ]
 
         if any("humaneval" in task or "mbpp" in task for task in request_data.tasks):
-            cmd.append("--confirm_run_unsafe_code")
+            cmd += ["--confirm_run_unsafe_code"]
 
         model_args = (
             f"model={request_data.eval_name},"
@@ -70,7 +70,7 @@ async def start_lm_eval(
             + "max_retries=3,"
             + f"tokenizer={info['train_args']['base_model']}"
         )
-        cmd.append("--model_args", model_args)
+        cmd += ["--model_args", model_args]
 
         eval_container = await utils.run_lm_eval(
             image_name=assemble_image_name(
