@@ -17,6 +17,10 @@ services:
       - ${PROJECT_ROOT_PATH}:/app
       - ${HF_HOME}:${HF_HOME}
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+     - redis
+     - quantize-service
+     - hwinfo
     expose:
       - ${MAIN_SERVICE_PORT}
     ipc: host
