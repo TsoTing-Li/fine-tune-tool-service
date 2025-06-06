@@ -13,12 +13,12 @@ services:
       - .env
     networks:
       - ${PROJECT_NAME}
-    ports:
-      - ${MAIN_SERVICE_PORT}:${MAIN_SERVICE_PORT}
     volumes:
       - ${PROJECT_ROOT_PATH}:/app
       - ${HF_HOME}:${HF_HOME}
       - /var/run/docker.sock:/var/run/docker.sock
+    expose:
+      - ${MAIN_SERVICE_PORT}
     ipc: host
     stdin_open: true
     tty: true
@@ -43,24 +43,7 @@ services:
       --appendonly yes
       --dir /data
       --dbfilename redis_snapshot.rdb"
-    restart: unless-stopped
-
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: ${PROJECT_NAME}_nginx
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #   ports:
-  #     - "2089:2089"
-  #   networks:
-  #     - ${PROJECT_NAME}
-  #   depends_on:
-  #     - main-service
-  #     - redis
-  #   extra_hosts:
-  #     - "acceltune:host-gateway"
-  #   restart: always
-    
+    restart: unless-stopped    
 
   quantize-service:
     image: ${USER_NAME}/${REPOSITORY}-${QUANTIZE_SERVICE_NAME}:${QUANTIZE_SERVICE_TAG}
@@ -98,4 +81,21 @@ services:
     networks:
       - ${PROJECT_NAME}
     runtime: nvidia
+    restart: always
+
+  nginx:
+    image: nginx:1.25
+    container_name: ${NGINX_CONTAINER_NAME}
+    environment:
+     - MAIN_SERVICE_PORT=${MAIN_SERVICE_PORT}
+     - NGINX_PORT=${NGINX_PORT}
+    volumes:
+     - /etc/localtime:/etc/localtime:ro
+     - ${PROJECT_ROOT_PATH}/nginx/nginx.default.template:/etc/nginx/templates/default.conf.template
+    ports:
+      - ${NGINX_PORT}:${NGINX_PORT}
+    networks:
+      - ${PROJECT_NAME}
+    depends_on:
+      - main-service
     restart: always
