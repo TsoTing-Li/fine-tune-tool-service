@@ -127,3 +127,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  website:
+    image: ${USER_NAME}/${REPOSITORY}-${WEBSITE_NAME}:${WEBSITE_TAG}
+    container_name: ${WEBSITE_CONTAINER_NAME}
+    environment:
+      - NGINX_PORT=${WEBSITE_PORT}
+      - DATA_PORT=${NGINX_PORT}
+      - DATA_SERVER=${NGINX_CONTAINER_NAME}
+    networks:
+      - ${PROJECT_NAME}
+    depends_on:
+      - nginx
+    ports:
+      - ${WEBSITE_PORT}:${WEBSITE_PORT}
