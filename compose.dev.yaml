@@ -24,6 +24,12 @@ services:
     tty: true
     command: uvicorn app:app --host ${MAIN_SERVICE_HOST} --port ${MAIN_SERVICE_PORT}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${MAIN_SERVICE_PORT}/health/"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   redis:
     image: ${REDIS_NAME}:${REDIS_TAG}
@@ -44,6 +50,12 @@ services:
       --dir /data
       --dbfilename redis_snapshot.rdb"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   quantize-service:
     image: ${USER_NAME}/${REPOSITORY}-${QUANTIZE_SERVICE_NAME}:${QUANTIZE_SERVICE_TAG}
@@ -60,6 +72,12 @@ services:
     tty: true
     command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${QUANTIZE_SERVICE_PORT}/health/"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   hwinfo:
     image: ${USER_NAME}/${REPOSITORY}-${HWINFO_NAME}:${HWINFO_TAG}
@@ -99,3 +117,9 @@ services:
     depends_on:
       - main-service
     restart: always
+    healthcheck:
+      test: ["CMD", "service", "nginx", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
