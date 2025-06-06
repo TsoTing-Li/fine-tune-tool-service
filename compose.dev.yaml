@@ -43,7 +43,7 @@ services:
       --appendonly yes
       --dir /data
       --dbfilename redis_snapshot.rdb"
-    restart: unless-stopped    
+    restart: unless-stopped
 
   quantize-service:
     image: ${USER_NAME}/${REPOSITORY}-${QUANTIZE_SERVICE_NAME}:${QUANTIZE_SERVICE_TAG}
@@ -61,7 +61,7 @@ services:
     command: uvicorn src.app:quantize_api --host ${QUANTIZE_SERVICE_HOST} --port ${QUANTIZE_SERVICE_PORT}
     restart: unless-stopped
 
-  hw_info:
+  hwinfo:
     image: ${USER_NAME}/${REPOSITORY}-${HWINFO_NAME}:${HWINFO_TAG}
     container_name: ${HWINFO_CONTAINER_NAME}
     env_file:
