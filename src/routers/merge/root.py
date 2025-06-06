@@ -31,7 +31,7 @@ async def post_start_merge(request_data: schema.PostStartMerge):
         container_name = await utils.run_merge(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
-                repository=COMMON_CONFIG.repository,
+                repository=f"{COMMON_CONFIG.repository}-{FINETUNETOOL_CONFIG.name}",
                 tag=FINETUNETOOL_CONFIG.tag,
             ),
             cmd=["sh", "-c", " && ".join(command)],
