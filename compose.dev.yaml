@@ -106,7 +106,7 @@ services:
     restart: always
 
   nginx:
-    image: nginx:1.25
+    image: nginx:${NGINX_TAG}
     container_name: ${NGINX_CONTAINER_NAME}
     environment:
      - MAIN_SERVICE_PORT=${MAIN_SERVICE_PORT}
