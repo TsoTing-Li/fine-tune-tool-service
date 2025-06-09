@@ -114,8 +114,8 @@ services:
     volumes:
      - /etc/localtime:/etc/localtime:ro
      - ${PROJECT_ROOT_PATH}/nginx/nginx.default.template:/etc/nginx/templates/default.conf.template
-    ports:
-      - ${NGINX_PORT}:${NGINX_PORT}
+    expose:
+      - ${NGINX_PORT}
     networks:
       - ${PROJECT_NAME}
     depends_on:
