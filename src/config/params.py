@@ -2,9 +2,9 @@ import os
 
 from src.config.common import CommonConfig
 from src.config.docker_network import DockerNetworkConfig
+from src.config.eval import EvalConfig
 from src.config.finetune_tool import FineTuneToolConfig
 from src.config.hw_info import HwInfoConfig
-from src.config.lm_eval import LmEvalConfig
 from src.config.logger import LoggerConfig
 from src.config.main_service import MainServiceConfig
 from src.config.ollama import OllamaConfig
@@ -14,13 +14,13 @@ from src.config.status import StatusConfig
 from src.config.task import TaskConfig
 from src.config.vllm import VllmConfig
 
-PROJECT_NAME = os.getenv("PROJECT_NAME", "AccelTune")
+PROJECT_NAME = os.getenv("PROJECT_NAME", "acceltune")
 ACCELTUNE_SETTING = {
     "common": {
         "username": os.environ["USER_NAME"],
         "repository": os.environ["REPOSITORY"],
         "hf_home": os.environ["HF_HOME"],
-        "root_path": os.environ["ROOT_PATH"],
+        "root_path": os.environ["PROJECT_ROOT_PATH"],
         "max_jobs": os.environ["MAX_JOBS"],
         "workspace_path": os.environ["WS"],
         "save_path": os.getenv("SAVE_PATH", "/app/saves"),
@@ -81,9 +81,9 @@ ACCELTUNE_SETTING = {
         "host": os.getenv("OLLAMA_SERVICE_HOST"),
         "port": os.getenv("OLLAMA_SERVICE_PORT"),
     },
-    "lm_eval": {
-        "name": os.getenv("LM_EVAL_NAME"),
-        "tag": os.getenv("LM_EVAL_TAG"),
+    "eval": {
+        "name": os.getenv("EVAL_TOOL_NAME"),
+        "tag": os.getenv("EVAL_TOOL_TAG"),
     },
     "hw_info": {
         "name": os.getenv("HWINFO_NAME"),
@@ -96,11 +96,11 @@ ACCELTUNE_SETTING = {
         "host": os.getenv("QUANTIZE_SERVICE_HOST"),
         "port": os.getenv("QUANTIZE_SERVICE_PORT"),
         "container_name": os.getenv("QUANTIZE_SERVICE_CONTAINER_NAME"),
-        "gguf_tag": os.getenv("QUANTIZE_GGUF_TAG"),
+        "gguf_tag": os.getenv("QUANTIZE_GGUF_TOOL_TAG"),
     },
-    "fine_tune_tool": {
-        "name": os.getenv("FINE_TUNE_TOOL_NAME"),
-        "tag": os.getenv("FINE_TUNE_TOOL_TAG"),
+    "finetune_tool": {
+        "name": os.getenv("FINETUNE_TOOL_NAME"),
+        "tag": os.getenv("FINETUNE_TOOL_TAG"),
     },
 }
 
@@ -110,8 +110,8 @@ VLLM_CONFIG = VllmConfig(**ACCELTUNE_SETTING["vllm"])
 REDIS_CONFIG = RedisConfig(**ACCELTUNE_SETTING["redis"])
 HWINFO_CONFIG = HwInfoConfig(**ACCELTUNE_SETTING["hw_info"])
 QUANTIZESERVICE_CONFIG = QuantizeServiceConfig(**ACCELTUNE_SETTING["quantize_service"])
-FINETUNETOOL_CONFIG = FineTuneToolConfig(**ACCELTUNE_SETTING["fine_tune_tool"])
-LMEVAL_CONFIG = LmEvalConfig(**ACCELTUNE_SETTING["lm_eval"])
+FINETUNETOOL_CONFIG = FineTuneToolConfig(**ACCELTUNE_SETTING["finetune_tool"])
+EVAL_CONFIG = EvalConfig(**ACCELTUNE_SETTING["eval"])
 DOCKERNETWORK_CONFIG = DockerNetworkConfig(network_name=PROJECT_NAME)
 TASK_CONFIG = TaskConfig(**ACCELTUNE_SETTING["task"])
 MAINSERVICE_CONFIG = MainServiceConfig(**ACCELTUNE_SETTING["main_service"])

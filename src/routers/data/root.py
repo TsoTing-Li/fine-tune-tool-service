@@ -137,7 +137,7 @@ async def add_dataset(
             type=error_handler.ERR_INTERNAL,
             loc=[error_handler.LOC_PROCESS],
             msg=f"Unexpected error: {e}",
-            input=request_body.model_dump(),
+            input=request_body.dataset_info.model_dump(),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

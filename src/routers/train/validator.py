@@ -18,7 +18,7 @@ class PostTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if redis_sync.client.hexists("TRAIN", self.train_name):
+            if redis_sync.client.hexists(TASK_CONFIG.train, self.train_name):
                 raise ValueError("train_name already exists")
 
         except ValueError as e:
@@ -57,7 +57,7 @@ class GetTrain(BaseModel):
 
         try:
             if self.train_name and not redis_sync.client.hexists(
-                "TRAIN", self.train_name
+                TASK_CONFIG.train, self.train_name
             ):
                 raise KeyError("train_name does not exists")
 
@@ -96,12 +96,15 @@ class PutTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis_sync.client.hexists("TRAIN", self.train_name):
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.train_name)
+            if not info:
                 raise KeyError("train_name does not exists")
 
-            info = redis_sync.client.hget("TRAIN", self.train_name)
-            if orjson.loads(info)["container"]["train"]["status"] == "active":
+            info = orjson.loads(info)
+            if info["container"]["train"]["status"] == STATUS_CONFIG.active:
                 raise ValueError("train_name is being executed")
+            if info["container"]["infer_backend"]["status"] == STATUS_CONFIG.active:
+                raise ValueError("train_name is being inferred")
 
         except KeyError as e:
             error_handler.add(
@@ -150,12 +153,15 @@ class DelTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis_sync.client.hexists("TRAIN", self.train_name):
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.train_name)
+            if not info:
                 raise KeyError("train_name does not exists")
 
-            info = redis_sync.client.hget("TRAIN", self.train_name)
-            if orjson.loads(info)["container"]["train"]["status"] == "active":
+            info = orjson.loads(info)
+            if info["container"]["train"]["status"] == STATUS_CONFIG.active:
                 raise ValueError("train_name is being executed")
+            if info["container"]["infer_backend"]["status"] == STATUS_CONFIG.active:
+                raise ValueError("train_name is being inferred")
 
         except KeyError as e:
             error_handler.add(
@@ -205,14 +211,17 @@ class PostStartTrain(BaseModel):
 
         try:
             if not redis_sync.client.hexists(
-                "TRAIN", self.train_name
+                TASK_CONFIG.train, self.train_name
             ) or not os.path.exists(
                 os.path.join(COMMON_CONFIG.save_path, self.train_name)
             ):
                 raise KeyError("train_name does not exists")
 
-            info = redis_sync.client.hget("TRAIN", self.train_name)
-            if orjson.loads(info)["container"]["train"]["status"] == "active":
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.train_name)
+            if (
+                orjson.loads(info)["container"]["train"]["status"]
+                == STATUS_CONFIG.active
+            ):
                 raise ValueError("train_name is being executed")
 
         except KeyError as e:
@@ -262,11 +271,14 @@ class PostStopTrain(BaseModel):
         error_handler = ResponseErrorHandler()
 
         try:
-            if not redis_sync.client.hexists("TRAIN", self.train_name):
+            info = redis_sync.client.hget(TASK_CONFIG.train, self.train_name)
+            if not info:
                 raise KeyError("train_name does not exists")
 
-            info = redis_sync.client.hget("TRAIN", self.train_name)
-            if orjson.loads(info)["container"]["train"]["status"] != "active":
+            if (
+                orjson.loads(info)["container"]["train"]["status"]
+                != STATUS_CONFIG.active
+            ):
                 raise KeyError("train_name is not being executed")
 
         except KeyError as e:

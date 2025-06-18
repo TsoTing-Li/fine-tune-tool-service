@@ -1,9 +1,13 @@
 import httpx
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import orjson
+from fastapi import APIRouter, WebSocket
+from starlette.websockets import WebSocketDisconnect, WebSocketState
+from uvicorn.protocols.utils import ClientDisconnected
 
 from src.config.params import HWINFO_CONFIG, STATUS_CONFIG
-from src.routers.ws import utils
+from src.routers.ws import schema
 from src.thirdparty.docker.api_handler import get_container_log, wait_for_container
+from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
 
 router = APIRouter(prefix="/ws")
@@ -16,16 +20,11 @@ async def train_log(websocket: WebSocket, id: str):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
-            is_eval = False
-            last_train_progress = 0.0
-            train_log = {
-                "convert_progress": "0.0",
-                "run_tokenizer_progress": "0.0",
-                "train_progress": str(last_train_progress),
-                "train_loss": "",
-                "eval_loss": "",
-                "ori": "",
-            }
+            last_train_progress = None
+            total_steps = 0
+
+            train_log = schema.TrainLogTemplate()
+
             async for log in get_container_log(
                 aclient=aclient, container_name_or_id=id
             ):
@@ -35,25 +34,18 @@ async def train_log(websocket: WebSocket, id: str):
                     elif log_split[0] in ("\x01", "\x02"):
                         log_split = log_split[8:]
 
-                    if "***** Running Evaluation *****" in log_split:
-                        is_eval = True
+                    if "Total optimization steps" in log_split:
+                        total_steps = train_log.get_total_steps(log=log_split)
 
-                    if "{'loss':" in log_split:
-                        is_eval = False
-
-                    train_log = utils.parse_train_log(
-                        log_info=train_log,
+                    train_log.parse_train_log(
                         stdout=log_split.strip(),
-                        is_eval=is_eval,
                         last_train_progress=last_train_progress,
-                    )
-                    last_train_progress = (
-                        float(train_log["train_progress"])
-                        if train_log["train_progress"]
-                        else 0.0
+                        total_steps=total_steps,
                     )
 
-                    await websocket.send_json({"trainLog": train_log})
+                    last_train_progress = train_log.train_progress
+
+                    await websocket.send_json({"trainLog": train_log.model_dump()})
 
             container_info = await wait_for_container(
                 aclient=aclient, container_name=id
@@ -68,7 +60,7 @@ async def train_log(websocket: WebSocket, id: str):
 
         await websocket.send_json({"trainLog": f"train {train_status}"})
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, ClientDisconnected):
         accel_logger.info("trainLog: Client disconnected")
 
     except ValueError as e:
@@ -76,11 +68,56 @@ async def train_log(websocket: WebSocket, id: str):
         await websocket.send_json({"trainLog": f"{e}"})
 
     except Exception as e:
-        accel_logger.error(f"trainLog: Unexpected error: {e}")
-        await websocket.send_json({"trainLog": f"{e}"})
+        accel_logger.error(f"trainLog: Unexpected error {e}")
+        await websocket.send_json({"trainLog": "Unexpected error"})
 
     finally:
-        await websocket.close()
+        if websocket.client_state == WebSocketState.CONNECTED:
+            accel_logger.info(
+                "trainLog: WebSocket is still connected, automatically close"
+            )
+            await websocket.close()
+
+
+@router.websocket("/evalLogs/{id}")
+async def eval_info_log(websocket: WebSocket, id: str):
+    await websocket.accept()
+
+    try:
+        last_id = "0-0"
+        while True:
+            redis_response = await redis_async.client.xread(
+                streams={id: last_id}, count=10, block=5000
+            )
+
+            for _, messages in redis_response:
+                for msg_id, data in messages:
+                    eval_log = data["data"]
+                    eval_status = data["status"]
+                    if eval_status == STATUS_CONFIG.active:
+                        await websocket.send_json({"evalLog": orjson.loads(eval_log)})
+                    else:
+                        await websocket.send_json({"evalLog": eval_status})
+                        return
+                    last_id = msg_id
+
+    except (WebSocketDisconnect, ClientDisconnected):
+        accel_logger.info("evalLog: Client disconnected")
+
+    except ValueError as e:
+        accel_logger.error(f"evalLog: {e}")
+        await websocket.send_json({"evalLog": f"{e}"})
+
+    except Exception as e:
+        accel_logger.error(f"evalLog: Unexpected error {e}")
+        await websocket.send_json({"evalLog": "Unexpected error"})
+
+    finally:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            accel_logger.info(
+                "evalLog: WebSocket is still connected, automatically close"
+            )
+            await websocket.close()
 
 
 @router.websocket("/hwInfo")
@@ -90,6 +127,8 @@ async def hw_info_log(websocket: WebSocket):
 
     try:
         async with httpx.AsyncClient(transport=transport, timeout=None) as aclient:
+            hw_info = schema.HwInfoTemplate()
+
             async for log in get_container_log(
                 aclient=aclient,
                 container_name_or_id=HWINFO_CONFIG.container_name,
@@ -101,10 +140,11 @@ async def hw_info_log(websocket: WebSocket):
                     elif log_split[0] in ("\x01", "\x02"):
                         log_split = log_split[8:]
 
-                    hw_info = utils.parse_hw_info_log(stdout=log_split)
-                    await websocket.send_json(hw_info)
+                    hw_info.parse_hwinfo_log(stdout=log_split)
 
-    except WebSocketDisconnect:
+                    await websocket.send_json(hw_info.model_dump())
+
+    except (WebSocketDisconnect, ClientDisconnected):
         accel_logger.info("hwInfo: Client disconnected")
 
     except ValueError as e:
@@ -116,7 +156,7 @@ async def hw_info_log(websocket: WebSocket):
         await websocket.send_json({"hwInfo": f"{e}"})
 
     finally:
-        if websocket.client_state == "CONNECTED":
+        if websocket.client_state == WebSocketState.CONNECTED:
             accel_logger.info(
                 "hwInfo: WebSocket is still connected, automatically close"
             )

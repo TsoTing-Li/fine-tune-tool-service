@@ -227,11 +227,19 @@ async def check_accelbrain_url(accelbrain_url: str) -> Tuple[str, int]:
         async with httpx.AsyncClient() as aclient:
             response = await aclient.get(f"http://{accelbrain_url}/model_handler/")
 
-            if (
-                response.status_code == status.HTTP_200_OK
-                and response.json()["status"] == "alive"
-            ):
-                return response.json()["status"], response.status_code
+            if response.status_code == status.HTTP_200_OK:
+                try:
+                    data = response.json()
+                except ValueError:
+                    raise RuntimeError("Invalid JSON format in response") from None
+
+                if data.get("status") == "alive":
+                    return data.get("status"), response.status_code
+                else:
+                    raise RuntimeError(f"Unexpected status value: {data.get('status')}")
+
+            else:
+                raise RuntimeError(f"Unexpected status code: {response.status_code}")
 
     except httpx.ConnectError:
         raise ConnectionError("AccelBrain Service is unavailable") from None

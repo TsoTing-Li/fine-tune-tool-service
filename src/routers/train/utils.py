@@ -4,7 +4,7 @@ import re
 import shutil
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import List, Literal, Union
+from typing import Dict, List, Literal, Union
 
 import aiofiles
 import aiofiles.os
@@ -65,7 +65,11 @@ def file_train_args_process(
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]
-        args["lora_target"] = ", ".join(lora_args["lora_target"])
+        args["lora_target"] = (
+            "all"
+            if "all" in (targets := lora_args.get("lora_target", []))
+            else ", ".join(targets)
+        )
 
     return args
 
@@ -87,7 +91,11 @@ def redis_train_args_process(
         args["lora_alpha"] = lora_args["lora_alpha"]
         args["lora_dropout"] = lora_args["lora_dropout"]
         args["lora_rank"] = lora_args["lora_rank"]
-        args["lora_target"] = lora_args["lora_target"]
+        args["lora_target"] = (
+            ["all"]
+            if "all" in (targets := lora_args.get("lora_target", []))
+            else targets
+        )
 
     return args
 
@@ -120,7 +128,7 @@ def add_train_path(path: str) -> str:
 
 async def call_ds_api(
     name: str, ds_args: schema.DeepSpeedArgs, ds_file: Union[UploadFile, None] = None
-) -> str:
+) -> dict:
     base_url = f"http://127.0.0.1:{MAINSERVICE_CONFIG.port}/acceltune/deepspeed"
     async with httpx.AsyncClient(timeout=None) as aclient:
         if ds_args.src == "default":
@@ -332,7 +340,7 @@ async def start_train_background_task(train_name: str, container_name_or_id: str
 
     except Exception as e:
         train_status = STATUS_CONFIG.failed
-        accel_logger.error(f"{e}")
+        accel_logger.error(f"Unexpected error: {e}")
 
     finally:
         try:
@@ -462,12 +470,12 @@ async def train_finish_event(path: str) -> validator.TrainResult:
             content = await f.read()
         train_results: List[dict] = orjson.loads(content)["log_history"]
 
-        epoch_idx = dict()
+        epoch_idx: Dict[int, int] = dict()
         last_eval_info = None
 
         for log in train_results:
-            epoch = log.get("epoch")
-            step = log.get("step")
+            epoch: float = log.get("epoch")
+            step: int = log.get("step")
 
             if "train_loss" in log:
                 output.final_report.epoch = epoch
@@ -482,8 +490,9 @@ async def train_finish_event(path: str) -> validator.TrainResult:
                     "train_steps_per_second"
                 ]
             elif "loss" in log:
+                loss: float = log["loss"]
                 log_history_info = validator.LogHistory(
-                    epoch=epoch, step=step, loss=log["loss"], eval_loss=0.0
+                    epoch=epoch, step=step, loss=loss, eval_loss=0.0
                 )
                 epoch_idx[epoch] = len(output.log_history)
                 output.log_history.append(log_history_info)
@@ -526,17 +535,18 @@ async def train_stop_failed_event(path: str) -> validator.TrainResult:
                     content = orjson.loads(line)
                     train_log.append(content)
 
-        epoch_idx = dict()
+        epoch_idx: Dict[int, int] = dict()
 
         for log in train_log:
-            epoch = log.get("epoch")
-            step = log.get("current_steps")
+            epoch: float = log.get("epoch")
+            step: int = log.get("current_steps")
 
             if "loss" in log:
+                loss: float = log["loss"]
                 log_history_info = validator.LogHistory(
                     epoch=epoch,
                     step=step,
-                    loss=log["loss"],
+                    loss=loss,
                     eval_loss=0.0,
                 )
                 epoch_idx[epoch] = len(output.log_history)

@@ -1,5 +1,5 @@
-import re
 from typing import Union
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, model_validator
@@ -8,21 +8,18 @@ from src.utils.error import ResponseErrorHandler
 
 
 class GetSupportModel(BaseModel):
-    base_model: Union[str, None]
+    support_model_uuid: Union[UUID, None]
 
     @model_validator(mode="after")
     def check(self: "GetSupportModel") -> "GetSupportModel":
         error_handler = ResponseErrorHandler()
 
-        if (
-            self.base_model is not None
-            and bool(re.search(r"[^a-zA-Z0-9_\-\./]+", self.base_model)) is True
-        ):
+        if self.support_model_uuid is not None and self.support_model_uuid.version != 4:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="base_model contain invalid characters",
-                input={"base_model": self.base_model},
+                msg="UUID version 4 expected",
+                input={"support_model_uuid": self.support_model_uuid},
             )
 
         if error_handler.errors != []:
@@ -35,21 +32,18 @@ class GetSupportModel(BaseModel):
 
 
 class GetEvalTask(BaseModel):
-    eval_task: Union[str, None]
+    eval_task_uuid: Union[UUID, None]
 
     @model_validator(mode="after")
     def check(self: "GetEvalTask") -> "GetEvalTask":
         error_handler = ResponseErrorHandler()
 
-        if (
-            self.eval_task is not None
-            and bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.eval_task)) is True
-        ):
+        if self.eval_task_uuid is not None and self.eval_task_uuid.version != 4:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
                 loc=[error_handler.LOC_BODY],
-                msg="eval_task contain invalid characters",
-                input={"eval_task": self.eval_task},
+                msg="UUID version 4 expected",
+                input={"eval_task_uuid": str(self.eval_task_uuid)},
             )
 
         if error_handler.errors != []:

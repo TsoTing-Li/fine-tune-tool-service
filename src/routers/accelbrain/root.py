@@ -183,6 +183,19 @@ async def check_accelbrain(
             detail=error_handler.errors,
         ) from None
 
+    except RuntimeError as e:
+        accel_logger.error(f"Runtime error: {e}")
+        error_handler.add(
+            type=error_handler.ERR_INTERNAL,
+            loc=[error_handler.LOC_QUERY],
+            msg=f"{e}",
+            input={"url": query_data.url},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
+        ) from None
+
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
         error_handler.add(

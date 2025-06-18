@@ -1,8 +1,37 @@
 [
     {
-        "task_name": "gsm8k"
+        "task_name": "MMLU",
+        "tool_input": "mmlu",
+        "group": "General"
     },
     {
-        "task_name": "xwinograd_en"
+        "task_name": "MMLU PRO",
+        "tool_input": "mmlu_pro",
+        "group": "General"
+    },
+    {
+        "task_name": "IFEval",
+        "tool_input": "ifeval",
+        "group": "General"
+    },
+    {
+        "task_name": "HumanEval",
+        "tool_input": "humaneval",
+        "group": "Code"
+    },
+    {
+        "task_name": "MBPP",
+        "tool_input": "mbpp",
+        "group": "Code"
+    },
+    {
+        "task_name": "GSM8K",
+        "tool_input": "gsm8k",
+        "group": "Math"
+    },
+    {
+        "task_name": "GPQA",
+        "tool_input": "gpqa",
+        "group": "Reasoning"
     }
 ]

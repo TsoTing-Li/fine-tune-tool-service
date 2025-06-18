@@ -7,13 +7,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config.params import COMMON_CONFIG, TASK_CONFIG
 from src.routers.main import acceltune_api
+from src.schema.eval_tasks import EvalTaskInfo
+from src.schema.support_models import SupportModelInfo
 from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
+from src.utils.utils import generate_uuid
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     accel_logger.info("Started Service")
+
+    await redis_async.client.delete(TASK_CONFIG.support_model)
+    await redis_async.client.delete(TASK_CONFIG.eval_tasks)
 
     async with aiofiles.open(
         f"{COMMON_CONFIG.workspace_path}/static/support_model.json"
@@ -28,13 +34,29 @@ async def lifespan(app: FastAPI):
         eval_tasks = orjson.loads(eval_tasks_content)
 
     for model in support_model:
+        uuid = generate_uuid()
+        model_name = model["model_name"]
+        template = model["template"]
+        lora_module = model["lora_module"]
+        support_model_info = SupportModelInfo(
+            uuid=uuid, name=model_name, template=template, lora_module=lora_module
+        ).model_dump()
+
         await redis_async.client.hset(
-            TASK_CONFIG.support_model, model["model_name"], orjson.dumps(model)
+            TASK_CONFIG.support_model, uuid, orjson.dumps(support_model_info)
         )
 
     for task in eval_tasks:
+        uuid = generate_uuid()
+        task_name = task["task_name"]
+        tool_input = task["tool_input"]
+        group = task["group"]
+        eval_task_info = EvalTaskInfo(
+            uuid=uuid, name=task_name, tool_input=tool_input, group=group
+        ).model_dump()
+
         await redis_async.client.hset(
-            TASK_CONFIG.eval_tasks, task["task_name"], orjson.dumps(task)
+            TASK_CONFIG.eval_tasks, uuid, orjson.dumps(eval_task_info)
         )
 
     yield

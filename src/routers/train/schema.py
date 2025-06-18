@@ -54,7 +54,7 @@ class Dataset(BaseModel):
     dataset: List[str]
     template: str
     cutoff_len: int
-    max_samples: int
+    max_samples: Union[int, None]
     overwrite_cache: bool
     preprocessing_num_workers: int
 
@@ -96,9 +96,17 @@ class Params(BaseModel):
         if self.per_device_train_batch_size <= 0:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'per_device_train_batch_size' must be positive integer",
                 input={"per_device_train_batch_size": self.per_device_train_batch_size},
+            )
+
+        if self.warmup_ratio > 0.2 or self.warmup_ratio < 0.0:
+            error_handler.add(
+                type=error_handler.ERR_VALIDATE,
+                loc=[error_handler.LOC_FORM],
+                msg="'warmup_ratio' must between 0.0 to 0.2",
+                input={"warmup_ratio": self.warmup_ratio},
             )
 
         if error_handler.errors != []:
@@ -122,7 +130,7 @@ class Val(BaseModel):
         if self.val_size > 1.0 or self.val_size < 0.1:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="val_size must be between 0.1 and 1.0",
                 input={"val_size": self.val_size},
             )
@@ -130,7 +138,7 @@ class Val(BaseModel):
         if self.per_device_eval_batch_size <= 0:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'per_device_eval_batch_size' must be positive integer",
                 input={"per_device_eval_batch_size": self.per_device_eval_batch_size},
             )
@@ -167,7 +175,7 @@ class TrainArgs(BaseModel):
         if bool(re.search(r"[^a-zA-Z0-9_\-\s\./]+", self.base_model)) is True:
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="'base_model' contain invalid characters",
                 input={"base_model": self.base_model},
             )
@@ -228,7 +236,7 @@ class PostTrain(BaseModel):
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="lora params can not be empty when 'finetuning_type' is 'lora'",
                 input={"lora": self.train_args.lora},
             )
@@ -303,7 +311,7 @@ class PutTrain(BaseModel):
         ):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_FORM],
                 msg="lora params can not be empty when 'finetuning_type' is 'lora'",
                 input={"lora": self.train_args.lora},
             )
@@ -399,7 +407,7 @@ class GetTrainLog(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_QUERY],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )
@@ -423,7 +431,7 @@ class GetTrainResult(BaseModel):
         if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]+", self.train_name):
             error_handler.add(
                 type=error_handler.ERR_VALIDATE,
-                loc=[error_handler.LOC_BODY],
+                loc=[error_handler.LOC_QUERY],
                 msg="'train_name' contain invalid characters",
                 input={"train_name": self.train_name},
             )

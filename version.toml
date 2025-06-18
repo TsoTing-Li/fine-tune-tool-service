@@ -1,0 +1,48 @@
+[project]
+name = "AccelTune"
+version = "v0.1.0"
+description = "A LLM tuning tool"
+
+[docker.info]
+username = "innodiskorg"
+base_repo = "acceltune"
+
+[services.main-service]
+name = "main-service"
+version = "v0.1.0"
+
+[services.finetune-tool]
+name = "finetune-tool"
+version = "v0.1.0"
+
+[services.quantize-service]
+name = "quantize-service"
+version = "v0.1.0"
+
+[services.quantize-gguf-tool]
+name = "quantize-gguf"
+version = "v0.1.0"
+
+[services.eval-tool]
+name = "eval-tool"
+version = "v0.1.0"
+
+[services.hw-info]
+name = "hwinfo"
+version = "v0.1.0"
+
+[shared.vllm]
+name = "vllm"
+version = "v0.6.3_P1_cu-12.1.1"
+
+[shared.ollama]
+name = "ollama"
+version = "v0.1"
+
+[thirdparty.redis]
+name = "redis"
+version = "7.2.4"
+
+[thirdparty.nginx]
+name = "nginx"
+version = "1.25"

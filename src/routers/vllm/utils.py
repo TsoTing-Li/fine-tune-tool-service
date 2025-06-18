@@ -76,7 +76,7 @@ async def health_check(
 
 
 async def run_vllm_model(vllm_url: str) -> None:
-    async with httpx.AsyncClient() as aclient:
+    async with httpx.AsyncClient(timeout=None) as aclient:
         is_loaded = await health_check(
             aclient=aclient, health_check_url=f"{vllm_url}/health"
         )

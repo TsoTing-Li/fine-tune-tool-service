@@ -197,7 +197,7 @@ async def startup_vllm_service(
         if response.status_code == status.HTTP_200_OK:
             return response.json()
         else:
-            raise RuntimeError(f"{response.text}") from None
+            raise RuntimeError(f"{response.json()['detail'][0]['msg']}") from None
 
 
 async def startup_ollama_service(local_gguf_path: str, model_name: str) -> dict:

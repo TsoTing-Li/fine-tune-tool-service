@@ -71,7 +71,7 @@ async def start_train(
         container_name = await utils.run_train(
             image_name=assemble_image_name(
                 username=COMMON_CONFIG.username,
-                repository=COMMON_CONFIG.repository,
+                repository=f"{COMMON_CONFIG.repository}-{FINETUNETOOL_CONFIG.name}",
                 tag=FINETUNETOOL_CONFIG.tag,
             ),
             cmd=["sh", "-c", " && ".join(commands)],
@@ -95,7 +95,7 @@ async def start_train(
         ) from None
 
     try:
-        info["container"]["train"]["status"] = "active"
+        info["container"]["train"]["status"] = STATUS_CONFIG.active
         info["container"]["train"]["id"] = container_name
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
@@ -157,7 +157,6 @@ async def stop_train(request_data: schema.PostStopTrain):
         train_status = STATUS_CONFIG.stopped
 
         info["last_model_path"] = last_model_path
-        info["container"]["train"]["status"] = train_status
         info["container"]["train"]["id"] = None
 
         if finetuning_type == "lora" and last_model_path is not None:
@@ -176,7 +175,7 @@ async def stop_train(request_data: schema.PostStopTrain):
                 info["last_model_path"] = merge_path
             else:
                 info["last_model_path"] = None
-                info["container"]["train"]["status"] = STATUS_CONFIG.failed
+                train_status = STATUS_CONFIG.failed
 
     except Exception as e:
         train_status = STATUS_CONFIG.failed
@@ -194,6 +193,7 @@ async def stop_train(request_data: schema.PostStopTrain):
 
     finally:
         try:
+            info["container"]["train"]["status"] = train_status
             await redis_async.client.hset(
                 TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
             )
@@ -277,19 +277,21 @@ async def get_result(train_name: Annotated[str, Query(...)]):
         info = await redis_async.client.hget(TASK_CONFIG.train, query_data.train_name)
         info = orjson.loads(info)
 
-        train_result = await utils.get_train_result(info=info)
-
-    except FileNotFoundError as e:
-        accel_logger.error(f"{e}")
+    except Exception as e:
+        accel_logger.error(f"Database error: {e}")
         error_handler.add(
-            type=error_handler.ERR_INTERNAL,
-            loc=[error_handler.LOC_PROCESS],
-            msg=f"{e}",
+            type=error_handler.ERR_REDIS,
+            loc=[error_handler.LOC_DATABASE],
+            msg="Database error",
             input=query_data.model_dump(),
         )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=error_handler.errors
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_handler.errors,
         ) from None
+
+    try:
+        train_result = await utils.get_train_result(info=info)
 
     except Exception as e:
         accel_logger.error(f"Unexpected error: {e}")
@@ -319,7 +321,7 @@ async def add_train(
     dataset: List[str] = Form(...),
     template: str = Form(...),
     cutoff_len: int = Form(1024),
-    max_samples: int = Form(10000),
+    max_samples: int = Form(None),
     overwrite_cache: bool = Form(True),
     preprocessing_num_workers: int = Form(16),
     save_steps: int = Form(5),
@@ -520,6 +522,7 @@ async def add_train(
                 },
             },
             "last_model_path": None,
+            "eval_result_path": None,
             "created_time": unix_time,
             "modified_time": None,
         }
@@ -620,9 +623,9 @@ async def modify_train(
     ddp_timeout: int = Form(...),
     val_size: float = Form(...),
     lora_alpha: int = Form(None),
-    lora_dropout: float = Form(None),
-    lora_rank: int = Form(None),
-    lora_target: List[str] = Form(None),
+    lora_dropout: float = Form(0.0),
+    lora_rank: int = Form(8),
+    lora_target: List[str] = Form(["all"]),
     deepspeed_src: Literal["default", "file", None] = Form(None),
     deepspeed_stage: Literal["2", "3", None] = Form(None),
     deepspeed_enable_offload: bool = Form(False),
@@ -752,7 +755,10 @@ async def modify_train(
                 )
                 file_train_args["deepspeed"] = ds_api_response["ds_path"]
 
-                if info["offloading"]["deepspeed"]["path"] is not None:
+                if (
+                    info["offloading"]["deepspeed"]["path"]
+                    != ds_api_response["ds_path"]
+                ):
                     clear_up_list.append(info["offloading"]["deepspeed"]["path"])
             else:
                 if info["offloading"]["deepspeed"]["path"] is not None:
@@ -851,6 +857,7 @@ async def modify_train(
             },
         }
         info["last_model_path"] = None
+        info["eval_result_path"] = None
         info["modified_time"] = unix_time
         await redis_async.client.hset(
             TASK_CONFIG.train, request_data.train_name, orjson.dumps(info)
