@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 from typing import Dict
 
@@ -46,18 +47,22 @@ async def get_all_image_name(
 async def pull_docker_image(
     aclient: httpx.AsyncClient, image_name: str, tag: str
 ) -> None:
-    response = await aclient.post(
+    async with aclient.stream(
+        "POST",
         "http://docker/images/create",
         params={"fromImage": image_name, "tag": tag},
-    )
-
-    if response.status_code == 200:
-        print(f"Pull docker image {image_name}:{tag} --> success")
-
-    else:
-        print(
-            f"Pull docker image {image_name}:{tag} --> error: {response.json()['message']}"
-        )
+    ) as response:
+        async for line in response.aiter_lines():
+            if line.strip():
+                try:
+                    progress_info = json.loads(line)
+                    print(
+                        progress_info.get("status"),
+                        progress_info.get("progressDetail", ""),
+                        progress_info.get("id", ""),
+                    )
+                except json.JSONDecodeError:
+                    print("Non-JSON line:", line)
 
 
 async def check_docker_image(
