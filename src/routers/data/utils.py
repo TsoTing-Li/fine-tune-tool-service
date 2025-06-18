@@ -154,6 +154,9 @@ def check_dataset_key_value(
     dataset_tags: Union[Tags, None],
     dataset_format: Literal["alpaca", "sharegpt"],
 ) -> None:
+    if not isinstance(dataset_content, list):
+        raise ValueError("incorrect format")
+
     if len(dataset_content) < 2:
         raise ValueError("the number of dataset must be more than 1")
 
