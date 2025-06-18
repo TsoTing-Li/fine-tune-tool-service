@@ -1,0 +1,80 @@
+name: Build and Push Docker Image
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Docker Image release version'
+        required: false
+        type: string
+jobs:
+  get_all_var:
+    runs-on: ubuntu-latest
+    outputs:
+      validated_version: ${{ steps.get_version.outputs.input_version }}
+      project_name: ${{ steps.get_project_name.outputs.project_name}}
+      repo_name: ${{ steps.get_project_name.outputs.repo_name}}
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+
+      -
+        name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      -
+        name: Get version and repo from pyproject.toml
+        id: get_config
+        run: |
+          PROJECT=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["name"])')
+          VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          IMAGE=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["tool"]["docker"]["repository"])')
+          echo "project_name=$PROJECT" >> $GITHUB_OUTPUT
+          echo "input_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "repo_name=$IMAGE" >> $GITHUB_OUTPUT
+  
+  main_service_docker:
+    runs-on: ubuntu-22.04
+    needs: get_all_var
+    env:
+      PROJECT: ${{ needs.validate_input.outputs.project_name}}
+      INPUT_VERSION: ${{ needs.validate_input.outputs.validated_version}}
+      REPO: ${{ needs.validate_input.outputs.repo_name}}
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+      
+      -
+        name: Login Docker
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      -
+        name: Build and push
+        run: |
+          docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/main-service .
+          docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
+
+  finetune_tool_docker:
+    runs-on: ubuntu-22.04
+    needs: get_all_var
+    env:
+      PROJECT: ${{ needs.validate_input.outputs.project_name}}
+      INPUT_VERSION: ${{ needs.validate_input.outputs.validated_version}}
+      REPO: ${{ needs.validate_input.outputs.repo_name}}
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+      
+      -
+        name: Login Docker
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      -
+        name: Build and push
+        run: |
+          docker build -t ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }} -f docker/finetune-tool .
+          docker push ${{ env.REPO }}/${{ env.PROJECT }}:${{ env.INPUT_VERSION }}
