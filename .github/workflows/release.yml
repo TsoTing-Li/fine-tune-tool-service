@@ -94,8 +94,7 @@ jobs:
       -
         name: Upload zipped release
         run: |
-          cd "${{ env.RELEASE_FOLDER }}"
-          zip -r ../AccelTune-release-${{ env.RELEASE_VERSION }}.zip "${{ env.RELEASE_FOLDER }}"
+          zip -r "AccelTune-release-${{ env.RELEASE_VERSION }}.zip" "${{ env.RELEASE_FOLDER }}"
       -
         name: Create Release
         id: create_release
