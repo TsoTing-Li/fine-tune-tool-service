@@ -89,9 +89,10 @@ jobs:
             ${{ matrix.docker_image_name }} bash -c "\
               apt update && \
               apt install -y gcc build-essential && \
-              pip install pyinstaller httpx && \
+              pip install pyinstaller httpx transformers datasets huggingface_hub && \
               pyinstaller --onefile generate_env.py --distpath dist/${{ matrix.release_file_os }} && \
-              pyinstaller --onefile pull_all_images.py --distpath dist/${{ matrix.release_file_os }}
+              pyinstaller --onefile pull_all_images.py --distpath dist/${{ matrix.release_file_os }} && \
+              pyinstaller --onefile download_require_files.py --distpath dist/${{ matrix.release_file_os }}
             "
 
       -
@@ -102,6 +103,7 @@ jobs:
 
           cp dist/${{ matrix.release_file_os }}/generate_env "${{ env.RELEASE_FOLDER }}/generate_env_${{ matrix.release_file_os }}"
           cp dist/${{ matrix.release_file_os }}/pull_all_images "${{ env.RELEASE_FOLDER }}/pull_all_images_${{ matrix.release_file_os }}"
+          cp dist/${{ matrix.release_file_os }}/download_require_files "${{ env.RELEASE_FOLDER }}/download_require_files_${{ matrix.release_file_os }}"
 
       -
         name: Upload zipped release
