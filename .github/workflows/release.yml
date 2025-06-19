@@ -55,13 +55,13 @@ jobs:
       matrix:
         include:
           - 
-            docker_image_name: "python:3.10.14-bullseye"
+            docker_image_name: "python:3.11.9-bullseye"
             release_file_os: "ubuntu_2004"
           - 
-            docker_image_name: "python:3.10.14-bookworm"
+            docker_image_name: "python:3.11.9-bookworm"
             release_file_os: "ubuntu_2204"
           - 
-            docker_image_name: "python:3.10.14-bookworm"
+            docker_image_name: "python:3.11.9-bookworm"
             release_file_os: "ubuntu_2404"
     steps:
       -
@@ -89,7 +89,7 @@ jobs:
             ${{ matrix.docker_image_name }} bash -c "\
               apt update && \
               apt install -y gcc build-essential && \
-              pip install pyinstaller && \
+              pip install pyinstaller httpx && \
               pyinstaller --onefile generate_env.py --distpath dist/${{ matrix.release_file_os }} && \
               pyinstaller --onefile pull_all_images.py --distpath dist/${{ matrix.release_file_os }}
             "
