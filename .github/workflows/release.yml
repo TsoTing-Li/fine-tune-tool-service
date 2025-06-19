@@ -64,7 +64,7 @@ jobs:
       -
         name: Create release folder
         run: |
-          release_folder = "AccelTune_${{ env.RELEASE_VERSION }}"
+          release_folder="AccelTune_${{ env.RELEASE_VERSION }}"
           mkdir -p "$release_folder"
           echo "RELEASE_FOLDER=$release_folder" >> $GITHUB_ENV
 
