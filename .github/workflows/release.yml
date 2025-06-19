@@ -51,19 +51,18 @@ jobs:
   create_release:
     runs-on: ubuntu-22.04
     needs: validate_input
-    build_ubuntu:
-      strategy:
-        matrix:
-          include:
-            - 
-              docker_image_name: "python:3.10.14-bullseye"
-              release_file_os: "ubuntu_2004"
-            - 
-              docker_image_name: "python:3.10.14-bookworm"
-              release_file_os: "ubuntu_2204"
-            - 
-              docker_image_name: "python:3.10.14-bookworm"
-              release_file_os: "ubuntu_2404"
+    strategy:
+      matrix:
+        include:
+          - 
+            docker_image_name: "python:3.10.14-bullseye"
+            release_file_os: "ubuntu_2004"
+          - 
+            docker_image_name: "python:3.10.14-bookworm"
+            release_file_os: "ubuntu_2204"
+          - 
+            docker_image_name: "python:3.10.14-bookworm"
+            release_file_os: "ubuntu_2404"
     steps:
       -
         name: Checkout repo
