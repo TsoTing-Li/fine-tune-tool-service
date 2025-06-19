@@ -51,6 +51,19 @@ jobs:
   create_release:
     runs-on: ubuntu-22.04
     needs: validate_input
+    build_ubuntu:
+      strategy:
+        matrix:
+          include:
+            - 
+              docker_image_name: "python:3.10.14-bullseye"
+              release_file_os: "ubuntu_2004"
+            - 
+              docker_image_name: "python:3.10.14-bookworm"
+              release_file_os: "ubuntu_2204"
+            - 
+              docker_image_name: "python:3.10.14-bookworm"
+              release_file_os: "ubuntu_2404"
     steps:
       -
         name: Checkout repo
@@ -74,12 +87,12 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
-            python:3.10-slim bash -c "\
+            ${{ matrix.docker_image_name }} bash -c "\
               apt update && \
               apt install -y gcc build-essential && \
               pip install pyinstaller && \
-              pyinstaller --onefile generate_env.py --distpath dist && \
-              pyinstaller --onefile pull_all_images.py --distpath dist
+              pyinstaller --onefile generate_env.py --distpath dist/${{ matrix.release_file_os }} && \
+              pyinstaller --onefile pull_all_images.py --distpath dist/${{ matrix.release_file_os }}
             "
 
       -
@@ -88,13 +101,13 @@ jobs:
           cp -r nginx src static "${{ env.RELEASE_FOLDER }}"
           cp .env.template LICENSE README.md app.py compose.yaml pyproject.toml version.toml "${{ env.RELEASE_FOLDER }}"
 
-          cp dist/generate_env "${{ env.RELEASE_FOLDER }}/generate_env"
-          cp dist/pull_all_images "${{ env.RELEASE_FOLDER }}/pull_all_images"
+          cp dist/${{ matrix.release_file_os }}/generate_env "${{ env.RELEASE_FOLDER }}/generate_env_${{ matrix.release_file_os }}"
+          cp dist/${{ matrix.release_file_os }}/pull_all_images "${{ env.RELEASE_FOLDER }}/pull_all_images_${{ matrix.release_file_os }}"
 
       -
         name: Upload zipped release
         run: |
-          zip -r "AccelTune-release-${{ env.RELEASE_VERSION }}.zip" "${{ env.RELEASE_FOLDER }}"
+          zip -r "AccelTune-release-${{ matrix.release_file_os }}-${{ env.RELEASE_VERSION }}.zip" "${{ env.RELEASE_FOLDER }}"
       -
         name: Create Release
         id: create_release
@@ -105,4 +118,4 @@ jobs:
           name: ${{ env.RELEASE_VERSION }}
           draft: false
           prerelease: false
-          files: AccelTune-release-${{ env.RELEASE_VERSION }}.zip
+          files: AccelTune-release-${{ matrix.release_file_os }}-${{ env.RELEASE_VERSION }}.zip
