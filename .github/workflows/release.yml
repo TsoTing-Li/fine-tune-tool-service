@@ -54,6 +54,41 @@ jobs:
         uses: actions/checkout@v4
 
       -
+        name: Create release folder
+        run: |
+          release_folder = "AccelTune_${{ env.INPUT_VERSION }}"
+          mkdir -p "$release_folder"
+          echo "RELEASE_FOLDER=$release_folder" >> $GITHUB_ENV
+
+      -
+        name: Install Python and PyInstaller
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            python:3.10-slim bash -c "\
+              apt update && \
+              apt install -y gcc build-essential && \
+              pip install pyinstaller && \
+              pyinstaller --onefile generate_env.py --distpath dist && \
+              pyinstaller --onefile pull_all_images.py --distpath dist
+            "
+
+      -
+        name: Prepare release directory
+        run: |
+          cp -r nginx src static "${{ env.RELEASE_FOLDER }}"
+          cp .env.template LICENSE README.md app.py compose.yaml pyproject.toml version.toml "${{ env.RELEASE_FOLDER }}"
+
+          cp dist/generate_env "${{ env.RELEASE_FOLDER }}/generate_env"
+          cp dist/pull_all_images "${{ env.RELEASE_FOLDER }}/pull_all_images"
+
+      -
+        name: Upload zipped release
+        run: |
+          cd "${{ env.RELEASE_FOLDER }}"
+          zip -r ../AccelTune-release-${{ env.INPUT_VERSION }}.zip "${{ env.RELEASE_FOLDER }}"
+      -
         name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -63,3 +98,4 @@ jobs:
           name: ${{ env.INPUT_VERSION }}
           draft: false
           prerelease: false
+          files: AccelTune-release-${{ env.INPUT_VERSION }}.zip
