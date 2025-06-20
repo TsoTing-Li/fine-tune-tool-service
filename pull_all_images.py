@@ -23,6 +23,7 @@ async def get_all_image_name(
     micro_service_dict: Dict[str, Dict[str, str]],
     shared_service_dict: Dict[str, Dict[str, str]],
     thirdparty_service_dict: Dict[str, Dict[str, str]],
+    frontend_dict: Dict[str, Dict[str, str]],
 ) -> Dict[str, Dict[str, str]]:
     all_image_name: Dict[str, Dict[str, str]] = dict()
 
@@ -40,6 +41,12 @@ async def get_all_image_name(
 
     for name, info in thirdparty_service_dict.items():
         all_image_name[name] = {"image_name": info["name"], "tag": info["version"]}
+
+    for name, info in frontend_dict.items():
+        all_image_name[name] = {
+            "image_name": f"{docker_username}/{docker_base_repo}-{info['name']}",
+            "tag": info["version"],
+        }
 
     return all_image_name
 

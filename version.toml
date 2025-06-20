@@ -46,3 +46,7 @@ version = "7.2.4"
 [thirdparty.nginx]
 name = "nginx"
 version = "1.25"
+
+[frontend]
+name = "website"
+version = "v100"
