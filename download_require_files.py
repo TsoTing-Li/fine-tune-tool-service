@@ -31,10 +31,11 @@ async def get_eval_tasks() -> list:
 
 
 def download_model(model_list: list) -> None:
+    hf_token = os.getenv("HF_TOKEN", "")
     for model_info in model_list:
         model_name = model_info["model_name"]
         print(f"Downloading model {model_name}")
-        snapshot_download(repo_id=model_name, token=os.getenv("HF_TOKEN", ""))
+        snapshot_download(repo_id=model_name, token=hf_token)
         print("Model downloaded.")
 
 
