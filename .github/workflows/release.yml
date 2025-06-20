@@ -58,7 +58,7 @@ jobs:
             docker_image_name: "python:3.11.9-bullseye"
             release_file_os: "ubuntu_2004"
           - 
-            docker_image_name: "python:3.11.9-bookworm"
+            docker_image_name: "python:3.11.9-bullseye"
             release_file_os: "ubuntu_2204"
           - 
             docker_image_name: "python:3.11.9-bookworm"
