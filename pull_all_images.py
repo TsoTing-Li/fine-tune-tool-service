@@ -14,8 +14,6 @@ except ModuleNotFoundError:
 
     _is_stdlib = False
 
-PAD_WIDTH = 20
-
 
 async def get_all_image_name(
     docker_username: str,
