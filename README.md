@@ -30,7 +30,8 @@ AccelTune is a finetuning tool in LLM.
 
 * download require files, please set your HF_TOKEN before execute.
     ```bash
-    sudo ./download_require_files
+    sudo chown -R $(whoami):$(whoami) /home/$(whoami)/.cache/huggingface
+    ./download_require_files
     ```
 
 ## Startup
