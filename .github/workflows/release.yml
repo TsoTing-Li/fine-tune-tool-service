@@ -89,7 +89,7 @@ jobs:
             ${{ matrix.docker_image_name }} bash -c "\
               apt update && \
               apt install -y gcc build-essential && \
-              pip install pyinstaller httpx transformers datasets huggingface_hub && \
+              pip install pyinstaller httpx transformers datasets huggingface_hub anyio && \
               pyinstaller --onefile generate_env.py --distpath dist/${{ matrix.release_file_os }} && \
               pyinstaller --onefile pull_all_images.py --distpath dist/${{ matrix.release_file_os }} && \
               pyinstaller --onefile download_require_files.py --distpath dist/${{ matrix.release_file_os }}
