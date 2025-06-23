@@ -34,29 +34,40 @@ def download_model(model_list: list) -> None:
     hf_token = os.getenv("HF_TOKEN", "")
     for model_info in model_list:
         model_name = model_info["model_name"]
-        print(f"Downloading model {model_name}")
+        print(f"Model {model_name} downloading")
         snapshot_download(repo_id=model_name, token=hf_token)
-        print("Model downloaded.")
+        print(f"Model {model_name} downloaded")
 
 
 def download_dataset(dataset_list: list) -> None:
+    hf_token = os.getenv("HF_TOKEN", "")
     for dataset_info in dataset_list:
-        dataset_name = dataset_info["tool_input"]
-        print(f"Downloading dataset {dataset_name}")
-        load_dataset(dataset_name, token=os.getenv("HF_TOKEN", ""))
-        print("Dataset downloaded.")
+        dataset_repo = dataset_info["hf"]["repo"]
+        dataset_subsets = dataset_info["hf"].get("subsets", None)
+
+        print(f"Dataset {dataset_repo} downloading")
+
+        if dataset_subsets is not None:
+            for subset in dataset_subsets:
+                print(f"\tsubset: {subset}")
+                load_dataset(
+                    path=dataset_repo,
+                    name=subset,
+                    token=hf_token,
+                    trust_remote_code=True,
+                )
+        else:
+            load_dataset(path=dataset_repo, token=hf_token, trust_remote_code=True)
+
+        print(f"Dataset {dataset_repo} downloaded")
 
 
 async def main() -> None:
     support_model_list = await get_support_model()
     eval_tasks_list = await get_eval_tasks()
     loop = asyncio.get_event_loop()
-    model_task = loop.run_in_executor(
-        None, download_model(model_list=support_model_list)
-    )
-    dataset_task = loop.run_in_executor(
-        None, download_dataset(dataset_list=eval_tasks_list)
-    )
+    model_task = loop.run_in_executor(None, download_model, support_model_list)
+    dataset_task = loop.run_in_executor(None, download_dataset, eval_tasks_list)
 
     await asyncio.gather(model_task, dataset_task)
 
