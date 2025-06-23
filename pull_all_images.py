@@ -40,11 +40,12 @@ async def get_all_image_name(
     for name, info in thirdparty_service_dict.items():
         all_image_name[name] = {"image_name": info["name"], "tag": info["version"]}
 
-    for name, info in frontend_dict.items():
-        all_image_name[name] = {
-            "image_name": f"{docker_username}/{docker_base_repo}-{info['name']}",
-            "tag": info["version"],
-        }
+    website_name = frontend_dict["name"]
+    website_version = frontend_dict["version"]
+    all_image_name[website_name] = {
+        "image_name": f"{docker_username}/{docker_base_repo}-{website_name}",
+        "tag": website_version,
+    }
 
     return all_image_name
 
@@ -124,6 +125,7 @@ async def main():
         micro_service_dict=version_file_content["services"],
         shared_service_dict=version_file_content["shared"],
         thirdparty_service_dict=version_file_content["thirdparty"],
+        frontend_dict=version_file_content["frontend"],
     )
 
     MAX_CONCURRENT_PULLS = len(all_images)
