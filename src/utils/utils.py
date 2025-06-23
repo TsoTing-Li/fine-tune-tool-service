@@ -1,7 +1,10 @@
+import os
 import time
 import uuid
 from datetime import datetime
 from typing import Tuple
+
+import aiofiles
 
 
 def generate_uuid() -> str:
@@ -22,3 +25,13 @@ def assemble_image_name(username: str, repository: str, tag: str) -> str:
         return f"{username}:{tag}"
     else:
         return f"{username}/{repository}:{tag}"
+
+
+async def check_dataset_info_file(file_path: str):
+    dir_path = os.path.dirname(file_path)
+    if dir_path and not os.path.exists(dir_path):
+        os.makedirs(dir_path, exist_ok=True)
+
+    if not os.path.exists(file_path):
+        async with aiofiles.open(file_path, mode="w") as f:
+            await f.write("{}")

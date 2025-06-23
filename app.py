@@ -11,7 +11,7 @@ from src.schema.eval_tasks import EvalTaskInfo
 from src.schema.support_models import SupportModelInfo
 from src.thirdparty.redis.handler import redis_async
 from src.utils.logger import accel_logger
-from src.utils.utils import generate_uuid
+from src.utils.utils import check_dataset_info_file, generate_uuid
 
 
 @asynccontextmanager
@@ -58,6 +58,10 @@ async def lifespan(app: FastAPI):
         await redis_async.client.hset(
             TASK_CONFIG.eval_tasks, uuid, orjson.dumps(eval_task_info)
         )
+
+    await check_dataset_info_file(
+        file_path=f"{COMMON_CONFIG.data_path}/dataset_info.json"
+    )
 
     yield
 
